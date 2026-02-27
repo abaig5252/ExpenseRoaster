@@ -1,10 +1,9 @@
-import { pgTable, serial, text, integer, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { index, jsonb } from "drizzle-orm/pg-core";
 
-// Session storage table — required for Replit Auth
 export const sessions = pgTable(
   "sessions",
   {
@@ -15,13 +14,22 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)]
 );
 
-// User storage table — required for Replit Auth
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  // Subscription tier: free | premium
+  tier: varchar("tier").default("free").notNull(),
+  // Stripe billing fields
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  // Free tier upload tracking
+  monthlyUploadCount: integer("monthly_upload_count").default(0).notNull(),
+  monthlyUploadResetDate: timestamp("monthly_upload_reset_date"),
+  // One-time annual report purchase
+  hasAnnualReport: boolean("has_annual_report").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -32,13 +40,13 @@ export type User = typeof users.$inferSelect;
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id),
-  amount: integer("amount").notNull(), // in cents
+  amount: integer("amount").notNull(),
   description: text("description").notNull(),
   date: timestamp("date").notNull(),
   category: text("category").notNull(),
   roast: text("roast").notNull(),
   imageUrl: text("image_url"),
-  source: text("source").default("receipt"), // "receipt" | "manual" | "bank_statement"
+  source: text("source").default("receipt"),
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true });

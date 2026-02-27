@@ -48,6 +48,7 @@ export function useMonthlySeries() {
 export function useFinancialAdvice() {
   return useQuery<{ advice: string; topCategory: string; savingsPotential: number }>({
     queryKey: [api.expenses.financialAdvice.path],
+    retry: false,
     queryFn: async () => {
       const res = await apiFetch(api.expenses.financialAdvice.path);
       return res.json();
@@ -58,19 +59,20 @@ export function useFinancialAdvice() {
 export function useUploadExpense() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { image: string }) => {
+    mutationFn: async (data: { image: string; tone?: string }) => {
       const res = await apiFetch(api.expenses.upload.path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      return parseDates(await res.json()) as ExpenseResponse;
+      return parseDates(await res.json()) as ExpenseResponse & { ephemeral?: boolean; uploadsUsed?: number; uploadsLimit?: number };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.expenses.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.expenses.summary.path] });
       queryClient.invalidateQueries({ queryKey: [api.expenses.monthlySeries.path] });
       queryClient.invalidateQueries({ queryKey: [api.expenses.financialAdvice.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
     },
   });
 }
@@ -84,6 +86,7 @@ export function useAddManualExpense() {
       category: string;
       date: string;
       source: "manual" | "bank_statement";
+      tone?: string;
     }) => {
       const res = await apiFetch(api.expenses.addManual.path, {
         method: "POST",

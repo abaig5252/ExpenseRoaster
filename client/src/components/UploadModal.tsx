@@ -1,14 +1,24 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { UploadCloud, X, Loader2, Flame, AlertCircle, Camera } from "lucide-react";
+import { UploadCloud, X, Loader2, Flame, AlertCircle, Camera, ChevronDown } from "lucide-react";
 import { useUploadExpense } from "@/hooks/use-expenses";
+import { useMe } from "@/hooks/use-subscription";
+import { Link } from "wouter";
 import type { ExpenseResponse } from "@shared/routes";
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: (data: any) => void;
+  isFree?: boolean;
 }
+
+const TONES = [
+  { value: "savage", label: "Savage 🔥", desc: "Maximum brutality" },
+  { value: "playful", label: "Playful 😄", desc: "Friendly ribbing" },
+  { value: "supportive", label: "Supportive 💛", desc: "Gentle honesty" },
+];
 
 const loadingMessages = [
   "Scanning your financial crimes...",
@@ -19,12 +29,16 @@ const loadingMessages = [
   "Preparing your intervention...",
 ];
 
-export function UploadModal({ isOpen, onClose }: UploadModalProps) {
+export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
   const [result, setResult] = useState<ExpenseResponse | null>(null);
+  const [tone, setTone] = useState("savage");
   const [loadingMsg] = useState(() => loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
   const uploadMutation = useUploadExpense();
+  const { data: me } = useMe();
+
+  const isPremium = me?.tier === "premium";
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -44,7 +58,15 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
 
   const handleUpload = () => {
     if (!base64Image) return;
-    uploadMutation.mutate({ image: base64Image }, { onSuccess: setResult });
+    uploadMutation.mutate(
+      { image: base64Image, tone },
+      {
+        onSuccess: (data) => {
+          setResult(data);
+          if (data.ephemeral && onSuccess) onSuccess(data);
+        },
+      }
+    );
   };
 
   const resetAndClose = () => {
@@ -54,6 +76,9 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
     uploadMutation.reset();
     onClose();
   };
+
+  const isLimitError = (uploadMutation.error as any)?.message?.includes("limit reached") ||
+    (uploadMutation as any)?.error?.message?.includes("UPLOAD_LIMIT");
 
   return (
     <AnimatePresence>
@@ -100,7 +125,6 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
                 </div>
               ) : result ? (
                 <div className="flex flex-col items-center text-center gap-6">
-                  {/* Score reveal */}
                   <div className="w-full bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--secondary))]/10 rounded-3xl p-6 border border-[hsl(var(--primary))]/20">
                     <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Financial Damage</div>
                     <div className="text-5xl font-display font-black text-white mb-2">
@@ -112,16 +136,24 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
                     </div>
                   </div>
 
-                  {/* The Roast */}
                   <div className="w-full bg-[hsl(var(--destructive))]/10 border-2 border-[hsl(var(--destructive))]/30 rounded-3xl p-6 relative">
                     <div className="absolute -top-3 left-6 px-3 py-1 bg-[hsl(var(--destructive))] rounded-full flex items-center gap-1">
                       <Flame className="w-3 h-3 text-white" />
                       <span className="text-xs font-black text-white uppercase tracking-wider">The Roast</span>
                     </div>
-                    <p className="text-lg font-semibold italic text-white leading-relaxed mt-2">
-                      "{result.roast}"
-                    </p>
+                    <p className="text-lg font-semibold italic text-white leading-relaxed mt-2">"{result.roast}"</p>
                   </div>
+
+                  {isFree && (
+                    <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Free tier: your roast won't be saved.</p>
+                      <Link href="/pricing">
+                        <span className="text-sm text-[hsl(var(--primary))] hover:underline font-semibold cursor-pointer">
+                          Upgrade to save history & get unlimited uploads →
+                        </span>
+                      </Link>
+                    </div>
+                  )}
 
                   <button
                     onClick={resetAndClose}
@@ -137,11 +169,55 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
               ) : (
                 <div className="flex flex-col gap-5">
                   {uploadMutation.isError && (
-                    <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex items-start gap-3 text-destructive">
-                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                      <p className="text-sm font-medium">{uploadMutation.error?.message}</p>
+                    <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex flex-col gap-2 text-destructive">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <p className="text-sm font-medium">{(uploadMutation.error as any)?.message}</p>
+                      </div>
+                      {isLimitError && (
+                        <Link href="/pricing" onClick={resetAndClose}>
+                          <span className="text-sm font-bold text-[hsl(var(--primary))] hover:underline cursor-pointer ml-8">
+                            Upgrade to Premium for unlimited uploads →
+                          </span>
+                        </Link>
+                      )}
                     </div>
                   )}
+
+                  {/* Tone selector (premium only) */}
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
+                      Roast Tone {!isPremium && <span className="text-[hsl(var(--primary))]">(Premium)</span>}
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {TONES.map((t) => (
+                        <button
+                          key={t.value}
+                          type="button"
+                          disabled={!isPremium}
+                          onClick={() => isPremium && setTone(t.value)}
+                          data-testid={`button-tone-${t.value}`}
+                          className={`py-2.5 px-3 rounded-xl text-sm font-bold transition-all text-center ${
+                            tone === t.value && isPremium
+                              ? "bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/40"
+                              : isPremium
+                              ? "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"
+                              : "bg-white/3 text-muted-foreground/40 border border-transparent cursor-not-allowed"
+                          }`}
+                        >
+                          <div>{t.label}</div>
+                          <div className="text-xs font-normal opacity-70">{t.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                    {!isPremium && (
+                      <Link href="/pricing" onClick={resetAndClose}>
+                        <p className="text-xs text-[hsl(var(--primary))] mt-1.5 hover:underline cursor-pointer">
+                          Unlock tone selection with Premium →
+                        </p>
+                      </Link>
+                    )}
+                  </div>
 
                   <div
                     {...getRootProps()}
@@ -169,7 +245,8 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
                         </div>
                         <p className="text-xl font-bold text-white mb-2">Drop your receipt here</p>
                         <p className="text-sm text-muted-foreground max-w-[260px]">
-                          Or tap to browse. JPG, PNG, WebP — any image of a receipt or bank statement works.
+                          JPG, PNG, WebP — any image of a receipt works.
+                          {isFree && <span className="block mt-1 text-[hsl(var(--primary))]">{Math.max(0, 2 - (me?.monthlyUploadCount || 0))} upload{Math.max(0, 2 - (me?.monthlyUploadCount || 0)) === 1 ? "" : "s"} remaining this month.</span>}
                         </p>
                       </>
                     )}

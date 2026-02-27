@@ -3,10 +3,13 @@ import { expenses, users, type Expense, type InsertExpense, type User, type Upse
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // Auth
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  // Expenses
+  updateUserTier(userId: string, tier: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<User>;
+  updateUserAnnualReport(userId: string, hasAnnualReport: boolean): Promise<User>;
+  updateUserStripeCustomer(userId: string, stripeCustomerId: string): Promise<User>;
+  checkAndResetMonthlyUpload(userId: string): Promise<User>;
+  incrementMonthlyUpload(userId: string): Promise<User>;
   getExpenses(userId: string): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
   deleteExpense(id: number, userId: string): Promise<void>;
@@ -32,8 +35,54 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async updateUserTier(userId: string, tier: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<User> {
+    const update: any = { tier, updatedAt: new Date() };
+    if (stripeCustomerId) update.stripeCustomerId = stripeCustomerId;
+    if (stripeSubscriptionId) update.stripeSubscriptionId = stripeSubscriptionId;
+    const [user] = await db.update(users).set(update).where(eq(users.id, userId)).returning();
+    return user;
+  }
+
+  async updateUserAnnualReport(userId: string, hasAnnualReport: boolean): Promise<User> {
+    const [user] = await db.update(users).set({ hasAnnualReport, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
+    return user;
+  }
+
+  async updateUserStripeCustomer(userId: string, stripeCustomerId: string): Promise<User> {
+    const [user] = await db.update(users).set({ stripeCustomerId, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
+    return user;
+  }
+
+  async checkAndResetMonthlyUpload(userId: string): Promise<User> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) throw new Error("User not found");
+
+    const now = new Date();
+    const resetDate = user.monthlyUploadResetDate;
+    const shouldReset = !resetDate || now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear();
+
+    if (shouldReset) {
+      const [updated] = await db
+        .update(users)
+        .set({ monthlyUploadCount: 0, monthlyUploadResetDate: now, updatedAt: now })
+        .where(eq(users.id, userId))
+        .returning();
+      return updated;
+    }
+    return user;
+  }
+
+  async incrementMonthlyUpload(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ monthlyUploadCount: sql`${users.monthlyUploadCount} + 1`, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
   async getExpenses(userId: string): Promise<Expense[]> {
-    return await db.select().from(expenses).where(eq(expenses.userId, userId)).orderBy(desc(expenses.date));
+    return db.select().from(expenses).where(eq(expenses.userId, userId)).orderBy(desc(expenses.date));
   }
 
   async createExpense(insertExpense: InsertExpense): Promise<Expense> {
@@ -78,11 +127,7 @@ export class DatabaseStorage implements IStorage {
       .groupBy(sql`to_char(${expenses.date}, 'YYYY-MM')`)
       .orderBy(sql`to_char(${expenses.date}, 'YYYY-MM')`);
 
-    return rows.map((r) => ({
-      month: r.month,
-      total: Number(r.total),
-      count: Number(r.count),
-    }));
+    return rows.map((r) => ({ month: r.month, total: Number(r.total), count: Number(r.count) }));
   }
 }
 

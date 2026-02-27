@@ -8,6 +8,9 @@ import Landing from "@/pages/Landing";
 import Upload from "@/pages/Upload";
 import BankStatement from "@/pages/BankStatement";
 import MonthlyTracker from "@/pages/MonthlyTracker";
+import Pricing from "@/pages/Pricing";
+import AnnualReport from "@/pages/AnnualReport";
+import UpgradeSuccess from "@/pages/UpgradeSuccess";
 import { useAuth } from "@/hooks/use-auth";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -48,6 +51,9 @@ function Router() {
       <Route path="/upload" component={() => <ProtectedRoute component={Upload} />} />
       <Route path="/bank" component={() => <ProtectedRoute component={BankStatement} />} />
       <Route path="/tracker" component={() => <ProtectedRoute component={MonthlyTracker} />} />
+      <Route path="/pricing" component={() => <ProtectedRoute component={Pricing} />} />
+      <Route path="/annual-report" component={() => <ProtectedRoute component={AnnualReport} />} />
+      <Route path="/upgrade/success" component={() => <ProtectedRoute component={UpgradeSuccess} />} />
       <Route component={NotFound} />
     </Switch>
   );

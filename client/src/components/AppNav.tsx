@@ -1,16 +1,22 @@
 import { Link, useLocation } from "wouter";
-import { Flame, UploadCloud, Wallet, BarChart3, LogOut, User } from "lucide-react";
+import { Flame, Wallet, BarChart3, LogOut, Crown, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useMe } from "@/hooks/use-subscription";
 
 const navLinks = [
   { href: "/upload", label: "Roast Receipt", icon: Flame },
   { href: "/bank", label: "Bank Statement", icon: Wallet },
   { href: "/tracker", label: "Monthly Tracker", icon: BarChart3 },
+  { href: "/annual-report", label: "Annual Report", icon: FileText },
 ];
 
 export function AppNav() {
   const { user, logout } = useAuth();
+  const { data: me } = useMe();
   const [location] = useLocation();
+
+  const isPremium = me?.tier === "premium";
+  const hasAnnualReport = me?.hasAnnualReport;
 
   const initials = user
     ? ((user.firstName?.[0] || "") + (user.lastName?.[0] || "")).toUpperCase() || user.email?.[0]?.toUpperCase() || "?"
@@ -33,6 +39,9 @@ export function AppNav() {
         <div className="flex items-center gap-1">
           {navLinks.map(({ href, label, icon: Icon }) => {
             const isActive = location === href;
+            const isLocked = href === "/bank" && !isPremium;
+            const isAnnualLocked = href === "/annual-report" && !hasAnnualReport && !isPremium;
+
             return (
               <Link key={href} href={href} data-testid={`link-nav-${label.toLowerCase().replace(/\s/g, "-")}`}>
                 <div className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
@@ -41,15 +50,33 @@ export function AppNav() {
                     : "text-muted-foreground hover:text-white hover:bg-white/[0.05]"
                 }`}>
                   <Icon className="w-4 h-4" />
-                  <span className="hidden sm:block">{label}</span>
+                  <span className="hidden md:block">{label}</span>
+                  {(isLocked || isAnnualLocked) && <Crown className="w-3 h-3 text-[hsl(var(--primary))]/60 hidden md:block" />}
                 </div>
               </Link>
             );
           })}
         </div>
 
-        {/* User */}
-        <div className="flex items-center gap-3">
+        {/* User + Tier */}
+        <div className="flex items-center gap-2">
+          {/* Tier badge */}
+          {isPremium ? (
+            <Link href="/pricing">
+              <div data-testid="badge-premium" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))]/20 to-[hsl(var(--secondary))]/20 border border-[hsl(var(--primary))]/30 cursor-pointer hover:opacity-80 transition-opacity">
+                <Crown className="w-3.5 h-3.5 text-[hsl(var(--primary))]" />
+                <span className="text-xs font-black text-[hsl(var(--primary))] uppercase tracking-wider">Premium</span>
+              </div>
+            </Link>
+          ) : (
+            <Link href="/pricing">
+              <div data-testid="badge-free" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                <span className="text-xs font-bold text-muted-foreground">Free</span>
+                <span className="text-xs text-[hsl(var(--primary))] font-bold">Upgrade</span>
+              </div>
+            </Link>
+          )}
+
           <div className="flex items-center gap-2 glass-panel px-3 py-1.5 rounded-xl">
             {user?.profileImageUrl ? (
               <img src={user.profileImageUrl} alt="avatar" className="w-6 h-6 rounded-full" />
@@ -58,7 +85,7 @@ export function AppNav() {
                 {initials}
               </div>
             )}
-            <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[120px]">
+            <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[100px]">
               {user?.firstName || user?.email?.split("@")[0] || "User"}
             </span>
           </div>
