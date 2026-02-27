@@ -121,7 +121,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                     <Flame className="w-8 h-8 text-[hsl(var(--primary))] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                   </div>
                   <p className="text-lg font-semibold text-white text-center animate-pulse">{loadingMsg}</p>
-                  <p className="text-sm text-muted-foreground text-center">The AI judges are deliberating...</p>
+                  <p className="text-sm text-muted-foreground text-center">The judges are deliberating...</p>
                 </div>
               ) : result ? (
                 <div className="flex flex-col items-center text-center gap-6">

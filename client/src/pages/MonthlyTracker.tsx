@@ -205,7 +205,7 @@ export default function MonthlyTracker() {
               <div className="w-9 h-9 rounded-xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
                 <Lightbulb className="w-5 h-5 text-[hsl(var(--accent))]" />
               </div>
-              <h2 className="text-xl font-display font-bold text-white">AI Financial Advice</h2>
+              <h2 className="text-xl font-display font-bold text-white">Financial Advice</h2>
             </div>
 
             {adviceLoading ? (
@@ -231,7 +231,7 @@ export default function MonthlyTracker() {
                 </div>
                 <div className="flex items-start gap-2.5 bg-[hsl(var(--destructive))]/10 border border-[hsl(var(--destructive))]/20 rounded-2xl p-4">
                   <AlertTriangle className="w-4 h-4 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground">Advice is AI-generated based on your spending patterns. Always consult a real financial advisor for major decisions.</p>
+                  <p className="text-xs text-muted-foreground">Advice is based on your spending patterns. Always consult a real financial advisor for major decisions.</p>
                 </div>
               </div>
             ) : (

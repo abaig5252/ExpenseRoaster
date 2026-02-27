@@ -55,7 +55,7 @@ export default function AnnualReport() {
               <div className="text-5xl font-display font-black text-white mb-1">$29.99</div>
               <div className="text-muted-foreground mb-6">One-time payment</div>
               <ul className="flex flex-col gap-3 mb-8">
-                {["Brutal AI roast of your full year", "Behavioral spending analysis", "Top 5 spending categories", "Worst month identified", "5-year projection if you don't change", "3 custom improvement suggestions", "Downloadable PDF"].map(f => (
+                {["Brutal full-year roast", "Behavioral spending analysis", "Top 5 spending categories", "Worst month identified", "5-year projection if you don't change", "3 custom improvement suggestions", "Downloadable PDF"].map(f => (
                   <li key={f} className="flex items-center gap-3 text-sm text-white">
                     <Flame className="w-4 h-4 text-[hsl(var(--primary))] shrink-0" />{f}
                   </li>

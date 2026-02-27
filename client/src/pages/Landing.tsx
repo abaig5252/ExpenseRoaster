@@ -3,8 +3,8 @@ import { Flame, TrendingDown, BadgeDollarSign, BarChart3, Sparkles, ChevronRight
 
 export default function Landing() {
   const features = [
-    { icon: Receipt, title: "AI Receipt Scanning", desc: "Snap your receipt, get roasted in seconds. No spreadsheets, no excuses." },
-    { icon: Flame, title: "Spicy Roasts", desc: "Our AI will drag your spending habits in the most hilarious, accurate way possible." },
+    { icon: Receipt, title: "Receipt Scanning", desc: "Snap your receipt, get roasted in seconds. No spreadsheets, no excuses." },
+    { icon: Flame, title: "Spicy Roasts", desc: "We'll drag your spending habits in the most hilarious, accurate way possible." },
     { icon: BarChart3, title: "Monthly Tracker", desc: "Watch your financial crimes stack up month by month with beautiful charts." },
     { icon: Wallet, title: "Bank Statement Analysis", desc: "Upload your full bank statement for a comprehensive roasting of your entire lifestyle." },
     { icon: TrendingDown, title: "Financial Advice", desc: "Get real, actionable tips to stop the bleeding. Brutally honest, never boring." },
@@ -38,7 +38,7 @@ export default function Landing() {
           </h1>
 
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-4 leading-relaxed">
-            Upload your receipts and bank statements. Get <span className="text-white font-semibold">brutally honest AI roasts</span> about your spending habits — and actually useful financial advice.
+            Upload your receipts and bank statements. Get <span className="text-white font-semibold">brutally honest roasts</span> about your spending habits — and actually useful financial advice.
           </p>
           <p className="text-base text-muted-foreground/70 mb-12">
             Because your wallet needs a reality check, and your friends are too polite to give it.

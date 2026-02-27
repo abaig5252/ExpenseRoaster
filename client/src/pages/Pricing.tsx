@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const FREE_FEATURES = [
   "2 receipt uploads per month",
-  "AI roast for each receipt",
+  "Custom roast for each receipt",
   "Shareable roast card",
   "Basic expense extraction",
 ];
@@ -15,10 +15,10 @@ const FREE_FEATURES = [
 const PREMIUM_FEATURES = [
   "Unlimited receipt uploads",
   "Upload CSV bank statements",
-  "AI categorizes all transactions",
+  "Auto-categorized transactions",
   "Full spending history & charts",
   "Monthly roast summary",
-  "AI financial advice",
+  "Personalized financial advice",
   "Choose your roast tone",
   "Priority roast generation",
 ];
@@ -27,7 +27,7 @@ const ANNUAL_FEATURES = [
   "Full year spending analysis",
   "Top 5 spending categories",
   "Worst month identified",
-  "Brutal honesty AI roast",
+  "Brutal full-year roast",
   "Behavioral spending analysis",
   "5-year projection if unchanged",
   "3 custom improvement suggestions",
