@@ -40,14 +40,30 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
   const isPremium = me?.tier === "premium";
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      setPreview(URL.createObjectURL(file));
-      const reader = new FileReader();
-      reader.onload = () => setBase64Image(reader.result as string);
-      reader.readAsDataURL(file);
+  const [converting, setConverting] = useState(false);
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    let file = acceptedFiles[0];
+    if (!file) return;
+
+    const isHeic = file.type === "image/heic" || file.type === "image/heif" ||
+      file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
+
+    if (isHeic) {
+      setConverting(true);
+      try {
+        const heic2any = (await import("heic2any")).default;
+        const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+        file = new File([converted as Blob], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
+      } finally {
+        setConverting(false);
+      }
     }
+
+    setPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = () => setBase64Image(reader.result as string);
+    reader.readAsDataURL(file);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -57,6 +73,8 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
       "image/png": [".png"],
       "image/webp": [".webp"],
       "image/gif": [".gif"],
+      "image/heic": [".heic"],
+      "image/heif": [".heif"],
     },
     maxFiles: 1,
   });
@@ -119,7 +137,16 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
             {/* Content */}
             <div className="p-6 overflow-y-auto">
-              {uploadMutation.isPending ? (
+              {converting ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-6">
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full border-4 border-[hsl(var(--secondary))]/20 border-t-[hsl(var(--secondary))] animate-spin" />
+                    <Camera className="w-8 h-8 text-[hsl(var(--secondary))] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                  <p className="text-lg font-semibold text-white text-center animate-pulse">Converting iPhone photo...</p>
+                  <p className="text-sm text-muted-foreground text-center">Just a moment, preparing your image.</p>
+                </div>
+              ) : uploadMutation.isPending ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-6">
                   <div className="relative">
                     <div className="w-20 h-20 rounded-full border-4 border-[hsl(var(--primary))]/20 border-t-[hsl(var(--primary))] animate-spin" />
@@ -250,7 +277,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                         </div>
                         <p className="text-xl font-bold text-white mb-2">Drop your receipt here</p>
                         <p className="text-sm text-muted-foreground max-w-[260px]">
-                          JPG, PNG, WebP or GIF supported. iPhone users: share photo as JPEG first.
+                          JPG, PNG, WebP, GIF, or HEIC — all formats accepted, including iPhone photos.
                           {isFree && <span className="block mt-1 text-[hsl(var(--primary))]">{Math.max(0, 2 - (me?.monthlyUploadCount || 0))} upload{Math.max(0, 2 - (me?.monthlyUploadCount || 0)) === 1 ? "" : "s"} remaining this month.</span>}
                         </p>
                       </>
