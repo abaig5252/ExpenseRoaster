@@ -52,7 +52,12 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { "image/*": [] },
+    accept: {
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/webp": [".webp"],
+      "image/gif": [".gif"],
+    },
     maxFiles: 1,
   });
 
@@ -245,7 +250,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                         </div>
                         <p className="text-xl font-bold text-white mb-2">Drop your receipt here</p>
                         <p className="text-sm text-muted-foreground max-w-[260px]">
-                          JPG, PNG, WebP — any image of a receipt works.
+                          JPG, PNG, WebP or GIF supported. iPhone users: share photo as JPEG first.
                           {isFree && <span className="block mt-1 text-[hsl(var(--primary))]">{Math.max(0, 2 - (me?.monthlyUploadCount || 0))} upload{Math.max(0, 2 - (me?.monthlyUploadCount || 0)) === 1 ? "" : "s"} remaining this month.</span>}
                         </p>
                       </>
