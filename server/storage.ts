@@ -1,38 +1,41 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { expenses, type Expense, type InsertExpense } from "@shared/schema";
+import { eq, desc, gte } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getExpenses(): Promise<Expense[]>;
+  getExpense(id: number): Promise<Expense | undefined>;
+  createExpense(expense: InsertExpense): Promise<Expense>;
+  getMonthlySummary(): Promise<{ monthlyTotal: number, recentRoasts: string[] }>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getExpenses(): Promise<Expense[]> {
+    return await db.select().from(expenses).orderBy(desc(expenses.date));
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getExpense(id: number): Promise<Expense | undefined> {
+    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return expense;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createExpense(insertExpense: InsertExpense): Promise<Expense> {
+    const [expense] = await db.insert(expenses).values(insertExpense).returning();
+    return expense;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async getMonthlySummary(): Promise<{ monthlyTotal: number, recentRoasts: string[] }> {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthlyExpenses = await db.select().from(expenses).where(gte(expenses.date, startOfMonth)).orderBy(desc(expenses.date));
+    
+    const monthlyTotal = monthlyExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const recentRoasts = monthlyExpenses.slice(0, 5).map(e => e.roast);
+
+    return { monthlyTotal, recentRoasts };
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
