@@ -1,0 +1,248 @@
+import { motion } from "framer-motion";
+import { BarChart3, TrendingUp, TrendingDown, Flame, Lightbulb, DollarSign, AlertTriangle } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice } from "@/hooks/use-expenses";
+import { AppNav } from "@/components/AppNav";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function fmtCurrency(cents: number) {
+  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
+
+function fmtMonth(ym: string) {
+  const [year, month] = ym.split("-");
+  return new Date(Number(year), Number(month) - 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="glass-panel rounded-xl px-4 py-3 border border-white/10 text-sm">
+      <p className="font-bold text-white mb-1">{label}</p>
+      <p className="text-[hsl(var(--primary))]">{fmtCurrency(payload[0].value)}</p>
+      <p className="text-muted-foreground">{payload[0].payload.count} transactions</p>
+    </div>
+  );
+};
+
+export default function MonthlyTracker() {
+  const { data: series, isLoading: seriesLoading } = useMonthlySeries();
+  const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
+  const { data: expenses } = useExpenses();
+  const { data: advice, isLoading: adviceLoading } = useFinancialAdvice();
+
+  const chartData = series?.map(s => ({ ...s, label: fmtMonth(s.month) })) ?? [];
+
+  // Category breakdown from all expenses
+  const categoryTotals: Record<string, number> = {};
+  expenses?.forEach(e => {
+    categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+  });
+  const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+  const grandTotal = Object.values(categoryTotals).reduce((s, v) => s + v, 0);
+
+  const maxBar = Math.max(...(chartData.map(d => d.total) || [1]));
+
+  // Month over month comparison
+  const lastTwo = chartData.slice(-2);
+  const [prevMonth, currentMonth] = lastTwo;
+  const monthDiff = currentMonth && prevMonth ? currentMonth.total - prevMonth.total : null;
+  const monthDiffPct = prevMonth?.total ? Math.round((monthDiff! / prevMonth.total) * 100) : null;
+  const improved = monthDiff !== null && monthDiff < 0;
+
+  const categoryColors = ["hsl(var(--primary))", "hsl(var(--secondary))", "hsl(var(--accent))", "hsl(270, 90%, 65%)", "hsl(140, 80%, 50%)", "hsl(200, 100%, 55%)", "hsl(260, 20%, 60%)"];
+
+  return (
+    <div className="min-h-screen pb-24">
+      <div className="bg-noise" />
+      <AppNav />
+
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 relative z-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-2xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-[hsl(var(--accent))]" />
+            </div>
+            <h1 className="text-4xl font-display font-black text-white">Monthly Tracker</h1>
+          </div>
+          <p className="text-muted-foreground text-lg">
+            Your spending history, a breakdown of where it goes, and advice you won't want to hear.
+          </p>
+        </motion.div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {[
+            {
+              label: "This Month",
+              value: summaryLoading ? null : fmtCurrency(summary?.monthlyTotal ?? 0),
+              icon: DollarSign,
+              color: "primary",
+            },
+            {
+              label: "vs Last Month",
+              value: monthDiff !== null ? `${improved ? "" : "+"}${fmtCurrency(Math.abs(monthDiff))}` : "—",
+              sub: monthDiffPct !== null ? `${monthDiffPct > 0 ? "+" : ""}${monthDiffPct}%` : "",
+              icon: improved ? TrendingDown : TrendingUp,
+              color: improved ? "secondary" : "destructive",
+            },
+            {
+              label: "Transactions",
+              value: expenses?.length ?? 0,
+              icon: BarChart3,
+              color: "accent",
+            },
+            {
+              label: "Savings Potential",
+              value: advice ? fmtCurrency(advice.savingsPotential) : "—",
+              icon: Flame,
+              color: "primary",
+            },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              className="glass-panel rounded-2xl p-5"
+            >
+              <div className={`w-8 h-8 rounded-xl mb-3 flex items-center justify-center bg-[hsl(var(--${stat.color}))]/20 border border-[hsl(var(--${stat.color}))]/30`}>
+                <stat.icon className={`w-4 h-4 text-[hsl(var(--${stat.color}))]`} />
+              </div>
+              <div className={`text-2xl font-display font-black mb-0.5 ${stat.color === "destructive" && !improved ? "text-destructive" : "text-white"}`}>
+                {stat.value ?? <Skeleton className="h-7 w-20 bg-white/10" />}
+              </div>
+              {stat.sub && <div className="text-xs text-muted-foreground">{stat.sub}</div>}
+              <div className="text-xs text-muted-foreground mt-1 font-semibold uppercase tracking-wider">{stat.label}</div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Chart */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="glass-panel rounded-3xl p-6 mb-8">
+          <h2 className="text-xl font-display font-bold text-white mb-6">Monthly Spending (Last 12 Months)</h2>
+          {seriesLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="text-muted-foreground text-sm">Loading your financial history...</div>
+            </div>
+          ) : chartData.length === 0 ? (
+            <div className="h-64 flex flex-col items-center justify-center gap-3">
+              <BarChart3 className="w-10 h-10 text-muted-foreground" />
+              <p className="text-muted-foreground">No spending data yet. Upload some receipts!</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData} barSize={28} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: "hsl(260, 10%, 60%)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis
+                  tickFormatter={(v) => `$${(v / 100).toFixed(0)}`}
+                  tick={{ fill: "hsl(260, 10%, 60%)", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                  {chartData.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={entry.total === maxBar
+                        ? "hsl(var(--destructive))"
+                        : i === chartData.length - 1
+                        ? "hsl(var(--primary))"
+                        : "hsl(var(--secondary) / 0.6)"
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Category breakdown */}
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
+            className="glass-panel rounded-3xl p-6">
+            <h2 className="text-xl font-display font-bold text-white mb-5">Spending by Category</h2>
+            {sortedCategories.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">No data yet</div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {sortedCategories.map(([cat, total], i) => {
+                  const pct = grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
+                  const color = categoryColors[i % categoryColors.length];
+                  return (
+                    <div key={cat}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-semibold text-white">{cat}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{pct}%</span>
+                          <span className="text-sm font-bold text-white">{fmtCurrency(total)}</span>
+                        </div>
+                      </div>
+                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ delay: 0.4 + i * 0.05, duration: 0.6, ease: "easeOut" }}
+                          className="h-full rounded-full"
+                          style={{ background: color }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+
+          {/* Financial Advice */}
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}
+            className="glass-panel rounded-3xl p-6 flex flex-col">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
+                <Lightbulb className="w-5 h-5 text-[hsl(var(--accent))]" />
+              </div>
+              <h2 className="text-xl font-display font-bold text-white">AI Financial Advice</h2>
+            </div>
+
+            {adviceLoading ? (
+              <div className="flex flex-col gap-3 flex-1">
+                <Skeleton className="h-4 w-full bg-white/5" />
+                <Skeleton className="h-4 w-5/6 bg-white/5" />
+                <Skeleton className="h-4 w-4/6 bg-white/5" />
+              </div>
+            ) : advice ? (
+              <div className="flex flex-col gap-4 flex-1">
+                <div className="bg-[hsl(var(--accent))]/10 border border-[hsl(var(--accent))]/20 rounded-2xl p-5 flex-1">
+                  <p className="text-white leading-relaxed text-base">{advice.advice}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white/5 rounded-2xl p-4 text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Top Category</p>
+                    <p className="text-sm font-bold text-[hsl(var(--primary))]">{advice.topCategory}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Save Potential</p>
+                    <p className="text-sm font-bold text-[hsl(var(--secondary))]">{fmtCurrency(advice.savingsPotential)}/mo</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5 bg-[hsl(var(--destructive))]/10 border border-[hsl(var(--destructive))]/20 rounded-2xl p-4">
+                  <AlertTriangle className="w-4 h-4 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">Advice is AI-generated based on your spending patterns. Always consult a real financial advisor for major decisions.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center py-8">
+                <Flame className="w-10 h-10 text-muted-foreground" />
+                <p className="text-muted-foreground text-sm">Upload expenses to get personalized financial advice.</p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </main>
+    </div>
+  );
+}

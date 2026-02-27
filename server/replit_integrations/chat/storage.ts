@@ -1,5 +1,8 @@
 import { db } from "../../db";
-import { conversations, messages } from "@shared/schema";
+// Note: conversations and messages tables would need to be defined in @shared/schema
+// This file is a template and not used in the current app
+const conversations = null as any;
+const messages = null as any;
 import { eq, desc } from "drizzle-orm";
 
 export interface IChatStorage {
