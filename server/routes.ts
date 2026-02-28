@@ -221,28 +221,87 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const allExpenses = await storage.getExpenses(userId);
       if (allExpenses.length === 0) {
-        return res.json({ advice: "Upload some receipts first so I can roast your financial decisions properly.", topCategory: "Unknown", savingsPotential: 0 });
+        return res.json({
+          advice: "Upload some receipts first so I have something to judge.",
+          topCategory: "Unknown",
+          savingsPotential: 0,
+          breakdown: [],
+        });
       }
+
       const categoryTotals: Record<string, number> = {};
+      const categoryMerchants: Record<string, string[]> = {};
       for (const exp of allExpenses) {
         categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
+        if (!categoryMerchants[exp.category]) categoryMerchants[exp.category] = [];
+        if (!categoryMerchants[exp.category].includes(exp.description)) {
+          categoryMerchants[exp.category].push(exp.description);
+        }
       }
+
       const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || "General";
       const totalSpend = allExpenses.reduce((s, e) => s + e.amount, 0);
-      const savingsPotential = Math.round(totalSpend * 0.15);
-      const summary = Object.entries(categoryTotals).map(([cat, amt]) => `${cat}: $${(amt / 100).toFixed(2)}`).join(", ");
+
+      const categoryLines = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cat, amt]) => {
+          const merchants = categoryMerchants[cat]?.slice(0, 5).join(", ") || "";
+          return `${cat}: $${(amt / 100).toFixed(2)} (merchants: ${merchants || "unknown"})`;
+        })
+        .join("\n");
 
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
-          { role: "system", content: `You are a brutally honest but secretly caring financial advisor. Give REAL, actionable advice in 2-3 punchy sentences. Be specific and mildly savage but ultimately helpful.` },
-          { role: "user", content: `My spending by category: ${summary}. Top category is ${topCategory}. Give me sharp financial advice.` },
+          {
+            role: "system",
+            content: `You are a sharp, no-nonsense financial advisor. Analyze spending and return ONLY a valid JSON object — no markdown, no explanation, just the JSON.
+
+Return this exact shape:
+{
+  "advice": "2-3 sentence overall summary. Be direct and specific about the biggest money drain.",
+  "topCategory": "the single top spending category name",
+  "savingsPotential": <number in cents, realistic 10-25% of total>,
+  "breakdown": [
+    {
+      "category": "Category Name",
+      "insight": "1 sharp sentence about what this spending pattern shows",
+      "alternatives": ["Specific cheaper alternative 1", "Alternative 2", "Alternative 3"],
+      "potentialSaving": <number in cents, realistic savings for this category>
+    }
+  ]
+}
+
+Rules:
+- breakdown should include every category that has significant spend
+- alternatives must be SPECIFIC: name real cheaper brands, apps, or services (e.g. "Planet Fitness $10/mo vs Goodlife $80+/mo", "Spotify $11/mo vs YouTube Music $11/mo", "Meal prep: ~$4/meal vs $15+ takeout")
+- If you can identify a specific vendor from the merchant name, suggest a cheaper real-world alternative to it
+- potentialSaving should be realistic (e.g. if they spend $800/mo on groceries, saving $150 is realistic)
+- Do NOT include categories with $0 spend`,
+          },
+          {
+            role: "user",
+            content: `Total spend: $${(totalSpend / 100).toFixed(2)}\n\nSpending breakdown:\n${categoryLines}`,
+          },
         ],
-        max_completion_tokens: 200,
+        max_completion_tokens: 800,
       });
 
-      const advice = response.choices[0]?.message?.content || "Spend less. Save more.";
-      res.json({ advice, topCategory, savingsPotential });
+      let parsed: any;
+      try {
+        const raw = response.choices[0]?.message?.content || "{}";
+        const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        parsed = JSON.parse(cleaned);
+      } catch {
+        parsed = { advice: "Spend less on the stuff you spend the most on.", topCategory, savingsPotential: Math.round(totalSpend * 0.15), breakdown: [] };
+      }
+
+      res.json({
+        advice: parsed.advice || "Keep an eye on your top categories.",
+        topCategory: parsed.topCategory || topCategory,
+        savingsPotential: parsed.savingsPotential || Math.round(totalSpend * 0.15),
+        breakdown: Array.isArray(parsed.breakdown) ? parsed.breakdown : [],
+      });
     } catch (err) {
       console.error("Financial advice error:", err);
       res.status(500).json({ message: "Failed to generate financial advice" });

@@ -45,8 +45,15 @@ export function useMonthlySeries() {
   });
 }
 
+export type AdviceBreakdown = {
+  category: string;
+  insight: string;
+  alternatives: string[];
+  potentialSaving: number;
+};
+
 export function useFinancialAdvice() {
-  return useQuery<{ advice: string; topCategory: string; savingsPotential: number }>({
+  return useQuery<{ advice: string; topCategory: string; savingsPotential: number; breakdown: AdviceBreakdown[] }>({
     queryKey: [api.expenses.financialAdvice.path],
     retry: false,
     queryFn: async () => {

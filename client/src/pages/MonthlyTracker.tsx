@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
-import { BarChart3, TrendingUp, TrendingDown, Flame, Lightbulb, DollarSign, AlertTriangle } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, Flame, Lightbulb, DollarSign, AlertTriangle, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice } from "@/hooks/use-expenses";
+import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, type AdviceBreakdown } from "@/hooks/use-expenses";
 import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useState } from "react";
 
 function fmtCurrency(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -24,6 +25,48 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     </div>
   );
 };
+
+function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-white/5 transition-colors"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--primary))]">{item.category}</span>
+            {item.potentialSaving > 0 && (
+              <span className="text-xs text-[hsl(var(--secondary))] font-semibold">
+                save ~{fmtCurrency(item.potentialSaving)}/mo
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-white leading-snug">{item.insight}</p>
+        </div>
+        {open ? (
+          <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+        )}
+      </button>
+      {open && item.alternatives?.length > 0 && (
+        <div className="border-t border-white/10 px-4 pb-4 pt-3">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Cheaper Alternatives</p>
+          <div className="flex flex-col gap-2">
+            {item.alternatives.map((alt, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <ArrowRight className="w-3.5 h-3.5 text-[hsl(var(--secondary))] shrink-0 mt-0.5" />
+                <p className="text-sm text-white/80">{alt}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MonthlyTracker() {
   const { data: series, isLoading: seriesLoading } = useMonthlySeries();
@@ -200,42 +243,54 @@ export default function MonthlyTracker() {
 
           {/* Financial Advice */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}
-            className="glass-panel rounded-3xl p-6 flex flex-col">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
-                <Lightbulb className="w-5 h-5 text-[hsl(var(--accent))]" />
+            className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
+                  <Lightbulb className="w-5 h-5 text-[hsl(var(--accent))]" />
+                </div>
+                <h2 className="text-xl font-display font-bold text-white">Financial Advice</h2>
               </div>
-              <h2 className="text-xl font-display font-bold text-white">Financial Advice</h2>
+              {advice && (
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Save up to</p>
+                  <p className="text-base font-display font-black text-[hsl(var(--secondary))]">{fmtCurrency(advice.savingsPotential)}/mo</p>
+                </div>
+              )}
             </div>
 
             {adviceLoading ? (
-              <div className="flex flex-col gap-3 flex-1">
+              <div className="flex flex-col gap-3">
                 <Skeleton className="h-4 w-full bg-white/5" />
                 <Skeleton className="h-4 w-5/6 bg-white/5" />
                 <Skeleton className="h-4 w-4/6 bg-white/5" />
+                <Skeleton className="h-20 w-full bg-white/5 mt-2" />
+                <Skeleton className="h-20 w-full bg-white/5" />
               </div>
             ) : advice ? (
-              <div className="flex flex-col gap-4 flex-1">
-                <div className="bg-[hsl(var(--accent))]/10 border border-[hsl(var(--accent))]/20 rounded-2xl p-5 flex-1">
-                  <p className="text-white leading-relaxed text-base">{advice.advice}</p>
+              <div className="flex flex-col gap-4">
+                {/* Overall summary */}
+                <div className="bg-[hsl(var(--accent))]/10 border border-[hsl(var(--accent))]/20 rounded-2xl p-5">
+                  <p className="text-white leading-relaxed text-sm">{advice.advice}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white/5 rounded-2xl p-4 text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Top Category</p>
-                    <p className="text-sm font-bold text-[hsl(var(--primary))]">{advice.topCategory}</p>
+
+                {/* Category breakdown */}
+                {advice.breakdown && advice.breakdown.length > 0 && (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">By Category</p>
+                    {advice.breakdown.map((item) => (
+                      <CategoryAdviceCard key={item.category} item={item} />
+                    ))}
                   </div>
-                  <div className="bg-white/5 rounded-2xl p-4 text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Save Potential</p>
-                    <p className="text-sm font-bold text-[hsl(var(--secondary))]">{fmtCurrency(advice.savingsPotential)}/mo</p>
-                  </div>
-                </div>
+                )}
+
                 <div className="flex items-start gap-2.5 bg-[hsl(var(--destructive))]/10 border border-[hsl(var(--destructive))]/20 rounded-2xl p-4">
                   <AlertTriangle className="w-4 h-4 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
                   <p className="text-xs text-muted-foreground">Advice is based on your spending patterns. Always consult a real financial advisor for major decisions.</p>
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center py-8">
+              <div className="flex flex-col items-center justify-center gap-3 text-center py-8">
                 <Flame className="w-10 h-10 text-muted-foreground" />
                 <p className="text-muted-foreground text-sm">Upload expenses to get personalized financial advice.</p>
               </div>
