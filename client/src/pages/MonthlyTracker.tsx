@@ -28,6 +28,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+      {/* Header: category + savings */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30">
           {item.category}
@@ -38,9 +39,24 @@ function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
           </span>
         )}
       </div>
-      <p className="text-sm text-white/80 leading-relaxed">{item.insight}</p>
+
+      {/* Roast */}
+      {item.roast && (
+        <div className="flex items-start gap-2.5 bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-2.5">
+          <Flame className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
+          <p className="text-sm text-orange-200 italic leading-snug">{item.roast}</p>
+        </div>
+      )}
+
+      {/* Advice */}
+      <div className="flex items-start gap-2.5">
+        <Lightbulb className="w-3.5 h-3.5 text-[hsl(var(--accent))] shrink-0 mt-0.5" />
+        <p className="text-sm text-white/80 leading-relaxed">{item.insight}</p>
+      </div>
+
+      {/* Alternatives */}
       {item.alternatives?.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pt-0.5">
           {item.alternatives.map((alt, i) => (
             <span key={i} className="text-xs text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1">
               {alt}

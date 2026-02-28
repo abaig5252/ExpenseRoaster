@@ -265,7 +265,8 @@ Return this exact shape:
   "breakdown": [
     {
       "category": "Category Name",
-      "insight": "Max 8 words describing the issue (e.g. 'High-end gym eating your budget')",
+      "roast": "One savage, funny roast sentence about this category's spending. Be specific and brutal.",
+      "insight": "1-2 direct sentences of practical advice for this category.",
       "alternatives": ["Brand — $X/mo", "Brand2 — $X/mo", "DIY option — free"],
       "potentialSaving": <realistic cents saved per month>
     }
@@ -273,7 +274,8 @@ Return this exact shape:
 }
 
 Rules:
-- insight: 1-2 direct sentences of advice for that specific category. Be specific, name the problem and what to change (e.g. "You're paying premium gym prices you likely don't need. Downgrade or go digital.")
+- roast: savage and funny, reference the specific merchant or amount if known (e.g. "Paying $850/mo for a gym you go to twice a month — at least the guilt is cardio.")
+- insight: 1-2 direct sentences of practical advice for that category. Be specific, name the problem and what to change.
 - alternatives: short chip-style labels like "Planet Fitness — $10/mo" or "Home workouts — free" (max 6 words each)
 - Include 2-4 alternatives per category
 - Include every category with notable spend
