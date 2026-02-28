@@ -22,7 +22,7 @@ export default function Upload() {
 
   const isFree = !me || me.tier === "free";
   const uploadsUsed = me?.monthlyUploadCount || 0;
-  const uploadsRemaining = Math.max(0, 2 - uploadsUsed);
+  const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
 
   const formattedTotal = summary
     ? (summary.monthlyTotal / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })
@@ -82,7 +82,7 @@ export default function Upload() {
             )}
             <p className="text-muted-foreground mt-3 text-lg">
               {isFree
-                ? `${uploadsRemaining}/2 free uploads remaining this month.`
+                ? `${uploadsRemaining}/1 free upload remaining this month.`
                 : `spent this month on things you definitely needed.`}
             </p>
           </motion.div>

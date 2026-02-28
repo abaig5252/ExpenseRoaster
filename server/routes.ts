@@ -15,7 +15,7 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-const FREE_UPLOAD_LIMIT = 2;
+const FREE_UPLOAD_LIMIT = 1;
 
 const ROAST_PROMPTS: Record<string, string> = {
   savage: `You are a brutally savage, hilariously judgmental financial roaster. Be genuinely funny and merciless. Reference the specific purchase and amount. Channel a mix of disappointed parent + savage comedian. Make it hurt.`,

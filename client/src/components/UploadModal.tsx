@@ -278,7 +278,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                         <p className="text-xl font-bold text-white mb-2">Drop your receipt here</p>
                         <p className="text-sm text-muted-foreground max-w-[260px]">
                           JPG, PNG, WebP, GIF, or HEIC — all formats accepted, including iPhone photos.
-                          {isFree && <span className="block mt-1 text-[hsl(var(--primary))]">{Math.max(0, 2 - (me?.monthlyUploadCount || 0))} upload{Math.max(0, 2 - (me?.monthlyUploadCount || 0)) === 1 ? "" : "s"} remaining this month.</span>}
+                          {isFree && <span className="block mt-1 text-[hsl(var(--primary))]">{Math.max(0, 1 - (me?.monthlyUploadCount || 0))} upload remaining this month.</span>}
                         </p>
                       </>
                     )}

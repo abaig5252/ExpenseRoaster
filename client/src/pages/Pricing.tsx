@@ -6,7 +6,7 @@ import { useMe, useStripeProducts, useCheckout, usePortal } from "@/hooks/use-su
 import { useToast } from "@/hooks/use-toast";
 
 const FREE_FEATURES = [
-  "2 receipt uploads per month",
+  "1 receipt upload per month",
   "Custom roast for each receipt",
   "Shareable roast card",
   "Basic expense extraction",
