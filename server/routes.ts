@@ -255,29 +255,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         messages: [
           {
             role: "system",
-            content: `You are a sharp, no-nonsense financial advisor. Analyze spending and return ONLY a valid JSON object — no markdown, no explanation, just the JSON.
+            content: `You are a sharp financial advisor. Analyze spending and return ONLY valid JSON — no markdown, no explanation.
 
 Return this exact shape:
 {
-  "advice": "2-3 sentence overall summary. Be direct and specific about the biggest money drain.",
-  "topCategory": "the single top spending category name",
-  "savingsPotential": <number in cents, realistic 10-25% of total>,
+  "advice": "One punchy sentence (max 15 words) naming the #1 problem and what to do about it.",
+  "topCategory": "top spending category name",
+  "savingsPotential": <realistic savings in cents, 10-20% of total>,
   "breakdown": [
     {
       "category": "Category Name",
-      "insight": "1 sharp sentence about what this spending pattern shows",
-      "alternatives": ["Specific cheaper alternative 1", "Alternative 2", "Alternative 3"],
-      "potentialSaving": <number in cents, realistic savings for this category>
+      "insight": "Max 8 words describing the issue (e.g. 'High-end gym eating your budget')",
+      "alternatives": ["Brand — $X/mo", "Brand2 — $X/mo", "DIY option — free"],
+      "potentialSaving": <realistic cents saved per month>
     }
   ]
 }
 
 Rules:
-- breakdown should include every category that has significant spend
-- alternatives must be SPECIFIC: name real cheaper brands, apps, or services (e.g. "Planet Fitness $10/mo vs Goodlife $80+/mo", "Spotify $11/mo vs YouTube Music $11/mo", "Meal prep: ~$4/meal vs $15+ takeout")
-- If you can identify a specific vendor from the merchant name, suggest a cheaper real-world alternative to it
-- potentialSaving should be realistic (e.g. if they spend $800/mo on groceries, saving $150 is realistic)
-- Do NOT include categories with $0 spend`,
+- insight: MAX 8 words, punchy label style, not a full sentence
+- alternatives: short chip-style labels like "Planet Fitness — $10/mo" or "Home workouts — free" (max 6 words each)
+- Include 2-4 alternatives per category
+- Include every category with notable spend
+- potentialSaving should be realistic`,
           },
           {
             role: "user",

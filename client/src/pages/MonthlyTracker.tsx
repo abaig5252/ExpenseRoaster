@@ -1,10 +1,9 @@
 import { motion } from "framer-motion";
-import { BarChart3, TrendingUp, TrendingDown, Flame, Lightbulb, DollarSign, AlertTriangle, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, Flame, Lightbulb, DollarSign, AlertTriangle, Zap } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, type AdviceBreakdown } from "@/hooks/use-expenses";
 import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
 
 function fmtCurrency(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -27,41 +26,26 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
-  const [open, setOpen] = useState(false);
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-white/5 transition-colors"
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--primary))]">{item.category}</span>
-            {item.potentialSaving > 0 && (
-              <span className="text-xs text-[hsl(var(--secondary))] font-semibold">
-                save ~{fmtCurrency(item.potentialSaving)}/mo
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-white leading-snug">{item.insight}</p>
-        </div>
-        {open ? (
-          <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30">
+          {item.category}
+        </span>
+        {item.potentialSaving > 0 && (
+          <span className="text-xs font-bold text-[hsl(var(--secondary))] bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 px-2.5 py-1 rounded-full">
+            save ~{fmtCurrency(item.potentialSaving)}/mo
+          </span>
         )}
-      </button>
-      {open && item.alternatives?.length > 0 && (
-        <div className="border-t border-white/10 px-4 pb-4 pt-3">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Cheaper Alternatives</p>
-          <div className="flex flex-col gap-2">
-            {item.alternatives.map((alt, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <ArrowRight className="w-3.5 h-3.5 text-[hsl(var(--secondary))] shrink-0 mt-0.5" />
-                <p className="text-sm text-white/80">{alt}</p>
-              </div>
-            ))}
-          </div>
+      </div>
+      <p className="text-sm font-semibold text-white/90 leading-tight">{item.insight}</p>
+      {item.alternatives?.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {item.alternatives.map((alt, i) => (
+            <span key={i} className="text-xs text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1">
+              {alt}
+            </span>
+          ))}
         </div>
       )}
     </div>
@@ -261,32 +245,31 @@ export default function MonthlyTracker() {
 
             {adviceLoading ? (
               <div className="flex flex-col gap-3">
-                <Skeleton className="h-4 w-full bg-white/5" />
-                <Skeleton className="h-4 w-5/6 bg-white/5" />
-                <Skeleton className="h-4 w-4/6 bg-white/5" />
-                <Skeleton className="h-20 w-full bg-white/5 mt-2" />
-                <Skeleton className="h-20 w-full bg-white/5" />
+                <Skeleton className="h-6 w-3/4 bg-white/5" />
+                <Skeleton className="h-16 w-full bg-white/5 mt-1" />
+                <Skeleton className="h-16 w-full bg-white/5" />
               </div>
             ) : advice ? (
-              <div className="flex flex-col gap-4">
-                {/* Overall summary */}
-                <div className="bg-[hsl(var(--accent))]/10 border border-[hsl(var(--accent))]/20 rounded-2xl p-5">
-                  <p className="text-white leading-relaxed text-sm">{advice.advice}</p>
+              <div className="flex flex-col gap-3">
+                {/* Punchy headline */}
+                <div className="flex items-start gap-3 bg-[hsl(var(--accent))]/10 border border-[hsl(var(--accent))]/20 rounded-2xl px-4 py-3">
+                  <Zap className="w-4 h-4 text-[hsl(var(--accent))] shrink-0 mt-0.5" />
+                  <p className="text-base font-bold text-white leading-snug">{advice.advice}</p>
                 </div>
 
-                {/* Category breakdown */}
+                {/* Category cards */}
                 {advice.breakdown && advice.breakdown.length > 0 && (
-                  <div className="flex flex-col gap-3">
-                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">By Category</p>
+                  <>
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mt-1">By Category</p>
                     {advice.breakdown.map((item) => (
                       <CategoryAdviceCard key={item.category} item={item} />
                     ))}
-                  </div>
+                  </>
                 )}
 
-                <div className="flex items-start gap-2.5 bg-[hsl(var(--destructive))]/10 border border-[hsl(var(--destructive))]/20 rounded-2xl p-4">
-                  <AlertTriangle className="w-4 h-4 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground">Advice is based on your spending patterns. Always consult a real financial advisor for major decisions.</p>
+                <div className="flex items-center gap-2 px-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <p className="text-xs text-muted-foreground">For guidance only — consult a financial advisor for major decisions.</p>
                 </div>
               </div>
             ) : (
