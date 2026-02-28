@@ -38,7 +38,7 @@ function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
           </span>
         )}
       </div>
-      <p className="text-sm font-semibold text-white/90 leading-tight">{item.insight}</p>
+      <p className="text-sm text-white/80 leading-relaxed">{item.insight}</p>
       {item.alternatives?.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {item.alternatives.map((alt, i) => (

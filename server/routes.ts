@@ -273,7 +273,7 @@ Return this exact shape:
 }
 
 Rules:
-- insight: MAX 8 words, punchy label style, not a full sentence
+- insight: 1-2 direct sentences of advice for that specific category. Be specific, name the problem and what to change (e.g. "You're paying premium gym prices you likely don't need. Downgrade or go digital.")
 - alternatives: short chip-style labels like "Planet Fitness — $10/mo" or "Home workouts — free" (max 6 words each)
 - Include 2-4 alternatives per category
 - Include every category with notable spend
