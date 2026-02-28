@@ -86,8 +86,8 @@ export function useAnnualReport() {
 export function useImportCSV() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ csvData, tone }: { csvData: string; tone: string }) => {
-      const res = await apiRequest("POST", "/api/expenses/import-csv", { csvData, tone });
+    mutationFn: async ({ data, format, csvData, tone }: { data?: string; format?: string; csvData?: string; tone: string }) => {
+      const res = await apiRequest("POST", "/api/expenses/import-csv", { data, format: format || "csv", csvData, tone });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || "Import failed");
@@ -97,6 +97,7 @@ export function useImportCSV() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/expenses/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses/monthly-series"] });
     },
   });
 }

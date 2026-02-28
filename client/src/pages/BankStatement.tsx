@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Plus, Flame, Trash2, Calendar, DollarSign, AlertCircle, Loader2, FileText, Lock } from "lucide-react";
+import { Wallet, UploadCloud, Plus, Flame, Trash2, Calendar, DollarSign, AlertCircle, Loader2, FileText, Lock, Image, File } from "lucide-react";
 import { useAddManualExpense, useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
 import { AppNav } from "@/components/AppNav";
@@ -36,8 +36,10 @@ export default function BankStatement() {
   const [tone, setTone] = useState("savage");
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<FormState>>({});
-  const [activeTab, setActiveTab] = useState<"manual" | "csv">("manual");
+  const [activeTab, setActiveTab] = useState<"manual" | "import">("manual");
+  const [importData, setImportData] = useState<{ data: string; format: "csv" | "pdf" | "image"; fileName: string } | null>(null);
   const [csvText, setCsvText] = useState("");
+  const [converting, setConverting] = useState(false);
 
   const { data: me } = useMe();
   const addMutation = useAddManualExpense();
@@ -81,11 +83,19 @@ export default function BankStatement() {
     );
   };
 
-  const handleCSVImport = () => {
-    if (!csvText.trim()) return;
-    importMutation.mutate({ csvData: csvText, tone }, {
+  const handleImport = () => {
+    const hasFile = importData !== null;
+    const hasText = csvText.trim().length > 0;
+    if (!hasFile && !hasText) return;
+
+    const payload = hasFile
+      ? { data: importData!.data, format: importData!.format, tone }
+      : { csvData: csvText, format: "csv" as const, tone };
+
+    importMutation.mutate(payload, {
       onSuccess: (data) => {
         toast({ title: `Imported ${data.imported} transactions!`, description: "Each one came with its own roast." });
+        setImportData(null);
         setCsvText("");
       },
       onError: (err: any) => {
@@ -94,18 +104,60 @@ export default function BankStatement() {
     });
   };
 
-  // CSV dropzone
-  const onDrop = useCallback((files: File[]) => {
+  // Multi-format dropzone
+  const onDrop = useCallback(async (files: File[]) => {
     const file = files[0];
     if (!file) return;
+
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isCsv = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv") || file.type === "text/plain";
+    const isHeic = file.type === "image/heic" || file.type === "image/heif" ||
+      file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
+
+    if (isCsv) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string || "";
+        setCsvText(text);
+        setImportData(null);
+      };
+      reader.readAsText(file);
+      return;
+    }
+
+    let processedFile = file;
+    if (isHeic) {
+      setConverting(true);
+      try {
+        const heic2any = (await import("heic2any")).default;
+        const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+        processedFile = new File([converted as Blob], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
+      } finally {
+        setConverting(false);
+      }
+    }
+
+    const format: "pdf" | "image" = isPdf ? "pdf" : "image";
     const reader = new FileReader();
-    reader.onload = (e) => setCsvText(e.target?.result as string || "");
-    reader.readAsText(file);
+    reader.onload = (e) => {
+      setImportData({ data: e.target?.result as string, format, fileName: file.name });
+      setCsvText("");
+    };
+    reader.readAsDataURL(processedFile);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { "text/csv": [".csv"], "text/plain": [".txt"] },
+    accept: {
+      "text/csv": [".csv"],
+      "text/plain": [".txt"],
+      "application/pdf": [".pdf"],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/webp": [".webp"],
+      "image/heic": [".heic"],
+      "image/heif": [".heif"],
+    },
     maxFiles: 1,
   });
 
@@ -123,7 +175,7 @@ export default function BankStatement() {
             <h1 className="text-4xl font-display font-black text-white">Bank Statement</h1>
           </div>
           <p className="text-muted-foreground text-lg">
-            Log expenses manually or import a CSV bank statement. Every entry gets roasted.
+            Log expenses manually or import a bank statement — CSV, PDF, or photo. Every entry gets roasted.
           </p>
         </motion.div>
 
@@ -133,8 +185,8 @@ export default function BankStatement() {
             <div className="flex items-start gap-3">
               <Lock className="w-5 h-5 text-[hsl(var(--primary))] shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-white">Manual entry & CSV import require Premium</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Upgrade to log expenses, import bank statements, and track your full history.</p>
+                <p className="text-sm font-bold text-white">Manual entry & statement import require Premium</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Upgrade to log expenses, import CSV, PDF, or photo statements, and track your full history.</p>
               </div>
             </div>
             <Link href="/pricing">
@@ -159,11 +211,11 @@ export default function BankStatement() {
                   Manual Entry
                 </button>
                 <button
-                  onClick={() => setActiveTab("csv")}
-                  data-testid="tab-csv"
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "csv" ? "bg-[hsl(var(--secondary))]/20 text-[hsl(var(--secondary))] border border-[hsl(var(--secondary))]/40" : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"}`}
+                  onClick={() => setActiveTab("import")}
+                  data-testid="tab-import"
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "import" ? "bg-[hsl(var(--secondary))]/20 text-[hsl(var(--secondary))] border border-[hsl(var(--secondary))]/40" : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"}`}
                 >
-                  Import CSV
+                  Import Statement
                 </button>
               </div>
             )}
@@ -251,29 +303,53 @@ export default function BankStatement() {
               </motion.form>
             )}
 
-            {/* CSV import */}
-            {isPremium && activeTab === "csv" && (
+            {/* Statement import */}
+            {isPremium && activeTab === "import" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
                 <div>
-                  <h2 className="text-xl font-display font-bold text-white mb-1">Import CSV Bank Statement</h2>
-                  <p className="text-xs text-muted-foreground">Upload or paste a CSV with columns: Date, Description/Merchant, Amount. Up to 100 rows per import.</p>
+                  <h2 className="text-xl font-display font-bold text-white mb-1">Import Bank Statement</h2>
+                  <p className="text-xs text-muted-foreground">Upload a CSV, PDF, or photo/screenshot of your bank statement. Up to 100 transactions per import.</p>
                 </div>
 
                 {/* Dropzone */}
-                <div {...getRootProps()} data-testid="dropzone-csv"
-                  className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${isDragActive ? "border-[hsl(var(--secondary))] bg-[hsl(var(--secondary))]/5" : "border-white/10 hover:border-[hsl(var(--secondary))]/40"}`}>
-                  <input {...getInputProps()} />
-                  <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm font-semibold text-white mb-1">Drop CSV file here</p>
-                  <p className="text-xs text-muted-foreground">or click to browse</p>
-                </div>
+                {converting ? (
+                  <div className="border-2 border-dashed border-[hsl(var(--secondary))]/40 rounded-2xl p-8 text-center">
+                    <Loader2 className="w-8 h-8 text-[hsl(var(--secondary))] mx-auto mb-3 animate-spin" />
+                    <p className="text-sm font-semibold text-white">Converting iPhone photo...</p>
+                  </div>
+                ) : importData ? (
+                  <div className="border-2 border-[hsl(var(--secondary))]/40 bg-[hsl(var(--secondary))]/5 rounded-2xl p-5 flex items-center gap-4">
+                    {importData.format === "pdf" ? (
+                      <FileText className="w-8 h-8 text-[hsl(var(--secondary))] shrink-0" />
+                    ) : (
+                      <Image className="w-8 h-8 text-[hsl(var(--secondary))] shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{importData.fileName}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{importData.format} file — ready to import</p>
+                    </div>
+                    <button onClick={() => setImportData(null)} className="text-muted-foreground hover:text-white transition-colors text-xs underline shrink-0">
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div {...getRootProps()} data-testid="dropzone-import"
+                    className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${isDragActive ? "border-[hsl(var(--secondary))] bg-[hsl(var(--secondary))]/5" : "border-white/10 hover:border-[hsl(var(--secondary))]/40"}`}>
+                    <input {...getInputProps()} />
+                    <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-white mb-1">Drop your statement here</p>
+                    <p className="text-xs text-muted-foreground">CSV, PDF, JPG, PNG, HEIC (iPhone) — or click to browse</p>
+                  </div>
+                )}
 
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Or paste CSV data</label>
-                  <textarea value={csvText} onChange={e => setCsvText(e.target.value)} data-testid="input-csv"
-                    placeholder={"Date,Description,Amount\n2024-01-15,Starbucks,6.50\n2024-01-16,Amazon,47.99"}
-                    rows={6} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors font-mono resize-none" />
-                </div>
+                {!importData && (
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Or paste CSV data</label>
+                    <textarea value={csvText} onChange={e => setCsvText(e.target.value)} data-testid="input-csv"
+                      placeholder={"Date,Description,Amount\n2024-01-15,Starbucks,6.50\n2024-01-16,Amazon,47.99"}
+                      rows={5} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors font-mono resize-none" />
+                  </div>
+                )}
 
                 {importMutation.isError && (
                   <div className="flex items-start gap-2 text-destructive text-sm">
@@ -282,7 +358,7 @@ export default function BankStatement() {
                   </div>
                 )}
 
-                <button onClick={handleCSVImport} disabled={importMutation.isPending || !csvText.trim()} data-testid="button-import-csv"
+                <button onClick={handleImport} disabled={importMutation.isPending || (!importData && !csvText.trim())} data-testid="button-import-statement"
                   className="w-full py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--secondary))] to-[hsl(var(--primary))] text-white btn-glow transition-all flex items-center justify-center gap-3 disabled:opacity-60">
                   {importMutation.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Importing & Roasting...</> : <><FileText className="w-5 h-5" /> Import & Roast All</>}
                 </button>

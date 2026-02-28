@@ -9,6 +9,7 @@ import { registerAuthRoutes } from "./replit_integrations/auth/routes";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripe/stripeClient";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import pdfParse from "pdf-parse";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -392,68 +393,157 @@ Extract expense data from this receipt image and deliver a roast.`;
     }
   });
 
-  // ─── Expenses: CSV import (premium) ──────────────────────────────
+  // ─── Shared: process a list of raw transactions into expenses ─────
+  async function processTransactions(
+    userId: string,
+    transactions: { description: string; amount: number; date: string }[],
+    tone: string
+  ) {
+    const created: Expense[] = [];
+    for (const tx of transactions.slice(0, 100)) {
+      if (!tx.amount || tx.amount <= 0) continue;
+      const parsedDate = new Date(tx.date);
+      const date = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+      const aiCat = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: "Categorize this bank transaction. Reply with ONLY one of: Food & Drink, Shopping, Transport, Entertainment, Health, Subscriptions, Other" },
+          { role: "user", content: tx.description },
+        ],
+        max_completion_tokens: 10,
+      });
+      const category = aiCat.choices[0]?.message?.content?.trim() || "Other";
+      const roast = await generateRoast(tx.description, Math.round(tx.amount * 100), category, tone);
+      const expense = await storage.createExpense({
+        userId,
+        amount: Math.round(tx.amount * 100),
+        description: tx.description,
+        date,
+        category,
+        roast,
+        imageUrl: null,
+        source: "bank_statement",
+      });
+      created.push(expense);
+    }
+    return created;
+  }
+
+  // ─── Expenses: Import statement (CSV / PDF / image) — premium ─────
   app.post("/api/expenses/import-csv", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
     const user = await storage.getUser(userId);
     if (!user || user.tier === "free") {
-      return res.status(403).json({ message: "CSV import requires Premium", code: "PREMIUM_REQUIRED" });
+      return res.status(403).json({ message: "Statement import requires Premium", code: "PREMIUM_REQUIRED" });
     }
 
-    const { csvData, tone } = req.body;
-    if (!csvData) return res.status(400).json({ message: "csvData required" });
+    const { csvData, data, format, tone } = req.body;
+    const fmt: string = format || "csv";
+    const toneVal = tone || "savage";
 
     try {
-      const lines = csvData.split("\n").map((l: string) => l.trim()).filter(Boolean);
-      if (lines.length < 2) return res.status(400).json({ message: "CSV must have header and at least one row" });
+      // ── CSV ──────────────────────────────────────────────────────
+      if (fmt === "csv") {
+        const raw = csvData || data;
+        if (!raw) return res.status(400).json({ message: "No data provided" });
 
-      const header = lines[0].toLowerCase().split(",").map((h: string) => h.trim().replace(/"/g, ""));
-      const dateIdx = header.findIndex((h: string) => h.includes("date"));
-      const descIdx = header.findIndex((h: string) => h.includes("desc") || h.includes("merchant") || h.includes("name") || h.includes("narration"));
-      const amtIdx = header.findIndex((h: string) => h.includes("amount") || h.includes("debit") || h.includes("credit"));
+        const lines = raw.split("\n").map((l: string) => l.trim()).filter(Boolean);
+        if (lines.length < 2) return res.status(400).json({ message: "CSV must have a header and at least one row" });
 
-      if (amtIdx === -1) return res.status(400).json({ message: "CSV must have an amount column" });
+        const header = lines[0].toLowerCase().split(",").map((h: string) => h.trim().replace(/"/g, ""));
+        const dateIdx = header.findIndex((h: string) => h.includes("date"));
+        const descIdx = header.findIndex((h: string) => h.includes("desc") || h.includes("merchant") || h.includes("name") || h.includes("narration"));
+        const amtIdx = header.findIndex((h: string) => h.includes("amount") || h.includes("debit") || h.includes("credit"));
 
-      const created: Expense[] = [];
-      for (const line of lines.slice(1).slice(0, 100)) {
-        const cols = line.split(",").map((c: string) => c.trim().replace(/"/g, ""));
-        const rawAmount = cols[amtIdx]?.replace(/[$,\s]/g, "");
-        const amount = parseFloat(rawAmount || "0");
-        if (!amount || amount <= 0) continue;
+        if (amtIdx === -1) return res.status(400).json({ message: "CSV must have an amount column" });
 
-        const description = descIdx >= 0 ? cols[descIdx] || "Bank Transaction" : "Bank Transaction";
-        const rawDate = dateIdx >= 0 ? cols[dateIdx] : "";
-        const parsedDate = new Date(rawDate);
-        const date = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-
-        const aiCat = await openai.chat.completions.create({
-          model: "gpt-5.2",
-          messages: [
-            { role: "system", content: "Categorize this bank transaction. Reply with ONLY one of: Food & Drink, Shopping, Transport, Entertainment, Health, Subscriptions, Other" },
-            { role: "user", content: description },
-          ],
-          max_completion_tokens: 10,
+        const txs = lines.slice(1).map((line: string) => {
+          const cols = line.split(",").map((c: string) => c.trim().replace(/"/g, ""));
+          const rawAmt = cols[amtIdx]?.replace(/[$,\s]/g, "");
+          const amount = parseFloat(rawAmt || "0");
+          const description = descIdx >= 0 ? cols[descIdx] || "Bank Transaction" : "Bank Transaction";
+          const date = dateIdx >= 0 ? cols[dateIdx] || "" : "";
+          return { description, amount, date };
         });
-        const category = aiCat.choices[0]?.message?.content?.trim() || "Other";
-        const roast = await generateRoast(description, Math.round(amount * 100), category, tone || "savage");
 
-        const expense = await storage.createExpense({
-          userId,
-          amount: Math.round(amount * 100),
-          description,
-          date,
-          category,
-          roast,
-          imageUrl: null,
-          source: "bank_statement",
-        });
-        created.push(expense);
+        const created = await processTransactions(userId, txs, toneVal);
+        return res.status(201).json({ imported: created.length, expenses: created });
       }
 
-      res.status(201).json({ imported: created.length, expenses: created });
+      // ── PDF ──────────────────────────────────────────────────────
+      if (fmt === "pdf") {
+        if (!data) return res.status(400).json({ message: "No PDF data provided" });
+        const base64 = data.replace(/^data:[^;]+;base64,/, "");
+        const buffer = Buffer.from(base64, "base64");
+        const parsed = await pdfParse(buffer);
+        const pdfText = parsed.text?.slice(0, 8000) || "";
+        if (!pdfText.trim()) return res.status(400).json({ message: "Could not extract text from PDF" });
+
+        const extraction = await openai.chat.completions.create({
+          model: "gpt-5.2",
+          messages: [
+            {
+              role: "system",
+              content: `You are a bank statement parser. Extract all transactions from the text and return a JSON array.
+Each item must have: { "description": string, "amount": number (positive, in dollars), "date": "YYYY-MM-DD" }.
+Only include spending transactions (positive amounts). Skip refunds, deposits, and transfers in.
+Return ONLY the JSON array, no other text.`,
+            },
+            { role: "user", content: pdfText },
+          ],
+        });
+
+        let txs: { description: string; amount: number; date: string }[] = [];
+        try {
+          const raw = extraction.choices[0]?.message?.content?.trim() || "[]";
+          const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+          txs = JSON.parse(cleaned);
+        } catch {
+          return res.status(400).json({ message: "Could not parse transactions from PDF" });
+        }
+
+        const created = await processTransactions(userId, txs, toneVal);
+        return res.status(201).json({ imported: created.length, expenses: created });
+      }
+
+      // ── Image (JPEG / PNG / WebP / HEIC converted) ───────────────
+      if (fmt === "image") {
+        if (!data) return res.status(400).json({ message: "No image data provided" });
+
+        const extraction = await openai.chat.completions.create({
+          model: "gpt-5.2",
+          messages: [
+            {
+              role: "system",
+              content: `You are a bank statement parser. Extract all transactions visible in this image and return a JSON array.
+Each item must have: { "description": string, "amount": number (positive, in dollars), "date": "YYYY-MM-DD" }.
+Only include spending transactions (positive amounts). Skip refunds, deposits, and transfers in.
+Return ONLY the JSON array, no other text.`,
+            },
+            {
+              role: "user",
+              content: [{ type: "image_url", image_url: { url: data } }],
+            },
+          ],
+        });
+
+        let txs: { description: string; amount: number; date: string }[] = [];
+        try {
+          const raw = extraction.choices[0]?.message?.content?.trim() || "[]";
+          const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+          txs = JSON.parse(cleaned);
+        } catch {
+          return res.status(400).json({ message: "Could not parse transactions from image" });
+        }
+
+        const created = await processTransactions(userId, txs, toneVal);
+        return res.status(201).json({ imported: created.length, expenses: created });
+      }
+
+      return res.status(400).json({ message: "Unsupported format. Use csv, pdf, or image." });
     } catch (err) {
-      console.error("CSV import error:", err);
-      res.status(500).json({ message: "Failed to import CSV" });
+      console.error("Statement import error:", err);
+      res.status(500).json({ message: "Failed to import statement" });
     }
   });
 
