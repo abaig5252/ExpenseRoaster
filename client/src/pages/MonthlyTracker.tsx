@@ -261,8 +261,11 @@ export default function MonthlyTracker() {
                 {advice.breakdown && advice.breakdown.length > 0 && (
                   <>
                     <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mt-1">By Category</p>
-                    {advice.breakdown.map((item) => (
-                      <CategoryAdviceCard key={item.category} item={item} />
+                    {advice.breakdown.map((item, i) => (
+                      <div key={item.category}>
+                        {i > 0 && <div className="border-t border-white/10 my-1" />}
+                        <CategoryAdviceCard item={item} />
+                      </div>
                     ))}
                   </>
                 )}
