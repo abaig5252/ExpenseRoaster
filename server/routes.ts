@@ -668,20 +668,23 @@ All content must directly reference their actual spending data.`,
 
     await storage.createContactSubmission({ name, email, message });
 
-    const apiKey = process.env.RESEND_API_KEY;
-    if (apiKey) {
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    if (gmailPass) {
       try {
-        const { Resend } = await import("resend");
-        const resend = new Resend(apiKey);
-        await resend.emails.send({
-          from: "RoastMyWallet <onboarding@resend.dev>",
-          to: ["expenseroaster@gmail.com"],
+        const nodemailer = await import("nodemailer");
+        const transporter = nodemailer.default.createTransport({
+          service: "gmail",
+          auth: { user: "expenseroaster@gmail.com", pass: gmailPass },
+        });
+        await transporter.sendMail({
+          from: `"RoastMyWallet" <expenseroaster@gmail.com>`,
+          to: "expenseroaster@gmail.com",
           replyTo: email,
-          subject: `Contact: message from ${name}`,
-          html: `<p><strong>From:</strong> ${name} (${email})</p><p><strong>Message:</strong></p><p>${message.replace(/\n/g, "<br>")}</p>`,
+          subject: `Contact from ${name}`,
+          html: `<p><strong>From:</strong> ${name} &lt;${email}&gt;</p><hr><p>${message.replace(/\n/g, "<br>")}</p>`,
         });
       } catch (err) {
-        console.error("Resend email error:", err);
+        console.error("Email send error:", err);
       }
     }
 

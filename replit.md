@@ -141,7 +141,14 @@ AI_INTEGRATIONS_OPENAI_API_KEY
 AI_INTEGRATIONS_OPENAI_BASE_URL
 REPLIT_CONNECTORS_HOSTNAME  # Stripe connector (auto-injected)
 REPL_IDENTITY               # Stripe connector token (auto-injected)
+GMAIL_APP_PASSWORD          # Gmail App Password for expenseroaster@gmail.com (contact form emails)
 ```
+
+### Email (Contact Form)
+- Contact form submissions are always saved to the `contact_submissions` DB table.
+- Emails are sent via nodemailer + Gmail SMTP using `GMAIL_APP_PASSWORD` secret.
+- **NOTE:** Resend integration was dismissed by user. Using Gmail SMTP instead. Do NOT attempt the Resend integration unless user requests it again.
+- To get a Gmail App Password: Google Account → Security → 2-Step Verification → App passwords.
 
 ---
 
