@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Plus, Flame, Trash2, Calendar, DollarSign, AlertCircle, Loader2, FileText, Lock, Image, File } from "lucide-react";
+import { Wallet, UploadCloud, Plus, Flame, Trash2, Calendar, DollarSign, AlertCircle, Loader2, FileText, Lock, Image } from "lucide-react";
 import { useAddManualExpense, useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
 import { AppNav } from "@/components/AppNav";
@@ -37,8 +37,7 @@ export default function BankStatement() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<FormState>>({});
   const [activeTab, setActiveTab] = useState<"manual" | "import">("manual");
-  const [importData, setImportData] = useState<{ data: string; format: "csv" | "pdf" | "image" | "excel"; fileName: string } | null>(null);
-  const [csvText, setCsvText] = useState("");
+  const [importData, setImportData] = useState<{ data: string; format: "pdf" | "image"; fileName: string } | null>(null);
   const [converting, setConverting] = useState(false);
 
   const { data: me } = useMe();
@@ -84,19 +83,11 @@ export default function BankStatement() {
   };
 
   const handleImport = () => {
-    const hasFile = importData !== null;
-    const hasText = csvText.trim().length > 0;
-    if (!hasFile && !hasText) return;
-
-    const payload = hasFile
-      ? { data: importData!.data, format: importData!.format, tone }
-      : { csvData: csvText, format: "csv" as const, tone };
-
-    importMutation.mutate(payload, {
+    if (!importData) return;
+    importMutation.mutate({ data: importData.data, format: importData.format, tone }, {
       onSuccess: (data) => {
         toast({ title: `Imported ${data.imported} transactions!`, description: "Each one came with its own roast." });
         setImportData(null);
-        setCsvText("");
       },
       onError: (err: any) => {
         toast({ title: "Import failed", description: err.message, variant: "destructive" });
@@ -110,23 +101,8 @@ export default function BankStatement() {
     if (!file) return;
 
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-    const isCsv = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv") || file.type === "text/plain";
-    const isExcel = file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-      file.type === "application/vnd.ms-excel" ||
-      file.name.toLowerCase().endsWith(".xlsx") || file.name.toLowerCase().endsWith(".xls");
     const isHeic = file.type === "image/heic" || file.type === "image/heif" ||
       file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
-
-    if (isCsv) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string || "";
-        setCsvText(text);
-        setImportData(null);
-      };
-      reader.readAsText(file);
-      return;
-    }
 
     let processedFile = file;
     if (isHeic) {
@@ -140,11 +116,10 @@ export default function BankStatement() {
       }
     }
 
-    const format: "pdf" | "image" | "excel" = isExcel ? "excel" : isPdf ? "pdf" : "image";
+    const format: "pdf" | "image" = isPdf ? "pdf" : "image";
     const reader = new FileReader();
     reader.onload = (e) => {
       setImportData({ data: e.target?.result as string, format, fileName: file.name });
-      setCsvText("");
     };
     reader.readAsDataURL(processedFile);
   }, []);
@@ -152,11 +127,7 @@ export default function BankStatement() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "text/csv": [".csv"],
-      "text/plain": [".txt"],
       "application/pdf": [".pdf"],
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-      "application/vnd.ms-excel": [".xls"],
       "image/jpeg": [".jpg", ".jpeg"],
       "image/png": [".png"],
       "image/webp": [".webp"],
@@ -180,7 +151,7 @@ export default function BankStatement() {
             <h1 className="text-4xl font-display font-black text-white">Bank Statement</h1>
           </div>
           <p className="text-muted-foreground text-lg">
-            Log expenses manually or import a bank statement — CSV, Excel, PDF, or photo. Every entry gets roasted.
+            Log expenses manually or import a bank statement — PDF or photo. Every entry gets roasted.
           </p>
         </motion.div>
 
@@ -313,7 +284,7 @@ export default function BankStatement() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
                 <div>
                   <h2 className="text-xl font-display font-bold text-white mb-1">Import Bank Statement</h2>
-                  <p className="text-xs text-muted-foreground">Upload a CSV, Excel worksheet, PDF, or photo/screenshot of your bank statement. Up to 100 transactions per import.</p>
+                  <p className="text-xs text-muted-foreground">Upload a PDF or photo/screenshot of your bank statement. Up to 100 transactions per import.</p>
                 </div>
 
                 {/* Dropzone */}
@@ -326,14 +297,12 @@ export default function BankStatement() {
                   <div className="border-2 border-[hsl(var(--secondary))]/40 bg-[hsl(var(--secondary))]/5 rounded-2xl p-5 flex items-center gap-4">
                     {importData.format === "pdf" ? (
                       <FileText className="w-8 h-8 text-[hsl(var(--secondary))] shrink-0" />
-                    ) : importData.format === "excel" ? (
-                      <File className="w-8 h-8 text-green-400 shrink-0" />
                     ) : (
                       <Image className="w-8 h-8 text-[hsl(var(--secondary))] shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-white truncate">{importData.fileName}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{importData.format === "excel" ? "Excel worksheet" : importData.format + " file"} — ready to import</p>
+                      <p className="text-xs text-muted-foreground capitalize">{importData.format} file — ready to import</p>
                     </div>
                     <button onClick={() => setImportData(null)} className="text-muted-foreground hover:text-white transition-colors text-xs underline shrink-0">
                       Remove
@@ -345,16 +314,7 @@ export default function BankStatement() {
                     <input {...getInputProps()} />
                     <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                     <p className="text-sm font-semibold text-white mb-1">Drop your statement here</p>
-                    <p className="text-xs text-muted-foreground">CSV, Excel (.xlsx/.xls), PDF, JPG, PNG, HEIC — or click to browse</p>
-                  </div>
-                )}
-
-                {!importData && (
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Or paste CSV data</label>
-                    <textarea value={csvText} onChange={e => setCsvText(e.target.value)} data-testid="input-csv"
-                      placeholder={"Date,Description,Amount\n2024-01-15,Starbucks,6.50\n2024-01-16,Amazon,47.99"}
-                      rows={5} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors font-mono resize-none" />
+                    <p className="text-xs text-muted-foreground">PDF, JPG, PNG, HEIC (iPhone) — or click to browse</p>
                   </div>
                 )}
 
@@ -365,7 +325,7 @@ export default function BankStatement() {
                   </div>
                 )}
 
-                <button onClick={handleImport} disabled={importMutation.isPending || (!importData && !csvText.trim())} data-testid="button-import-statement"
+                <button onClick={handleImport} disabled={importMutation.isPending || !importData} data-testid="button-import-statement"
                   className="w-full py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--secondary))] to-[hsl(var(--primary))] text-white btn-glow transition-all flex items-center justify-center gap-3 disabled:opacity-60">
                   {importMutation.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Importing & Roasting...</> : <><FileText className="w-5 h-5" /> Import & Roast All</>}
                 </button>
