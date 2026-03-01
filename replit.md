@@ -146,9 +146,8 @@ GMAIL_APP_PASSWORD          # Gmail App Password for expenseroaster@gmail.com (c
 
 ### Email (Contact Form)
 - Contact form submissions are always saved to the `contact_submissions` DB table.
-- Emails are sent via nodemailer + Gmail SMTP using `GMAIL_APP_PASSWORD` secret.
-- **NOTE:** Resend integration was dismissed by user. Using Gmail SMTP instead. Do NOT attempt the Resend integration unless user requests it again.
-- To get a Gmail App Password: Google Account → Security → 2-Step Verification → App passwords.
+- Emails are sent via Resend integration (`server/resend/resendClient.ts`) using the Replit connector.
+- Uses `onboarding@resend.dev` as sender, delivers to `expenseroaster@gmail.com` with `replyTo` set to the submitter.
 
 ---
 

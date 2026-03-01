@@ -668,24 +668,18 @@ All content must directly reference their actual spending data.`,
 
     await storage.createContactSubmission({ name, email, message });
 
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
-    if (gmailPass) {
-      try {
-        const nodemailer = await import("nodemailer");
-        const transporter = nodemailer.default.createTransport({
-          service: "gmail",
-          auth: { user: "expenseroaster@gmail.com", pass: gmailPass },
-        });
-        await transporter.sendMail({
-          from: `"RoastMyWallet" <expenseroaster@gmail.com>`,
-          to: "expenseroaster@gmail.com",
-          replyTo: email,
-          subject: `Contact from ${name}`,
-          html: `<p><strong>From:</strong> ${name} &lt;${email}&gt;</p><hr><p>${message.replace(/\n/g, "<br>")}</p>`,
-        });
-      } catch (err) {
-        console.error("Email send error:", err);
-      }
+    try {
+      const { getUncachableResendClient } = await import("./resend/resendClient");
+      const resend = await getUncachableResendClient();
+      await resend.emails.send({
+        from: "RoastMyWallet <onboarding@resend.dev>",
+        to: ["expenseroaster@gmail.com"],
+        replyTo: email,
+        subject: `Contact from ${name}`,
+        html: `<p><strong>From:</strong> ${name} &lt;${email}&gt;</p><hr><p>${message.replace(/\n/g, "<br>")}</p>`,
+      });
+    } catch (err) {
+      console.error("Email send error:", err);
     }
 
     res.status(201).json({ ok: true });
