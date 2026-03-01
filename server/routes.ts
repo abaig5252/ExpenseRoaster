@@ -615,26 +615,55 @@ Return ONLY the JSON array, no other text.`,
         const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
         if (!rows.length) return res.status(400).json({ message: "Excel sheet appears to be empty" });
 
+        // Detect column layout from the first row's keys
+        const allKeys = Object.keys(rows[0]);
+        const findKey = (patterns: string[]) =>
+          allKeys.find(k => patterns.some(p => k.toLowerCase().trim() === p || k.toLowerCase().trim().includes(p)));
+
+        const outKey = findKey(["out", "debit", "withdrawal", "withdrawals", "spend", "spent", "payment", "payments"]);
+        const inKey = findKey(["in", "credit", "deposit", "deposits", "received"]);
+        const amtKey = findKey(["amount", "value", "transaction"]);
+        const descKey = findKey(["description", "merchant", "narration", "details", "particulars", "name", "payee", "memo", "reference"]);
+        const dateKey = findKey(["date", "posted", "time", "transaction date", "trans date"]);
+
+        const parseAmt = (val: any): number => {
+          if (val === null || val === undefined || val === "") return 0;
+          const n = parseFloat(String(val).replace(/[$,\s\(\)]/g, ""));
+          return isNaN(n) ? 0 : Math.abs(n);
+        };
+
         const txs = rows.map((row) => {
-          const keys = Object.keys(row).map(k => k.toLowerCase());
-          const get = (patterns: string[]) => {
-            const key = Object.keys(row).find(k => patterns.some(p => k.toLowerCase().includes(p)));
-            return key ? String(row[key]) : "";
-          };
-          const rawAmt = get(["amount", "debit", "credit", "value"]).replace(/[$,\s]/g, "");
-          const amount = parseFloat(rawAmt || "0");
-          const description = get(["description", "merchant", "narration", "details", "name", "payee"]) || "Bank Transaction";
-          const rawDate = get(["date", "time", "posted"]);
-          let date = "";
-          if (rawDate) {
-            const d = new Date(rawDate);
-            if (!isNaN(d.getTime())) date = d.toISOString().split("T")[0];
-            else date = rawDate;
+          let amount = 0;
+          if (outKey) {
+            // Separate out/in columns — only import "out" (spending) rows
+            amount = parseAmt(row[outKey]);
+          } else if (amtKey) {
+            amount = parseAmt(row[amtKey]);
+          } else if (inKey) {
+            amount = parseAmt(row[inKey]);
           }
+
+          const description = descKey ? (String(row[descKey]).trim() || "Bank Transaction") : "Bank Transaction";
+
+          let date = "";
+          if (dateKey) {
+            const rawDate = row[dateKey];
+            if (rawDate instanceof Date) {
+              date = rawDate.toISOString().split("T")[0];
+            } else if (rawDate) {
+              const d = new Date(String(rawDate));
+              date = isNaN(d.getTime()) ? String(rawDate) : d.toISOString().split("T")[0];
+            }
+          }
+
           return { description, amount, date };
         }).filter(t => t.amount > 0);
 
-        if (!txs.length) return res.status(400).json({ message: "No valid transactions found in Excel file" });
+        if (!txs.length) {
+          const detected = { outKey, inKey, amtKey, descKey, dateKey, columns: allKeys };
+          console.error("Excel: no valid transactions. Detected columns:", detected);
+          return res.status(400).json({ message: "No valid transactions found in Excel file. Ensure it has a spending/amount column and at least one positive value." });
+        }
         const created = await processTransactions(userId, txs, toneVal);
         return res.status(201).json({ imported: created.length, expenses: created });
       }
