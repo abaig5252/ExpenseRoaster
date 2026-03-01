@@ -1,8 +1,9 @@
 import { db } from "./db";
-import { expenses, users, type Expense, type InsertExpense, type User, type UpsertUser } from "@shared/schema";
+import { expenses, users, contactSubmissions, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact } from "@shared/schema";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 
 export interface IStorage {
+  createContactSubmission(data: InsertContact): Promise<void>;
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserTier(userId: string, tier: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<User>;
@@ -128,6 +129,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`to_char(${expenses.date}, 'YYYY-MM')`);
 
     return rows.map((r) => ({ month: r.month, total: Number(r.total), count: Number(r.count) }));
+  }
+
+  async createContactSubmission(data: InsertContact): Promise<void> {
+    await db.insert(contactSubmissions).values(data);
   }
 }
 

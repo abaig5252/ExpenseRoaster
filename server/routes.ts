@@ -653,6 +653,41 @@ All content must directly reference their actual spending data.`,
     }
   });
 
+  // ─── Contact Form ─────────────────────────────────────────────────
+  app.post("/api/contact", async (req: Request, res: Response) => {
+    const schema = z.object({
+      name: z.string().min(1).max(100),
+      email: z.string().email(),
+      message: z.string().min(10).max(2000),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid submission", errors: parsed.error.flatten() });
+    }
+    const { name, email, message } = parsed.data;
+
+    await storage.createContactSubmission({ name, email, message });
+
+    const apiKey = process.env.RESEND_API_KEY;
+    if (apiKey) {
+      try {
+        const { Resend } = await import("resend");
+        const resend = new Resend(apiKey);
+        await resend.emails.send({
+          from: "RoastMyWallet <onboarding@resend.dev>",
+          to: ["expenseroaster@gmail.com"],
+          replyTo: email,
+          subject: `Contact: message from ${name}`,
+          html: `<p><strong>From:</strong> ${name} (${email})</p><p><strong>Message:</strong></p><p>${message.replace(/\n/g, "<br>")}</p>`,
+        });
+      } catch (err) {
+        console.error("Resend email error:", err);
+      }
+    }
+
+    res.status(201).json({ ok: true });
+  });
+
   // ─── Expenses: Delete ────────────────────────────────────────────
   app.delete(buildUrl(api.expenses.delete.path).replace(":id", ":id"), isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
