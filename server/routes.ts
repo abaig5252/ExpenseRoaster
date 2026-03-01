@@ -610,59 +610,69 @@ Return ONLY the JSON array, no other text.`,
         const base64 = data.replace(/^data:[^;]+;base64,/, "");
         const buffer = Buffer.from(base64, "base64");
         const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        if (!sheetName) return res.status(400).json({ message: "Excel file has no sheets" });
-        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
-        if (!rows.length) return res.status(400).json({ message: "Excel sheet appears to be empty" });
+        if (!workbook.SheetNames.length) return res.status(400).json({ message: "Excel file has no sheets" });
 
-        // Detect column layout from the first row's keys
-        const allKeys = Object.keys(rows[0]);
-        const findKey = (patterns: string[]) =>
-          allKeys.find(k => patterns.some(p => k.toLowerCase().trim() === p || k.toLowerCase().trim().includes(p)));
-
-        const outKey = findKey(["out", "debit", "withdrawal", "withdrawals", "spend", "spent", "payment", "payments"]);
-        const inKey = findKey(["in", "credit", "deposit", "deposits", "received"]);
-        const amtKey = findKey(["amount", "value", "transaction"]);
-        const descKey = findKey(["description", "merchant", "narration", "details", "particulars", "name", "payee", "memo", "reference"]);
-        const dateKey = findKey(["date", "posted", "time", "transaction date", "trans date"]);
-
+        // Helper: parse an amount from any cell value
         const parseAmt = (val: any): number => {
           if (val === null || val === undefined || val === "") return 0;
           const n = parseFloat(String(val).replace(/[$,\s\(\)]/g, ""));
           return isNaN(n) ? 0 : Math.abs(n);
         };
 
-        const txs = rows.map((row) => {
-          let amount = 0;
-          if (outKey) {
-            // Separate out/in columns — only import "out" (spending) rows
-            amount = parseAmt(row[outKey]);
-          } else if (amtKey) {
-            amount = parseAmt(row[amtKey]);
-          } else if (inKey) {
-            amount = parseAmt(row[inKey]);
-          }
+        // Helper: parse a date from any cell value
+        const parseDate = (val: any): string => {
+          if (!val) return "";
+          if (val instanceof Date) return val.toISOString().split("T")[0];
+          const d = new Date(String(val).trim());
+          return isNaN(d.getTime()) ? String(val).trim() : d.toISOString().split("T")[0];
+        };
 
-          const description = descKey ? (String(row[descKey]).trim() || "Bank Transaction") : "Bank Transaction";
+        // Try all sheets, picking the one that produces the most valid transactions
+        let txs: { description: string; amount: number; date: string }[] = [];
 
-          let date = "";
-          if (dateKey) {
-            const rawDate = row[dateKey];
-            if (rawDate instanceof Date) {
-              date = rawDate.toISOString().split("T")[0];
-            } else if (rawDate) {
-              const d = new Date(String(rawDate));
-              date = isNaN(d.getTime()) ? String(rawDate) : d.toISOString().split("T")[0];
+        for (const sName of workbook.SheetNames) {
+          const rawRows: any[][] = XLSX.utils.sheet_to_json(workbook.Sheets[sName], { header: 1, defval: "" });
+          if (rawRows.length < 2) continue;
+
+          // Find the header row — first row whose cells contain date + description keywords
+          let headerRowIdx = -1;
+          let dateCol = -1, descCol = -1, outCol = -1, inCol = -1, amtCol = -1;
+
+          for (let ri = 0; ri < Math.min(rawRows.length, 20); ri++) {
+            const cells = rawRows[ri].map((c: any) => String(c).toLowerCase().trim());
+            const hasDate = cells.some(c => c === "date" || c.includes("date") || c === "posted");
+            const hasDesc = cells.some(c => ["description","merchant","narration","details","particulars","payee","memo"].some(p => c.includes(p)));
+            const hasAmt = cells.some(c => ["amount","out","debit","withdrawal","credit","in","value"].some(p => c === p || c.includes(p)));
+            if (hasDate && hasDesc && hasAmt) {
+              headerRowIdx = ri;
+              dateCol = cells.findIndex(c => c === "date" || c.includes("date") || c === "posted");
+              descCol = cells.findIndex(c => ["description","merchant","narration","details","particulars","payee","memo","reference"].some(p => c.includes(p)));
+              outCol = cells.findIndex(c => ["out","debit","withdrawal","withdrawals","spend","payment"].some(p => c === p || c.includes(p)));
+              inCol = cells.findIndex(c => ["in","credit","deposit","deposits","received"].some(p => c === p));
+              amtCol = cells.findIndex(c => ["amount","value"].some(p => c === p || c.includes(p)));
+              break;
             }
           }
 
-          return { description, amount, date };
-        }).filter(t => t.amount > 0);
+          if (headerRowIdx === -1) continue;
+
+          const candidates = rawRows.slice(headerRowIdx + 1).map((row: any[]) => {
+            let amount = 0;
+            if (outCol >= 0 && row[outCol] !== "" && row[outCol] !== false) {
+              amount = parseAmt(row[outCol]);
+            } else if (amtCol >= 0) {
+              amount = parseAmt(row[amtCol]);
+            }
+            const description = descCol >= 0 ? (String(row[descCol]).trim() || "Bank Transaction") : "Bank Transaction";
+            const date = dateCol >= 0 ? parseDate(row[dateCol]) : "";
+            return { description, amount, date };
+          }).filter(t => t.amount > 0 && t.description !== "Bank Transaction" || t.amount > 0);
+
+          if (candidates.length > txs.length) txs = candidates;
+        }
 
         if (!txs.length) {
-          const detected = { outKey, inKey, amtKey, descKey, dateKey, columns: allKeys };
-          console.error("Excel: no valid transactions. Detected columns:", detected);
-          return res.status(400).json({ message: "No valid transactions found in Excel file. Ensure it has a spending/amount column and at least one positive value." });
+          return res.status(400).json({ message: "Could not find transaction data in the Excel file. Make sure columns include Date, Description, and an amount (Out/Debit/Amount)." });
         }
         const created = await processTransactions(userId, txs, toneVal);
         return res.status(201).json({ imported: created.length, expenses: created });
