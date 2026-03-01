@@ -11,6 +11,7 @@ import MonthlyTracker from "@/pages/MonthlyTracker";
 import Pricing from "@/pages/Pricing";
 import AnnualReport from "@/pages/AnnualReport";
 import UpgradeSuccess from "@/pages/UpgradeSuccess";
+import Install from "@/pages/Install";
 import { useAuth } from "@/hooks/use-auth";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -56,6 +57,7 @@ function Router() {
       <Route path="/pricing" component={() => <ProtectedRoute component={Pricing} />} />
       <Route path="/annual-report" component={() => <ProtectedRoute component={AnnualReport} />} />
       <Route path="/upgrade/success" component={() => <ProtectedRoute component={UpgradeSuccess} />} />
+      <Route path="/install" component={Install} />
       <Route component={NotFound} />
     </Switch>
   );

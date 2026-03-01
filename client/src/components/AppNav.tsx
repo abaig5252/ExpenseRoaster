@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Flame, Wallet, BarChart3, LogOut, Crown, FileText } from "lucide-react";
+import { Flame, Wallet, BarChart3, LogOut, Crown, FileText, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
 
@@ -61,6 +61,12 @@ export function AppNav() {
 
         {/* User + Tier */}
         <div className="flex items-center gap-2">
+          <Link href="/install" data-testid="link-install-app">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 cursor-pointer hover:bg-[hsl(var(--secondary))]/20 transition-colors">
+              <Download className="w-3.5 h-3.5 text-[hsl(var(--secondary))]" />
+              <span className="text-xs font-bold text-[hsl(var(--secondary))]">Get App</span>
+            </div>
+          </Link>
           {/* Tier badge */}
           {isPremium ? (
             <Link href="/pricing">
