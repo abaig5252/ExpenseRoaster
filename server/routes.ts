@@ -12,6 +12,7 @@ import { sql } from "drizzle-orm";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string }>;
+import * as XLSX from "xlsx";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -603,7 +604,42 @@ Return ONLY the JSON array, no other text.`,
         return res.status(201).json({ imported: created.length, expenses: created });
       }
 
-      return res.status(400).json({ message: "Unsupported format. Use csv, pdf, or image." });
+      // ── Excel (.xlsx / .xls) ─────────────────────────────────────
+      if (fmt === "excel") {
+        if (!data) return res.status(400).json({ message: "No Excel file data provided" });
+        const base64 = data.replace(/^data:[^;]+;base64,/, "");
+        const buffer = Buffer.from(base64, "base64");
+        const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) return res.status(400).json({ message: "Excel file has no sheets" });
+        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+        if (!rows.length) return res.status(400).json({ message: "Excel sheet appears to be empty" });
+
+        const txs = rows.map((row) => {
+          const keys = Object.keys(row).map(k => k.toLowerCase());
+          const get = (patterns: string[]) => {
+            const key = Object.keys(row).find(k => patterns.some(p => k.toLowerCase().includes(p)));
+            return key ? String(row[key]) : "";
+          };
+          const rawAmt = get(["amount", "debit", "credit", "value"]).replace(/[$,\s]/g, "");
+          const amount = parseFloat(rawAmt || "0");
+          const description = get(["description", "merchant", "narration", "details", "name", "payee"]) || "Bank Transaction";
+          const rawDate = get(["date", "time", "posted"]);
+          let date = "";
+          if (rawDate) {
+            const d = new Date(rawDate);
+            if (!isNaN(d.getTime())) date = d.toISOString().split("T")[0];
+            else date = rawDate;
+          }
+          return { description, amount, date };
+        }).filter(t => t.amount > 0);
+
+        if (!txs.length) return res.status(400).json({ message: "No valid transactions found in Excel file" });
+        const created = await processTransactions(userId, txs, toneVal);
+        return res.status(201).json({ imported: created.length, expenses: created });
+      }
+
+      return res.status(400).json({ message: "Unsupported format. Use csv, pdf, image, or excel." });
     } catch (err) {
       console.error("Statement import error:", err);
       res.status(500).json({ message: "Failed to import statement" });

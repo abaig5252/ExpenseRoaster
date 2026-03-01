@@ -37,7 +37,7 @@ export default function BankStatement() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<FormState>>({});
   const [activeTab, setActiveTab] = useState<"manual" | "import">("manual");
-  const [importData, setImportData] = useState<{ data: string; format: "csv" | "pdf" | "image"; fileName: string } | null>(null);
+  const [importData, setImportData] = useState<{ data: string; format: "csv" | "pdf" | "image" | "excel"; fileName: string } | null>(null);
   const [csvText, setCsvText] = useState("");
   const [converting, setConverting] = useState(false);
 
@@ -111,6 +111,9 @@ export default function BankStatement() {
 
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     const isCsv = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv") || file.type === "text/plain";
+    const isExcel = file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.type === "application/vnd.ms-excel" ||
+      file.name.toLowerCase().endsWith(".xlsx") || file.name.toLowerCase().endsWith(".xls");
     const isHeic = file.type === "image/heic" || file.type === "image/heif" ||
       file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
 
@@ -137,7 +140,7 @@ export default function BankStatement() {
       }
     }
 
-    const format: "pdf" | "image" = isPdf ? "pdf" : "image";
+    const format: "pdf" | "image" | "excel" = isExcel ? "excel" : isPdf ? "pdf" : "image";
     const reader = new FileReader();
     reader.onload = (e) => {
       setImportData({ data: e.target?.result as string, format, fileName: file.name });
@@ -152,6 +155,8 @@ export default function BankStatement() {
       "text/csv": [".csv"],
       "text/plain": [".txt"],
       "application/pdf": [".pdf"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+      "application/vnd.ms-excel": [".xls"],
       "image/jpeg": [".jpg", ".jpeg"],
       "image/png": [".png"],
       "image/webp": [".webp"],
@@ -175,7 +180,7 @@ export default function BankStatement() {
             <h1 className="text-4xl font-display font-black text-white">Bank Statement</h1>
           </div>
           <p className="text-muted-foreground text-lg">
-            Log expenses manually or import a bank statement — CSV, PDF, or photo. Every entry gets roasted.
+            Log expenses manually or import a bank statement — CSV, Excel, PDF, or photo. Every entry gets roasted.
           </p>
         </motion.div>
 
@@ -308,7 +313,7 @@ export default function BankStatement() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
                 <div>
                   <h2 className="text-xl font-display font-bold text-white mb-1">Import Bank Statement</h2>
-                  <p className="text-xs text-muted-foreground">Upload a CSV, PDF, or photo/screenshot of your bank statement. Up to 100 transactions per import.</p>
+                  <p className="text-xs text-muted-foreground">Upload a CSV, Excel worksheet, PDF, or photo/screenshot of your bank statement. Up to 100 transactions per import.</p>
                 </div>
 
                 {/* Dropzone */}
@@ -321,12 +326,14 @@ export default function BankStatement() {
                   <div className="border-2 border-[hsl(var(--secondary))]/40 bg-[hsl(var(--secondary))]/5 rounded-2xl p-5 flex items-center gap-4">
                     {importData.format === "pdf" ? (
                       <FileText className="w-8 h-8 text-[hsl(var(--secondary))] shrink-0" />
+                    ) : importData.format === "excel" ? (
+                      <File className="w-8 h-8 text-green-400 shrink-0" />
                     ) : (
                       <Image className="w-8 h-8 text-[hsl(var(--secondary))] shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-white truncate">{importData.fileName}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{importData.format} file — ready to import</p>
+                      <p className="text-xs text-muted-foreground capitalize">{importData.format === "excel" ? "Excel worksheet" : importData.format + " file"} — ready to import</p>
                     </div>
                     <button onClick={() => setImportData(null)} className="text-muted-foreground hover:text-white transition-colors text-xs underline shrink-0">
                       Remove
@@ -338,7 +345,7 @@ export default function BankStatement() {
                     <input {...getInputProps()} />
                     <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                     <p className="text-sm font-semibold text-white mb-1">Drop your statement here</p>
-                    <p className="text-xs text-muted-foreground">CSV, PDF, JPG, PNG, HEIC (iPhone) — or click to browse</p>
+                    <p className="text-xs text-muted-foreground">CSV, Excel (.xlsx/.xls), PDF, JPG, PNG, HEIC — or click to browse</p>
                   </div>
                 )}
 
