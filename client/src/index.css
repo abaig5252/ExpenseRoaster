@@ -122,3 +122,10 @@
 ::-webkit-scrollbar-track { background: hsl(var(--background)); }
 ::-webkit-scrollbar-thumb { background: hsl(var(--muted)); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.5); }
+
+/* PWA: safe area + bottom tab bar padding on mobile */
+@media (max-width: 767px) {
+  .min-h-screen {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+}

@@ -12,6 +12,8 @@ import Pricing from "@/pages/Pricing";
 import AnnualReport from "@/pages/AnnualReport";
 import UpgradeSuccess from "@/pages/UpgradeSuccess";
 import { useAuth } from "@/hooks/use-auth";
+import { MobileTabBar } from "@/components/MobileTabBar";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -59,12 +61,23 @@ function Router() {
   );
 }
 
+function AppShell() {
+  const { isAuthenticated } = useAuth();
+  return (
+    <>
+      <Router />
+      {isAuthenticated && <MobileTabBar />}
+      {isAuthenticated && <InstallPrompt />}
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <AppShell />
       </TooltipProvider>
     </QueryClientProvider>
   );

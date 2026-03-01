@@ -23,7 +23,8 @@ export function AppNav() {
     : "?";
 
   return (
-    <nav className="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
+    <nav className="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-background/80 backdrop-blur-xl"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/upload" data-testid="link-home">
@@ -35,8 +36,8 @@ export function AppNav() {
           </div>
         </Link>
 
-        {/* Nav links */}
-        <div className="flex items-center gap-1">
+        {/* Nav links — hidden on mobile (bottom tab bar takes over) */}
+        <div className="hidden md:flex items-center gap-1">
           {navLinks.map(({ href, label, icon: Icon }) => {
             const isActive = location === href;
             const isLocked = href === "/bank" && !isPremium;
