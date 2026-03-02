@@ -85,8 +85,8 @@ export default {
       fontFamily: {
         sans: ['"DM Sans"', 'sans-serif'],
         display: ['"DM Sans"', 'sans-serif'],
-        serif: ['"Fraunces"', 'serif'],
-        fraunces: ['"Fraunces"', 'serif'],
+        serif: ['"Cabinet Grotesk"', 'sans-serif'],
+        fraunces: ['"Cabinet Grotesk"', 'sans-serif'],
         mono: ["var(--font-mono)"],
       },
       keyframes: {

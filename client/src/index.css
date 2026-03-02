@@ -72,8 +72,7 @@
     @apply font-bold tracking-tight;
   }
   h1, h2 {
-    font-family: 'Fraunces', serif;
-    font-style: italic;
+    font-family: 'Cabinet Grotesk', sans-serif;
   }
 }
 
@@ -119,20 +118,17 @@
     box-shadow: 0 0 50px hsla(320, 100%, 55%, 0.6), 0 4px 30px rgba(0,0,0,0.4);
   }
   .font-amount-hero {
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-weight: 900;
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-weight: 800;
     letter-spacing: -1px;
   }
   .font-amount-card {
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-weight: 900;
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-weight: 800;
     letter-spacing: -0.3px;
   }
   .font-roast {
-    font-family: 'Fraunces', serif;
-    font-style: italic;
+    font-family: 'Cabinet Grotesk', sans-serif;
     font-weight: 400;
   }
 }
