@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Flame, Plus, DollarSign, RefreshCw, Share2, Lock, ChevronDown } from "lucide-react";
+import { Flame, Plus, Receipt, RefreshCw, Lock, Camera } from "lucide-react";
 import { useExpenses, useExpenseSummary, useDeleteExpense } from "@/hooks/use-expenses";
-import { ExpenseCard } from "@/components/ExpenseCard";
+import { ReceiptCollageCard } from "@/components/ReceiptCollageCard";
 import { UploadModal } from "@/components/UploadModal";
 import { AppNav } from "@/components/AppNav";
 import { RoastCard } from "@/components/RoastCard";
@@ -17,7 +17,7 @@ export default function Upload() {
   const { user } = useAuth();
   const { data: me } = useMe();
   const { data: expenses, isLoading, error } = useExpenses();
-  const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
+  const { data: summary } = useExpenseSummary();
   const deleteMutation = useDeleteExpense();
 
   const isFree = !me || me.tier === "free";
@@ -30,17 +30,8 @@ export default function Upload() {
 
   const firstName = user?.firstName || user?.email?.split("@")[0] || "friend";
 
-  const now = new Date();
-  const currentMonthExpenses = expenses?.filter(e => {
-    const d = new Date(e.date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }) ?? [];
-  const disgraceExpense = currentMonthExpenses.length > 0
-    ? currentMonthExpenses.reduce((max, e) => e.amount > max.amount ? e : max)
-    : null;
-  const restExpenses = disgraceExpense
-    ? (expenses?.filter(e => e.id !== disgraceExpense.id) ?? [])
-    : (expenses ?? []);
+  // Only show receipt uploads — bank statements live on their own tab
+  const receiptExpenses = expenses?.filter(e => e.source === "receipt") ?? [];
 
   const handleUploadSuccess = (data: any) => {
     if (data.ephemeral) {
@@ -54,7 +45,7 @@ export default function Upload() {
       <div className="bg-noise" />
       <AppNav />
 
-      {/* Marquee roast banner (premium only since free users have no history) */}
+      {/* Marquee roast banner */}
       {summary?.recentRoasts && summary.recentRoasts.length > 0 && (
         <div className="w-full bg-[hsl(var(--primary))]/15 border-b border-[hsl(var(--primary))]/20 overflow-hidden py-2.5 z-30 relative">
           <div className="flex w-[200%] animate-marquee whitespace-nowrap">
@@ -74,17 +65,13 @@ export default function Upload() {
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
             <p className="text-muted-foreground text-sm font-semibold uppercase tracking-widest mb-3">
               Hey {firstName},{" "}
-              {isFree ? "here's your free roast zone" : "here's your damage report"}
+              {isFree ? "here's your free roast zone" : "here's your receipt wall"}
             </p>
             {!isFree && (
               <div className="flex items-end gap-3">
-                {summaryLoading ? (
-                  <div className="h-20 w-56 bg-white/5 rounded-2xl animate-pulse" />
-                ) : (
-                  <h1 className="text-6xl md:text-8xl font-amount-hero text-white leading-none">
-                    {formattedTotal}
-                  </h1>
-                )}
+                <h1 className="text-6xl md:text-8xl font-amount-hero text-white leading-none">
+                  {formattedTotal}
+                </h1>
               </div>
             )}
             {isFree && (
@@ -99,7 +86,12 @@ export default function Upload() {
             </p>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.15 }} className="flex flex-col gap-3 items-end">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="flex flex-col gap-3 items-end"
+          >
             <button
               onClick={() => setIsUploadOpen(true)}
               disabled={isFree && uploadsRemaining === 0}
@@ -121,19 +113,26 @@ export default function Upload() {
 
         {/* Free tier upgrade nudge */}
         {isFree && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-            className="glass-panel rounded-2xl p-5 mb-8 border border-[hsl(var(--primary))]/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="glass-panel rounded-2xl p-5 mb-8 border border-[hsl(var(--primary))]/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          >
             <div className="flex items-start gap-3">
               <Lock className="w-5 h-5 text-[hsl(var(--primary))] shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-white">You're on the Free plan</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Upgrade to Premium for unlimited uploads, spending history, CSV imports, and more.
+                  Upgrade to Premium for unlimited uploads, spending history, and more.
                 </p>
               </div>
             </div>
             <Link href="/pricing">
-              <button data-testid="button-upgrade-nudge" className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] text-white text-sm font-bold whitespace-nowrap hover:opacity-90 transition-all">
+              <button
+                data-testid="button-upgrade-nudge"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] text-white text-sm font-bold whitespace-nowrap hover:opacity-90 transition-all"
+              >
                 Upgrade — $9.99/mo
               </button>
             </Link>
@@ -143,29 +142,42 @@ export default function Upload() {
         {/* Ephemeral roast card (free tier) */}
         <AnimatePresence>
           {showRoastCard && ephemeralRoast && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mb-8">
-              <RoastCard expense={ephemeralRoast} watermark={isFree} onClose={() => setShowRoastCard(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-8"
+            >
+              <RoastCard
+                expense={ephemeralRoast}
+                watermark={isFree}
+                onClose={() => setShowRoastCard(false)}
+              />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Expense list */}
+        {/* Receipt collage (premium only) */}
         {!isFree && (
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <DollarSign className="w-6 h-6 text-muted-foreground" />
-              <h2 className="text-2xl font-bold text-white">Your Recent Disasters</h2>
-              {expenses?.length ? (
+              <Camera className="w-5 h-5 text-muted-foreground" />
+              <h2 className="text-2xl font-bold text-white">Receipt Wall</h2>
+              {receiptExpenses.length > 0 && (
                 <span className="px-2.5 py-0.5 bg-white/10 rounded-full text-xs font-bold text-muted-foreground">
-                  {expenses.length}
+                  {receiptExpenses.length}
                 </span>
-              ) : null}
+              )}
             </div>
 
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="glass-panel rounded-3xl p-6 h-64 animate-pulse" />
+              <div className="columns-2 md:columns-3 gap-4">
+                {[1, 2, 3, 4].map(i => (
+                  <div
+                    key={i}
+                    className="glass-panel rounded-3xl h-56 animate-pulse"
+                    style={{ marginBottom: 16, breakInside: "avoid" }}
+                  />
                 ))}
               </div>
             ) : error ? (
@@ -174,68 +186,39 @@ export default function Upload() {
                 <h3 className="text-xl font-bold mb-2">Failed to load</h3>
                 <p className="text-muted-foreground">Servers down. Like your savings.</p>
               </div>
-            ) : expenses?.length === 0 ? (
-              <div className="glass-panel border-dashed border-white/10 rounded-3xl p-16 text-center flex flex-col items-center">
+            ) : receiptExpenses.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-panel border-dashed border-white/10 rounded-3xl p-16 text-center flex flex-col items-center"
+              >
                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-5">
-                  <Flame className="w-10 h-10 text-muted-foreground" />
+                  <Receipt className="w-10 h-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-3xl font-bold mb-3">Suspiciously clean...</h3>
+                <h3 className="text-3xl font-bold mb-3">No receipts yet</h3>
                 <p className="text-lg text-muted-foreground max-w-md mb-8">
-                  Either you have incredible self-control or you're too afraid to face the truth. Upload a receipt.
+                  Upload a receipt photo and watch your poor decisions get immortalised on the wall.
                 </p>
                 <button
                   onClick={() => setIsUploadOpen(true)}
                   data-testid="button-upload-first"
                   className="px-8 py-4 rounded-2xl font-display font-bold bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] text-white btn-glow"
                 >
-                  Face Your Finances
+                  Add First Receipt
                 </button>
-              </div>
+              </motion.div>
             ) : (
-              <div>
-                {/* Monthly Disgrace — worst transaction this month */}
-                {disgraceExpense && (
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#FF5252" }}>
-                        🏆 Monthly Disgrace
-                      </span>
-                      <div className="flex-1 h-px" style={{ background: "rgba(255,82,82,0.2)" }} />
-                    </div>
-                    <ExpenseCard
-                      expense={disgraceExpense}
-                      index={0}
-                      isDisgrace={true}
-                      onDelete={() => deleteMutation.mutate(disgraceExpense.id)}
-                      isDeleting={deleteMutation.isPending}
-                    />
-                  </div>
-                )}
-
-                {/* Rest of the feed */}
-                {restExpenses.length > 0 && (
-                  <>
-                    {disgraceExpense && (
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                          All Transactions
-                        </span>
-                        <div className="flex-1 h-px bg-white/5" />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                      {restExpenses.map((expense, i) => (
-                        <ExpenseCard
-                          key={expense.id}
-                          expense={expense}
-                          index={i}
-                          onDelete={() => deleteMutation.mutate(expense.id)}
-                          isDeleting={deleteMutation.isPending}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
+              /* Collage grid using CSS columns for natural masonry stagger */
+              <div className="columns-2 md:columns-3 lg:columns-4" style={{ gap: 16 }}>
+                {receiptExpenses.map((expense, i) => (
+                  <ReceiptCollageCard
+                    key={expense.id}
+                    expense={expense}
+                    index={i}
+                    onDelete={() => deleteMutation.mutate(expense.id)}
+                    isDeleting={deleteMutation.isPending && deleteMutation.variables === expense.id}
+                  />
+                ))}
               </div>
             )}
           </div>
