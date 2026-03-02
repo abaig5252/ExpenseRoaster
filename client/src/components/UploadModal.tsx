@@ -126,7 +126,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                 <div className="w-9 h-9 rounded-xl bg-[hsl(var(--primary))]/20 flex items-center justify-center">
                   <Flame className="w-5 h-5 text-[hsl(var(--primary))]" />
                 </div>
-                <h2 className="text-xl font-display font-bold text-white">
+                <h2 className="text-xl font-bold text-white">
                   {result ? "Verdict Delivered" : "Upload & Get Roasted"}
                 </h2>
               </div>
@@ -159,7 +159,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                 <div className="flex flex-col items-center text-center gap-6">
                   <div className="w-full bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--secondary))]/10 rounded-3xl p-6 border border-[hsl(var(--primary))]/20">
                     <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Financial Damage</div>
-                    <div className="text-5xl font-display font-black text-white mb-2">
+                    <div className="text-5xl font-amount-card text-white mb-2">
                       {(result.amount / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}
                     </div>
                     <div className="text-base text-muted-foreground">{result.description}</div>

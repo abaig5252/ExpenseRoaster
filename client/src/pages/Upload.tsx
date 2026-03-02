@@ -69,14 +69,14 @@ export default function Upload() {
                 {summaryLoading ? (
                   <div className="h-20 w-56 bg-white/5 rounded-2xl animate-pulse" />
                 ) : (
-                  <h1 className="text-6xl md:text-8xl font-display font-black text-white leading-none">
+                  <h1 className="text-6xl md:text-8xl font-amount-hero text-white leading-none">
                     {formattedTotal}
                   </h1>
                 )}
               </div>
             )}
             {isFree && (
-              <h1 className="text-5xl font-display font-black text-white leading-none mb-3">
+              <h1 className="text-5xl font-bold text-white leading-none mb-3">
                 Roast My Receipt
               </h1>
             )}
@@ -142,7 +142,7 @@ export default function Upload() {
           <div>
             <div className="flex items-center gap-3 mb-6">
               <DollarSign className="w-6 h-6 text-muted-foreground" />
-              <h2 className="text-2xl font-display font-bold text-white">Your Recent Disasters</h2>
+              <h2 className="text-2xl font-bold text-white">Your Recent Disasters</h2>
               {expenses?.length ? (
                 <span className="px-2.5 py-0.5 bg-white/10 rounded-full text-xs font-bold text-muted-foreground">
                   {expenses.length}
@@ -167,7 +167,7 @@ export default function Upload() {
                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-5">
                   <Flame className="w-10 h-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-3xl font-display font-bold mb-3">Suspiciously clean...</h3>
+                <h3 className="text-3xl font-bold mb-3">Suspiciously clean...</h3>
                 <p className="text-lg text-muted-foreground max-w-md mb-8">
                   Either you have incredible self-control or you're too afraid to face the truth. Upload a receipt.
                 </p>

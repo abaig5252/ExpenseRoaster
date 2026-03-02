@@ -77,7 +77,7 @@ export default function Pricing() {
           <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center mx-auto mb-6">
             <Crown className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-5xl font-display font-black text-white mb-4">Choose Your Roast Level</h1>
+          <h1 className="text-5xl font-bold text-white mb-4">Choose Your Roast Level</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             From gentle nudges to full financial demolition — pick the plan that matches how much truth you can handle.
           </p>
@@ -90,11 +90,11 @@ export default function Pricing() {
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <Flame className="w-6 h-6 text-muted-foreground" />
-                <h2 className="text-2xl font-display font-bold text-white">Free</h2>
+                <h2 className="text-2xl font-bold text-white">Free</h2>
                 {me?.tier === "free" && <TierBadge tier="free" />}
               </div>
               <div className="flex items-end gap-2 mb-2">
-                <span className="text-5xl font-display font-black text-white">$0</span>
+                <span className="text-5xl font-amount-card text-white">$0</span>
                 <span className="text-muted-foreground mb-1">/month</span>
               </div>
               <p className="text-muted-foreground text-sm">Dip your toes in the shame.</p>
@@ -123,11 +123,11 @@ export default function Pricing() {
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <Zap className="w-6 h-6 text-[hsl(var(--primary))]" />
-                <h2 className="text-2xl font-display font-bold text-white">Premium</h2>
+                <h2 className="text-2xl font-bold text-white">Premium</h2>
                 {isPremium && <TierBadge tier="premium" />}
               </div>
               <div className="flex items-end gap-2 mb-2">
-                <span className="text-5xl font-display font-black text-white">$9.99</span>
+                <span className="text-5xl font-amount-card text-white">$9.99</span>
                 <span className="text-muted-foreground mb-1">/month</span>
               </div>
               <p className="text-muted-foreground text-sm">Full financial demolition mode.</p>
@@ -169,11 +169,11 @@ export default function Pricing() {
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="w-6 h-6 text-[hsl(var(--accent))]" />
-                <h2 className="text-2xl font-display font-bold text-white">Annual Report</h2>
+                <h2 className="text-2xl font-bold text-white">Annual Report</h2>
                 {hasAnnualReport && <TierBadge tier="annual" />}
               </div>
               <div className="flex items-end gap-2 mb-2">
-                <span className="text-5xl font-display font-black text-white">$29.99</span>
+                <span className="text-5xl font-amount-card text-white">$29.99</span>
                 <span className="text-muted-foreground mb-1">once</span>
               </div>
               <p className="text-muted-foreground text-sm">One-time. Full year. No mercy.</p>

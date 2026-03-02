@@ -1,12 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Syne:wght@400..800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-display: 'Bricolage Grotesque', sans-serif;
-  --font-body: 'Syne', sans-serif;
+  --font-display: 'DM Sans', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
 
   --background: 260 50% 4%;
   --foreground: 0 0% 100%;
@@ -62,7 +60,7 @@
   }
   body {
     @apply bg-background text-foreground antialiased min-h-screen overflow-x-hidden;
-    font-family: var(--font-body);
+    font-family: 'DM Sans', sans-serif;
     background-image:
       radial-gradient(circle at 15% 50%, hsla(320, 100%, 55%, 0.12), transparent 40%),
       radial-gradient(circle at 85% 30%, hsla(180, 100%, 40%, 0.12), transparent 40%),
@@ -72,6 +70,10 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     @apply font-bold tracking-tight;
+  }
+  h1, h2 {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
   }
 }
 
@@ -115,6 +117,23 @@
   }
   .btn-glow:hover {
     box-shadow: 0 0 50px hsla(320, 100%, 55%, 0.6), 0 4px 30px rgba(0,0,0,0.4);
+  }
+  .font-amount-hero {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 900;
+    letter-spacing: -1px;
+  }
+  .font-amount-card {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+  }
+  .font-roast {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 400;
   }
 }
 

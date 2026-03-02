@@ -148,7 +148,7 @@ export default function BankStatement() {
             <div className="w-10 h-10 rounded-2xl bg-[hsl(var(--secondary))]/20 border border-[hsl(var(--secondary))]/30 flex items-center justify-center">
               <Wallet className="w-5 h-5 text-[hsl(var(--secondary))]" />
             </div>
-            <h1 className="text-4xl font-display font-black text-white">Bank Statement</h1>
+            <h1 className="text-4xl font-bold text-white">Bank Statement</h1>
           </div>
           <p className="text-muted-foreground text-lg">
             Log expenses manually or import a bank statement — PDF or photo. Every entry gets roasted.
@@ -215,7 +215,7 @@ export default function BankStatement() {
             {/* Manual form */}
             {(!isPremium || activeTab === "manual") && (
               <motion.form onSubmit={handleSubmit} className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
-                <h2 className="text-xl font-display font-bold text-white">Add Expense</h2>
+                <h2 className="text-xl font-bold text-white">Add Expense</h2>
 
                 {!isPremium && (
                   <div className="flex gap-2">
@@ -283,7 +283,7 @@ export default function BankStatement() {
             {isPremium && activeTab === "import" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
                 <div>
-                  <h2 className="text-xl font-display font-bold text-white mb-1">Import Bank Statement</h2>
+                  <h2 className="text-xl font-bold text-white mb-1">Import Bank Statement</h2>
                   <p className="text-xs text-muted-foreground">Upload a PDF or photo/screenshot of your bank statement. Up to 100 transactions per import.</p>
                 </div>
 
@@ -351,7 +351,7 @@ export default function BankStatement() {
 
           {/* Right: Expense list */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-            <h2 className="text-xl font-display font-bold text-white mb-4">Logged Expenses ({manualExpenses.length})</h2>
+            <h2 className="text-xl font-bold text-white mb-4">Logged Expenses ({manualExpenses.length})</h2>
             <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-1">
               {manualExpenses.length === 0 ? (
                 <div className="glass-panel rounded-3xl p-10 text-center">
@@ -369,7 +369,7 @@ export default function BankStatement() {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start gap-2">
                       <p className="font-bold text-white text-sm truncate">{exp.description}</p>
-                      <span className="text-base font-display font-black text-white shrink-0">
+                      <span className="text-base font-amount-card text-white shrink-0">
                         {(exp.amount / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}
                       </span>
                     </div>

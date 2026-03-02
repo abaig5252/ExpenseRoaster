@@ -46,7 +46,7 @@ export default function UpgradeSuccess() {
             <CheckCircle2 className="w-10 h-10 text-[hsl(var(--secondary))]" />
           )}
         </div>
-        <h1 className="text-4xl font-display font-black text-white mb-3">
+        <h1 className="text-4xl font-bold text-white mb-3">
           {fulfillMutation.isPending ? "Confirming payment..." : "You're in!"}
         </h1>
         <p className="text-muted-foreground text-lg">

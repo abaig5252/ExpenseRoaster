@@ -63,7 +63,7 @@ export default function Dashboard() {
               </span>
             </div>
             
-            <h1 className="text-6xl md:text-8xl font-display font-black text-foreground tracking-tighter leading-none flex items-center gap-2">
+            <h1 className="text-6xl md:text-8xl font-amount-hero text-foreground leading-none flex items-center gap-2">
               {summaryLoading ? (
                 <span className="animate-pulse bg-white/10 rounded-2xl w-64 h-24 block"></span>
               ) : (
@@ -119,7 +119,7 @@ export default function Dashboard() {
               <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6">
                 <Flame className="w-12 h-12 text-muted-foreground" />
               </div>
-              <h3 className="text-3xl font-display font-bold text-foreground mb-4">Too clean...</h3>
+              <h3 className="text-3xl font-bold text-foreground mb-4">Too clean...</h3>
               <p className="text-xl text-muted-foreground max-w-lg mb-8">
                 You haven't uploaded any receipts yet. Are you actually saving money or just hiding your shame?
               </p>

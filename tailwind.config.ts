@@ -83,8 +83,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)"],
-        serif: ["var(--font-serif)"],
+        sans: ['"DM Sans"', 'sans-serif'],
+        display: ['"DM Sans"', 'sans-serif'],
+        serif: ['"Fraunces"', 'serif'],
+        fraunces: ['"Fraunces"', 'serif'],
         mono: ["var(--font-mono)"],
       },
       keyframes: {

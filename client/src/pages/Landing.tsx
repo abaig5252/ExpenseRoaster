@@ -33,7 +33,7 @@ export default function Landing() {
             </span>
           </div>
 
-          <h1 className="text-5xl sm:text-7xl md:text-8xl font-display font-black leading-[0.9] mb-8">
+          <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold leading-[0.9] mb-8">
             <span className="text-gradient-primary">RoastMyWallet</span>
           </h1>
 
@@ -71,14 +71,14 @@ export default function Landing() {
               <div className="bg-[hsl(var(--primary))]/20 rounded-xl p-3">
                 <Receipt className="w-6 h-6 text-[hsl(var(--primary))]" />
               </div>
-              <span className="text-3xl font-display font-black text-white">$87.50</span>
+              <span className="text-3xl font-amount-card text-white">$87.50</span>
             </div>
             <h3 className="text-lg font-bold text-white mb-1">Fancy Coffee x 5</h3>
             <p className="text-xs text-muted-foreground mb-4">Food & Drink · This week</p>
             <div className="bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 rounded-2xl p-4">
               <div className="flex items-start gap-2">
                 <Flame className="w-4 h-4 text-[hsl(var(--primary))] shrink-0 mt-0.5" />
-                <p className="text-sm italic text-white/90">"$87.50 on coffee this week? Your barista is going to Bali. You're going nowhere."</p>
+                <p className="font-roast text-sm text-white/90">"$87.50 on coffee this week? Your barista is going to Bali. You're going nowhere."</p>
               </div>
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function Landing() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-display font-black mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
               Everything you need to face <span className="text-gradient-primary">financial reality</span>
             </h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
@@ -132,7 +132,7 @@ export default function Landing() {
           className="max-w-3xl mx-auto glass-panel rounded-[2.5rem] p-12 border border-[hsl(var(--primary))]/20"
         >
           <Sparkles className="w-12 h-12 text-[hsl(var(--accent))] mx-auto mb-6" />
-          <h2 className="text-4xl md:text-5xl font-display font-black mb-4">
+          <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Ready to get <span className="text-gradient-primary">financially roasted?</span>
           </h2>
           <p className="text-muted-foreground text-lg mb-8">

@@ -44,7 +44,7 @@ function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
       {item.roast && (
         <div className="flex items-start gap-2.5 bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-2.5">
           <Flame className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-orange-200 italic leading-snug">{item.roast}</p>
+          <p className="font-roast text-sm text-orange-200 leading-snug">{item.roast}</p>
         </div>
       )}
 
@@ -106,7 +106,7 @@ export default function MonthlyTracker() {
             <div className="w-10 h-10 rounded-2xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-[hsl(var(--accent))]" />
             </div>
-            <h1 className="text-4xl font-display font-black text-white">Monthly Tracker</h1>
+            <h1 className="text-4xl font-bold text-white">Monthly Tracker</h1>
           </div>
           <p className="text-muted-foreground text-lg">
             Your spending history, a breakdown of where it goes, and advice you won't want to hear.
@@ -152,7 +152,7 @@ export default function MonthlyTracker() {
               <div className={`w-8 h-8 rounded-xl mb-3 flex items-center justify-center bg-[hsl(var(--${stat.color}))]/20 border border-[hsl(var(--${stat.color}))]/30`}>
                 <stat.icon className={`w-4 h-4 text-[hsl(var(--${stat.color}))]`} />
               </div>
-              <div className={`text-2xl font-display font-black mb-0.5 ${stat.color === "destructive" && !improved ? "text-destructive" : "text-white"}`}>
+              <div className={`text-2xl font-amount-card mb-0.5 ${stat.color === "destructive" && !improved ? "text-destructive" : "text-white"}`}>
                 {stat.value ?? <Skeleton className="h-7 w-20 bg-white/10" />}
               </div>
               {stat.sub && <div className="text-xs text-muted-foreground">{stat.sub}</div>}
@@ -164,7 +164,7 @@ export default function MonthlyTracker() {
         {/* Chart */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="glass-panel rounded-3xl p-6 mb-8">
-          <h2 className="text-xl font-display font-bold text-white mb-6">Monthly Spending (Last 12 Months)</h2>
+          <h2 className="text-xl font-bold text-white mb-6">Monthly Spending (Last 12 Months)</h2>
           {seriesLoading ? (
             <div className="h-64 flex items-center justify-center">
               <div className="text-muted-foreground text-sm">Loading your financial history...</div>
@@ -208,7 +208,7 @@ export default function MonthlyTracker() {
           {/* Category breakdown */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
             className="glass-panel rounded-3xl p-6">
-            <h2 className="text-xl font-display font-bold text-white mb-5">Spending by Category</h2>
+            <h2 className="text-xl font-bold text-white mb-5">Spending by Category</h2>
             {sortedCategories.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">No data yet</div>
             ) : (
@@ -249,12 +249,12 @@ export default function MonthlyTracker() {
                 <div className="w-9 h-9 rounded-xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
                   <Lightbulb className="w-5 h-5 text-[hsl(var(--accent))]" />
                 </div>
-                <h2 className="text-xl font-display font-bold text-white">Financial Advice</h2>
+                <h2 className="text-xl font-bold text-white">Financial Advice</h2>
               </div>
               {advice && (
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Save up to</p>
-                  <p className="text-base font-display font-black text-[hsl(var(--secondary))]">{fmtCurrency(advice.savingsPotential)}/mo</p>
+                  <p className="text-base font-amount-card text-[hsl(var(--secondary))]">{fmtCurrency(advice.savingsPotential)}/mo</p>
                 </div>
               )}
             </div>

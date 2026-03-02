@@ -55,7 +55,7 @@ export function RoastCard({ expense, watermark = false, onClose }: RoastCardProp
 
         {/* Expense info */}
         <div className="mb-6">
-          <div className="text-5xl font-display font-black text-white mb-1">
+          <div className="text-5xl font-amount-card text-white mb-1">
             {(expense.amount / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}
           </div>
           <div className="flex items-center gap-2">
@@ -72,7 +72,7 @@ export function RoastCard({ expense, watermark = false, onClose }: RoastCardProp
             <Flame className="w-4 h-4 text-[hsl(var(--primary))]" />
             <span className="text-xs font-black uppercase tracking-wider text-[hsl(var(--primary))]">The Verdict</span>
           </div>
-          <p className="text-white text-lg font-semibold italic leading-relaxed">
+          <p className="font-roast text-white text-lg leading-relaxed">
             "{expense.roast}"
           </p>
         </div>

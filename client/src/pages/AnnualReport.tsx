@@ -47,12 +47,12 @@ export default function AnnualReport() {
             <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
               <Lock className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h1 className="text-4xl font-display font-black text-white mb-4">Annual Roast Report</h1>
+            <h1 className="text-4xl font-bold text-white mb-4">Annual Roast Report</h1>
             <p className="text-xl text-muted-foreground mb-8">
               Get a full year of financial analysis with brutal honesty, behavioral insights, and a 5-year projection. One-time purchase, no subscription needed.
             </p>
             <div className="glass-panel rounded-3xl p-8 mb-6 text-left">
-              <div className="text-5xl font-display font-black text-white mb-1">$29.99</div>
+              <div className="text-5xl font-amount-card text-white mb-1">$29.99</div>
               <div className="text-muted-foreground mb-6">One-time payment</div>
               <ul className="flex flex-col gap-3 mb-8">
                 {["Brutal full-year roast", "Behavioral spending analysis", "Top 5 spending categories", "Worst month identified", "5-year projection if you don't change", "3 custom improvement suggestions", "Downloadable PDF"].map(f => (
@@ -92,7 +92,7 @@ export default function AnnualReport() {
               <div className="w-10 h-10 rounded-2xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
                 <FileText className="w-5 h-5 text-[hsl(var(--accent))]" />
               </div>
-              <h1 className="text-4xl font-display font-black text-white">Annual Roast Report</h1>
+              <h1 className="text-4xl font-bold text-white">Annual Roast Report</h1>
             </div>
             {reportData && (
               <button onClick={handleDownload} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 transition-all text-sm font-semibold text-white" data-testid="button-download-report">
@@ -108,7 +108,7 @@ export default function AnnualReport() {
             <div className="w-20 h-20 rounded-full bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/20 flex items-center justify-center mx-auto mb-6">
               <Flame className="w-10 h-10 text-[hsl(var(--primary))]" />
             </div>
-            <h2 className="text-3xl font-display font-black text-white mb-3">Ready to face the truth?</h2>
+            <h2 className="text-3xl font-bold text-white mb-3">Ready to face the truth?</h2>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               This will analyze all your saved expenses and generate a comprehensive financial roast. Requires at least a few transactions.
             </p>
@@ -143,7 +143,7 @@ export default function AnnualReport() {
                   <div className={`w-8 h-8 rounded-xl mb-3 flex items-center justify-center bg-[hsl(var(--${stat.color}))]/20`}>
                     <stat.icon className={`w-4 h-4 text-[hsl(var(--${stat.color}))]`} />
                   </div>
-                  <div className="text-xl font-display font-black text-white">{stat.value}</div>
+                  <div className="text-xl font-amount-card text-white">{stat.value}</div>
                   <div className="text-xs text-muted-foreground mt-1 font-semibold uppercase tracking-wider">{stat.label}</div>
                 </motion.div>
               ))}
@@ -151,7 +151,7 @@ export default function AnnualReport() {
 
             {/* Top categories */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="glass-panel rounded-3xl p-6">
-              <h2 className="text-xl font-display font-bold text-white mb-5">Top 5 Spending Categories</h2>
+              <h2 className="text-xl font-bold text-white mb-5">Top 5 Spending Categories</h2>
               <div className="flex flex-col gap-3">
                 {reportData.top5Categories?.map((cat: any, i: number) => {
                   const pct = reportData.totalSpend > 0 ? Math.round((cat.amount / reportData.totalSpend) * 100) : 0;
@@ -183,31 +183,31 @@ export default function AnnualReport() {
               className="glass-panel rounded-3xl p-8 border border-[hsl(var(--primary))]/30">
               <div className="flex items-center gap-3 mb-5">
                 <Flame className="w-6 h-6 text-[hsl(var(--primary))]" />
-                <h2 className="text-xl font-display font-bold text-white">The Annual Roast</h2>
+                <h2 className="text-xl font-bold text-white">The Annual Roast</h2>
               </div>
-              <p className="text-white text-lg leading-relaxed font-medium italic">"{reportData.roast}"</p>
+              <p className="font-roast text-white text-lg leading-relaxed">"{reportData.roast}"</p>
             </motion.div>
 
             {/* Behavioral Analysis */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
               className="glass-panel rounded-3xl p-8">
-              <h2 className="text-xl font-display font-bold text-white mb-4">Behavioral Analysis</h2>
+              <h2 className="text-xl font-bold text-white mb-4">Behavioral Analysis</h2>
               <p className="text-muted-foreground leading-relaxed">{reportData.behavioralAnalysis}</p>
             </motion.div>
 
             {/* 5-Year Warning */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
               className="glass-panel rounded-3xl p-8 border border-destructive/30 bg-destructive/5">
-              <h2 className="text-xl font-display font-bold text-white mb-2">5-Year Projection</h2>
+              <h2 className="text-xl font-bold text-white mb-2">5-Year Projection</h2>
               <p className="text-muted-foreground mb-4 text-sm">If your spending habits remain completely unchanged:</p>
-              <div className="text-5xl font-display font-black text-destructive">{fmtCurrency(reportData.projection5yr)}</div>
+              <div className="text-5xl font-amount-card text-destructive">{fmtCurrency(reportData.projection5yr)}</div>
               <p className="text-muted-foreground mt-2 text-sm">spent over the next 5 years at your current rate.</p>
             </motion.div>
 
             {/* Improvements */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
               className="glass-panel rounded-3xl p-8 border border-[hsl(var(--secondary))]/30">
-              <h2 className="text-xl font-display font-bold text-white mb-5">3 Ways to Save Your Financial Life</h2>
+              <h2 className="text-xl font-bold text-white mb-5">3 Ways to Save Your Financial Life</h2>
               <div className="flex flex-col gap-4">
                 {reportData.improvements?.map((tip: string, i: number) => (
                   <div key={i} className="flex items-start gap-4">
