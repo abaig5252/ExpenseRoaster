@@ -11,7 +11,9 @@ import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string }>;
+const { PDFParse } = require("pdf-parse") as {
+  PDFParse: new (opts: { data: Buffer }) => { getText: () => Promise<{ text: string }> };
+};
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -575,7 +577,8 @@ Extract expense data from this receipt image and deliver a roast.`;
         if (!data) return res.status(400).json({ message: "No PDF data provided" });
         const base64 = data.replace(/^data:[^;]+;base64,/, "");
         const buffer = Buffer.from(base64, "base64");
-        const parsed = await pdfParse(buffer);
+        const parser = new PDFParse({ data: buffer });
+        const parsed = await parser.getText();
         const pdfText = parsed.text?.slice(0, 8000) || "";
         if (!pdfText.trim()) return res.status(400).json({ message: "Could not extract text from PDF" });
 
