@@ -1,0 +1,282 @@
+# PROMPT — Update Transaction Card UI
+
+Restyle the transaction card component to match the design spec below.
+Do NOT change any data fetching, state logic, or click handlers.
+Only change the visual presentation — CSS/JSX styling only.
+
+---
+
+## TARGET DESIGN (what it should look like)
+
+```
+┌─┬──────────────────────────────────────┐
+│ │  [☕ icon]  Starbucks × 14   $89.46  │  ← top row
+│G│            DAILY SURRENDER  Apr 10   │  ← tags row
+│ ├──────────────────────────────────────┤
+│ │  🔥 "Your barista knows your name    │  ← roast box
+│ │     and your credit score is         │
+│ │     suffering in silence."           │
+│ ├──────────────────────────────────────┤
+│ │  Severity  🔥🔥🔥🔥🔥               │  ← flames row
+└─┴──────────────────────────────────────┘
+G = 3px left border in accent color (#00E676)
+```
+
+---
+
+## CARD CONTAINER
+
+```css
+background: #1A1A1A;
+border-radius: 20px;
+padding: 16px;
+border: 1px solid rgba(255,255,255,0.05);
+border-left: 3px solid #00E676;   /* ← green left stripe — most important */
+margin: 0 16px 10px;
+overflow: hidden;
+```
+
+Entrance animation (stagger 70ms per card, so card 1 = 0ms, card 2 = 70ms, etc):
+```css
+animation: slideUp 0.4s ease both;
+animation-delay: calc(var(--card-index, 0) * 70ms);
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+```
+
+---
+
+## TOP ROW (icon + name/tags + amount)
+
+Layout: `display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px;`
+
+### Left: Icon Square
+```css
+width: 44px;
+height: 44px;
+border-radius: 12px;
+background: #242424;
+border: 1px solid rgba(0,230,118,0.22);
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 20px;
+flex-shrink: 0;
+```
+Show the transaction emoji or a default 🧾 if none.
+
+### Center: Name + Tags (flex: 1)
+Transaction name:
+```css
+font-family: 'Cabinet Grotesk', sans-serif;
+font-weight: 700;
+font-size: 15px;
+color: #FFFFFF;
+margin-bottom: 6px;
+font-style: normal;
+```
+
+Tags row below name (`display: flex; gap: 7px; align-items: center; flex-wrap: wrap`):
+
+**Category tag** (the fun renamed category — "DAILY SURRENDER", "FLAVOR CRIMES" etc):
+```css
+font-family: 'DM Sans', sans-serif;
+font-size: 10px;
+font-weight: 800;
+letter-spacing: 0.08em;
+text-transform: uppercase;
+color: #002A14;           /* dark green text on green bg */
+background: #00E676;      /* accent green */
+padding: 3px 7px;
+border-radius: 6px;
+```
+
+**Source tag** (Bank_statement, Receipt etc) — replace the current file icon style:
+```css
+font-family: 'DM Sans', sans-serif;
+font-size: 10px;
+color: #4A5060;           /* muted slate */
+font-weight: 500;
+```
+Show as plain text with a small 📄 prefix, no heavy border.
+
+### Right: Amount + Date (text-align: right; flex-shrink: 0)
+Amount:
+```css
+font-family: 'Cabinet Grotesk', sans-serif;
+font-weight: 800;
+font-size: 26px;
+color: #FFFFFF;
+letter-spacing: -1px;
+line-height: 1;
+font-style: normal;
+```
+
+Date below amount:
+```css
+font-family: 'DM Sans', sans-serif;
+font-size: 11px;
+color: #4A5060;
+margin-top: 4px;
+```
+
+---
+
+## DIVIDER
+
+Between top row and roast box:
+```css
+height: 1px;
+background: rgba(255,255,255,0.05);
+margin: 0 0 12px;
+```
+
+---
+
+## ROAST BOX
+
+Container:
+```css
+background: rgba(0,230,118,0.06);
+border: 1px solid rgba(0,230,118,0.2);
+border-radius: 12px;
+padding: 14px;
+display: flex;
+gap: 10px;
+align-items: flex-start;
+
+/* Animate in AFTER the card, so roast feels like a punchline landing */
+animation: roastReveal 0.4s ease both;
+animation-delay: 0.6s;   /* 600ms after card appears */
+
+@keyframes roastReveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+```
+
+Fire icon (left):
+```css
+font-size: 15px;
+flex-shrink: 0;
+margin-top: 1px;
+```
+
+Roast text:
+```css
+font-family: 'Cabinet Grotesk', sans-serif;
+font-weight: 500;
+font-style: italic;
+font-size: 13px;
+color: #69FF9C;           /* bright mint green */
+line-height: 1.75;
+letter-spacing: 0.01em;
+```
+
+---
+
+## SEVERITY FLAMES ROW
+
+Add this below the roast box (separated by a thin line):
+
+```css
+/* Row container */
+display: flex;
+align-items: center;
+gap: 3px;
+padding-top: 10px;
+margin-top: 10px;
+border-top: 1px solid rgba(255,255,255,0.05);
+```
+
+"Severity" label:
+```css
+font-family: 'DM Sans', sans-serif;
+font-size: 10px;
+color: #4A5060;
+margin-right: 4px;
+font-weight: 500;
+```
+
+5 flame emojis (🔥), each:
+```css
+font-size: 12px;
+opacity: 1;    /* filled */
+opacity: 0.2;  /* unfilled */
+```
+
+Map severity score (1–5) from the transaction data to filled flames.
+If no severity score exists, default to: amount < $10 → 1, $10–50 → 2, $50–150 → 3, $150–500 → 4, $500+ → 5.
+
+---
+
+## CATEGORY LABEL RENAME MAP
+
+Rename the raw category string to a fun display name before rendering the tag.
+Apply this mapping in a helper function:
+
+```javascript
+function getCategoryDisplay(category, merchantName = '') {
+  const name = merchantName.toLowerCase();
+  const cat  = category.toLowerCase();
+
+  if (name.includes('starbucks') || name.includes('tim hortons') || name.includes('coffee'))
+    return 'DAILY SURRENDER';
+  if (name.includes('whole foods'))
+    return 'WHOLE PAYCHECK';
+  if (name.includes('doordash') || name.includes('uber eats') || name.includes('skip'))
+    return 'FLAVOR CRIMES';
+  if (name.includes('uber') || name.includes('lyft'))
+    return 'UBER ADDICTION';
+  if (cat.includes('subscription') || cat.includes('streaming'))
+    return 'FORGOTTEN CHILDREN';
+  if (cat.includes('dining') || cat.includes('restaurant') || cat.includes('food'))
+    return 'FLAVOR CRIMES';
+  if (cat.includes('groceries') || cat.includes('grocery'))
+    return 'WHOLE PAYCHECK';
+  if (cat.includes('transport') || cat.includes('ride'))
+    return 'UBER ADDICTION';
+  if (cat.includes('alcohol') || cat.includes('bar') || cat.includes('liquor'))
+    return 'LIQUID COURAGE FUND';
+  if (cat.includes('shopping') || cat.includes('clothing'))
+    return 'RETAIL THERAPY';
+
+  return category.toUpperCase();
+}
+```
+
+---
+
+## SPECIAL CASE — Monthly Disgrace Card
+
+For the single worst transaction of the month, use a variant of this card:
+- `border-left: 3px solid #FF5252` (red instead of green)
+- Card border: `1px solid rgba(255,82,82,0.25)`
+- Add a badge above the card: "🏆 MONTHLY DISGRACE" in red-tinted pill
+- Amount color: `#FF5252`
+- Category tag: `background: #FF5252; color: #1A0000`
+- Roast box: `background: rgba(255,82,82,0.07); border-color: rgba(255,82,82,0.2)`
+- Roast text color: `#FF7070`
+- All 5 flames filled (it's always 5/5)
+
+---
+
+## QUICK REFERENCE — Before vs After
+
+| Element          | Before (current)        | After (target)                        |
+|------------------|-------------------------|---------------------------------------|
+| Left border      | None                    | 3px solid #00E676                     |
+| Amount position  | Top right               | Top right (keep)                      |
+| Amount font      | System/current font     | Cabinet Grotesk 800, -1px tracking    |
+| Amount size      | Current                 | 26px                                  |
+| Transaction name | Bottom left, bold       | Top center-left, Cabinet Grotesk 700  |
+| Category tag     | "OTHER" grey text       | Green pill, fun name, DM Sans 800     |
+| Icon area        | Grey rounded square     | #242424 + green border                |
+| Roast box bg     | Faint green tint        | rgba(0,230,118,0.06) + green border   |
+| Roast text font  | Current                 | Cabinet Grotesk 500 italic, #69FF9C   |
+| Roast animation  | Immediate               | 600ms delay (punchline effect)        |
+| Severity flames  | Not present             | Add below roast box                   |
+| Card entrance    | Immediate/fade          | slideUp stagger, 70ms per card        |

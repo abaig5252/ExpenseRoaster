@@ -1,5 +1,4 @@
-import { motion } from "framer-motion";
-import { Receipt, Calendar, Tag, Flame, Trash2, CreditCard, FileText } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 
 interface ExpenseCardProps {
@@ -7,76 +6,179 @@ interface ExpenseCardProps {
   index: number;
   onDelete?: () => void;
   isDeleting?: boolean;
+  isDisgrace?: boolean;
 }
 
-const categoryColors: Record<string, string> = {
-  "Food & Drink":  "var(--cat-food)",
-  "Shopping":      "var(--cat-groceries)",
-  "Transport":     "var(--cat-transport)",
-  "Entertainment": "var(--cat-subs)",
-  "Health":        "var(--cat-selfcare)",
-  "Subscriptions": "var(--cat-subs)",
-  "Coffee":        "var(--cat-coffee)",
-  "Other":         "var(--text-2)",
+const categoryEmoji: Record<string, string> = {
+  "Food & Drink":  "🍔",
+  "Shopping":      "🛍️",
+  "Transport":     "🚗",
+  "Entertainment": "🎬",
+  "Health":        "💊",
+  "Subscriptions": "📱",
+  "Coffee":        "☕",
+  "Groceries":     "🛒",
+  "Other":         "🧾",
 };
 
-const sourceIcon = (source: string | null) => {
-  if (source === "bank_statement") return <FileText className="w-3 h-3" />;
-  if (source === "manual") return <CreditCard className="w-3 h-3" />;
-  return <Receipt className="w-3 h-3" />;
+const funCategoryNames: Record<string, string> = {
+  "Food & Drink":  "FLAVOR CRIMES",
+  "Shopping":      "RETAIL THERAPY",
+  "Transport":     "ESCAPE ATTEMPTS",
+  "Entertainment": "AVOIDANCE BUDGET",
+  "Health":        "DAMAGE CONTROL",
+  "Subscriptions": "DIGITAL HOARDING",
+  "Coffee":        "DAILY SURRENDER",
+  "Groceries":     "SUSTENANCE",
+  "Other":         "MISC. SIN",
 };
 
-export function ExpenseCard({ expense, index, onDelete, isDeleting }: ExpenseCardProps) {
-  const formattedAmount = (expense.amount / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
-  const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(expense.date));
-  const color = categoryColors[expense.category] || categoryColors["Other"];
+const sourceLabels: Record<string, string> = {
+  "bank_statement": "Bank",
+  "receipt":        "Receipt",
+  "manual":         "Manual",
+};
+
+export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false }: ExpenseCardProps) {
+  const amountDollars = expense.amount / 100;
+  const formattedAmount = amountDollars.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(expense.date));
+
+  const emoji = categoryEmoji[expense.category] || "🧾";
+  const funCategory = funCategoryNames[expense.category] || expense.category.toUpperCase();
+  const sourceLabel = sourceLabels[expense.source || ""] || "Receipt";
+
+  const baseSeverity = amountDollars < 10 ? 1 : amountDollars < 50 ? 2 : amountDollars < 150 ? 3 : amountDollars < 500 ? 4 : 5;
+  const severity = isDisgrace ? 5 : baseSeverity;
+
+  const accentColor = isDisgrace ? "#FF5252" : "#00E676";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.07, ease: "easeOut" }}
+    <div
       data-testid={`card-expense-${expense.id}`}
-      className="glass-panel glass-panel-hover rounded-3xl p-6 flex flex-col relative overflow-hidden group"
+      className="group relative overflow-hidden"
+      style={{
+        background: "#1A1A1A",
+        borderRadius: 20,
+        padding: 16,
+        border: isDisgrace ? "1px solid rgba(255,82,82,0.25)" : "1px solid rgba(255,255,255,0.05)",
+        borderLeft: `3px solid ${accentColor}`,
+        marginBottom: 10,
+        animation: "slideUp 0.4s ease both",
+        animationDelay: `${index * 70}ms`,
+      }}
     >
-      <div className="absolute -top-16 -right-16 w-36 h-36 rounded-full opacity-20 group-hover:opacity-35 transition-opacity duration-500 blur-[60px]"
-        style={{ background: color }} />
+      {/* Monthly Disgrace badge */}
+      {isDisgrace && (
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 4,
+          background: "rgba(255,82,82,0.12)", border: "1px solid rgba(255,82,82,0.25)",
+          color: "#FF5252", fontSize: 10, fontWeight: 800,
+          fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.06em",
+          padding: "3px 8px", borderRadius: 6, marginBottom: 10,
+        }}>
+          🏆 MONTHLY DISGRACE
+        </div>
+      )}
 
       {/* Top row */}
-      <div className="flex justify-between items-start mb-4 relative z-10">
-        <div className="bg-white/5 rounded-2xl p-2.5 border border-white/10 flex items-center justify-center">
-          <Receipt className="w-5 h-5" style={{ color }} />
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
+        {/* Icon square */}
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, background: "#242424",
+          border: `1px solid ${isDisgrace ? "rgba(255,82,82,0.22)" : "rgba(0,230,118,0.22)"}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 20, flexShrink: 0,
+        }}>
+          {emoji}
         </div>
-        <div className="text-right">
-          <span className="text-2xl font-amount-card text-white block">{formattedAmount}</span>
-          <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground mt-1">
-            <Calendar className="w-3 h-3" />
+
+        {/* Center: name + tags */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700,
+            fontSize: 15, color: "#FFFFFF", marginBottom: 6, fontStyle: "normal",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {expense.description}
+          </div>
+          <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{
+              fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 800,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+              color: isDisgrace ? "#1A0000" : "#002A14",
+              background: accentColor,
+              padding: "3px 7px", borderRadius: 6,
+            }}>
+              {funCategory}
+            </span>
+            <span style={{
+              fontFamily: "'DM Sans', sans-serif", fontSize: 10,
+              color: "#4A5060", fontWeight: 500,
+            }}>
+              📄 {sourceLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: amount + date */}
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{
+            fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800,
+            fontSize: 26, color: isDisgrace ? "#FF5252" : "#FFFFFF",
+            letterSpacing: "-1px", lineHeight: 1, fontStyle: "normal",
+          }}>
+            {formattedAmount}
+          </div>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+            color: "#4A5060", marginTop: 4,
+          }}>
             {formattedDate}
           </div>
         </div>
       </div>
 
-      {/* Description & category */}
-      <div className="mb-5 relative z-10">
-        <h3 className="text-base font-bold text-white leading-tight mb-1.5">{expense.description}</h3>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider" style={{ color }}>
-            <Tag className="w-3 h-3" />
-            {expense.category}
-          </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            {sourceIcon(expense.source)}
-            <span className="capitalize">{expense.source || "receipt"}</span>
-          </div>
-        </div>
-      </div>
+      {/* Divider */}
+      <div style={{ height: 1, background: "rgba(255,255,255,0.05)", margin: "0 0 12px" }} />
 
-      {/* Roast */}
-      <div className="mt-auto pt-4 border-t border-white/[0.07] relative z-10">
-        <div className="flex items-start gap-2.5 rounded-2xl p-3.5" style={{ background: 'var(--roast-bg)', border: '1px solid var(--roast-border)' }}>
-          <Flame className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
-          <p className="font-roast text-sm text-white/75 leading-relaxed">"{expense.roast}"</p>
+      {/* Roast box */}
+      {expense.roast && (
+        <div style={{
+          background: isDisgrace ? "rgba(255,82,82,0.07)" : "rgba(0,230,118,0.06)",
+          border: `1px solid ${isDisgrace ? "rgba(255,82,82,0.2)" : "rgba(0,230,118,0.2)"}`,
+          borderRadius: 12, padding: 14,
+          display: "flex", gap: 10, alignItems: "flex-start",
+          animation: "roastReveal 0.4s ease both",
+          animationDelay: "0.6s",
+        }}>
+          <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>🔥</span>
+          <p style={{
+            fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 500,
+            fontStyle: "italic", fontSize: 13,
+            color: isDisgrace ? "#FF7070" : "#69FF9C",
+            lineHeight: 1.75, letterSpacing: "0.01em", margin: 0,
+          }}>
+            "{expense.roast}"
+          </p>
         </div>
+      )}
+
+      {/* Severity flames row */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 3,
+        paddingTop: 10, marginTop: 10,
+        borderTop: "1px solid rgba(255,255,255,0.05)",
+      }}>
+        <span style={{
+          fontFamily: "'DM Sans', sans-serif", fontSize: 10,
+          color: "#4A5060", marginRight: 4, fontWeight: 500,
+        }}>
+          Severity
+        </span>
+        {[1, 2, 3, 4, 5].map(n => (
+          <span key={n} style={{ fontSize: 12, opacity: n <= severity ? 1 : 0.2 }}>🔥</span>
+        ))}
       </div>
 
       {/* Delete button */}
@@ -85,12 +187,12 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting }: ExpenseCar
           onClick={onDelete}
           disabled={isDeleting}
           data-testid={`button-delete-${expense.id}`}
-          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 rounded-xl bg-white/5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all duration-200 z-20"
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-all duration-200"
           title="Delete expense"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       )}
-    </motion.div>
+    </div>
   );
 }
