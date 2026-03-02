@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, type AdviceBreakdown } from "@/hooks/use-expenses";
 import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Expense } from "@shared/schema";
 
 function fmtCurrency(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -65,6 +66,164 @@ function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Deterministic pseudo-random from date string (for demo when no expense data)
+function seededRandom(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
+  }
+  return (h >>> 0) / 0xffffffff;
+}
+
+// Iso weekday 0=Mon … 6=Sun
+function isoWeekday(d: Date): number {
+  return (d.getDay() + 6) % 7;
+}
+
+function SpendingHeatmap({ expenses }: { expenses: Expense[] }) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  // Start grid on the Monday on or before 1st of this month
+  const firstOfMonth = new Date(year, month, 1);
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(firstOfMonth.getDate() - isoWeekday(firstOfMonth));
+
+  // Build exactly 28 days
+  const days: Date[] = [];
+  for (let i = 0; i < 28; i++) {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + i);
+    days.push(d);
+  }
+
+  const isInCurrentMonth = (d: Date) => d.getFullYear() === year && d.getMonth() === month;
+  const isFuture = (d: Date) => d > now;
+  const isFilled = (d: Date) => isInCurrentMonth(d) && !isFuture(d);
+
+  // Aggregate expenses by local date string
+  const hasAnyExpenses = expenses.length > 0;
+  const dailyTotals: Record<string, number> = {};
+  expenses.forEach(e => {
+    // Parse as local date to avoid UTC shift
+    const raw = new Date(e.date);
+    const key = `${raw.getFullYear()}-${String(raw.getMonth() + 1).padStart(2, '0')}-${String(raw.getDate()).padStart(2, '0')}`;
+    dailyTotals[key] = (dailyTotals[key] || 0) + e.amount;
+  });
+
+  const maxDaily = Math.max(...Object.values(dailyTotals), 1);
+
+  function dayKey(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function getOpacity(d: Date): number {
+    if (!isFilled(d)) return 0.05;
+    const key = dayKey(d);
+    if (!hasAnyExpenses) return seededRandom(key) * 0.95 + 0.05;
+    const spend = dailyTotals[key] || 0;
+    if (spend === 0) return 0.05;
+    const ratio = spend / maxDaily;
+    if (ratio <= 0.25) return 0.2;
+    if (ratio <= 0.5) return 0.45;
+    if (ratio <= 0.75) return 0.75;
+    return 1.0;
+  }
+
+  function isPeak(d: Date): boolean {
+    if (!isFilled(d)) return false;
+    const key = dayKey(d);
+    if (!hasAnyExpenses) return seededRandom(key) > 0.88;
+    const spend = dailyTotals[key] || 0;
+    return spend > 0 && spend / maxDaily > 0.75;
+  }
+
+  const dayHeaders = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.45 }}
+      className="glass-panel rounded-3xl p-6 mt-6"
+    >
+      <p style={{
+        fontFamily: "'DM Sans', sans-serif",
+        fontWeight: 700,
+        fontSize: 13,
+        textTransform: 'uppercase',
+        color: 'var(--text-2, hsl(220 10% 65%))',
+        letterSpacing: '0.05em',
+        margin: '0 0 14px',
+      }}>
+        Spending Heat This Month
+      </p>
+
+      {/* Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
+        {/* Day headers */}
+        {dayHeaders.map((h, i) => (
+          <div key={i} style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 9,
+            color: 'var(--text-3, hsl(220 10% 45%))',
+            textAlign: 'center',
+            paddingBottom: 2,
+          }}>
+            {h}
+          </div>
+        ))}
+
+        {/* Day cells */}
+        {days.map((d, i) => {
+          const filled = isFilled(d);
+          const opacity = getOpacity(d);
+          const peak = isPeak(d);
+          const spend = dailyTotals[dayKey(d)];
+          const label = filled
+            ? `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: ${spend ? fmtCurrency(spend) : 'No spend'}`
+            : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          return (
+            <div
+              key={i}
+              title={label}
+              style={{
+                aspectRatio: '1 / 1',
+                borderRadius: 5,
+                background: `rgba(232, 93, 38, ${opacity})`,
+                border: !filled ? '1px dashed rgba(255,255,255,0.08)' : undefined,
+                boxShadow: peak ? '0 0 12px rgba(232,93,38,0.6)' : undefined,
+                cursor: filled && spend ? 'default' : undefined,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-3, hsl(220 10% 45%))' }}>
+          less damage
+        </span>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {[0.1, 0.3, 0.5, 0.75, 1.0].map((op, i) => (
+            <div key={i} style={{
+              width: 10,
+              height: 10,
+              borderRadius: 3,
+              background: `rgba(232, 93, 38, ${op})`,
+            }} />
+          ))}
+        </div>
+        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-3, hsl(220 10% 45%))' }}>
+          catastrophic
+        </span>
+      </div>
+    </motion.div>
   );
 }
 
@@ -228,7 +387,7 @@ export default function MonthlyTracker() {
           )}
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6" data-testid="tracker-grid">
           {/* Category breakdown */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
             className="glass-panel rounded-3xl p-6">
@@ -323,6 +482,10 @@ export default function MonthlyTracker() {
             )}
           </motion.div>
         </div>
+
+        {/* Spending Heatmap */}
+        <SpendingHeatmap expenses={expenses ?? []} />
+
       </main>
     </div>
   );
