@@ -1,4 +1,5 @@
-import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Trash2, AlertTriangle, X } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 
 interface ExpenseCardProps {
@@ -40,6 +41,8 @@ const sourceLabels: Record<string, string> = {
 };
 
 export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false }: ExpenseCardProps) {
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+
   const amountDollars = expense.amount / 100;
   const formattedAmount = amountDollars.toLocaleString("en-US", { style: "currency", currency: "USD" });
   const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(expense.date));
@@ -52,6 +55,22 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
   const severity = isDisgrace ? 5 : baseSeverity;
 
   const accentColor = isDisgrace ? "#FF5252" : "#00E676";
+
+  function handleTrashClick() {
+    setDeleteStep(1);
+  }
+
+  function handleFirstConfirm() {
+    setDeleteStep(2);
+  }
+
+  function handleCancel() {
+    setDeleteStep(0);
+  }
+
+  function handleFinalDelete() {
+    onDelete?.();
+  }
 
   return (
     <div
@@ -181,17 +200,146 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
         ))}
       </div>
 
-      {/* Delete button */}
-      {onDelete && (
+      {/* Trash button — hidden until hover, not shown when confirming */}
+      {onDelete && deleteStep === 0 && (
         <button
-          onClick={onDelete}
-          disabled={isDeleting}
+          onClick={handleTrashClick}
           data-testid={`button-delete-${expense.id}`}
           className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-all duration-200"
           title="Delete expense"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
+      )}
+
+      {/* ── Step 1: First confirmation overlay ── */}
+      {deleteStep === 1 && (
+        <div
+          style={{
+            position: "absolute", inset: 0, borderRadius: 20,
+            background: "rgba(18,18,18,0.96)",
+            backdropFilter: "blur(4px)",
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            padding: 20, gap: 14,
+            animation: "slideUp 0.18s ease both",
+          }}
+        >
+          <Trash2 style={{ width: 22, height: 22, color: "#FF5252" }} />
+          <div style={{ textAlign: "center" }}>
+            <p style={{
+              fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800,
+              fontSize: 15, color: "#FFFFFF", margin: "0 0 4px",
+            }}>
+              Delete this expense?
+            </p>
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+              color: "#4A5060", margin: 0,
+            }}>
+              {expense.description} · {formattedAmount}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, width: "100%" }}>
+            <button
+              onClick={handleCancel}
+              data-testid={`button-delete-cancel-1-${expense.id}`}
+              style={{
+                flex: 1, padding: "10px 0", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)",
+                background: "transparent", color: "#8A9099",
+                fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13,
+                cursor: "pointer", transition: "background 0.15s",
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+              onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleFirstConfirm}
+              data-testid={`button-delete-confirm-1-${expense.id}`}
+              style={{
+                flex: 1, padding: "10px 0", borderRadius: 12, border: "none",
+                background: "rgba(255,82,82,0.15)", color: "#FF5252",
+                fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 13,
+                cursor: "pointer", transition: "background 0.15s",
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(255,82,82,0.25)")}
+              onMouseOut={e => (e.currentTarget.style.background = "rgba(255,82,82,0.15)")}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 2: Second (final) confirmation overlay ── */}
+      {deleteStep === 2 && (
+        <div
+          style={{
+            position: "absolute", inset: 0, borderRadius: 20,
+            background: "rgba(18,18,18,0.97)",
+            backdropFilter: "blur(4px)",
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            padding: 20, gap: 14,
+            animation: "slideUp 0.18s ease both",
+          }}
+        >
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: "rgba(255,82,82,0.12)", border: "1px solid rgba(255,82,82,0.3)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <AlertTriangle style={{ width: 20, height: 20, color: "#FF5252" }} />
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{
+              fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800,
+              fontSize: 15, color: "#FFFFFF", margin: "0 0 6px",
+            }}>
+              Really delete?
+            </p>
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+              color: "#8A9099", margin: 0, lineHeight: 1.5,
+            }}>
+              This permanently removes the expense and its roast. There's no undo.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, width: "100%" }}>
+            <button
+              onClick={handleCancel}
+              data-testid={`button-delete-cancel-2-${expense.id}`}
+              style={{
+                flex: 1, padding: "10px 0", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)",
+                background: "transparent", color: "#8A9099",
+                fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13,
+                cursor: "pointer", transition: "background 0.15s",
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+              onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+            >
+              No, keep it
+            </button>
+            <button
+              onClick={handleFinalDelete}
+              disabled={isDeleting}
+              data-testid={`button-delete-confirm-2-${expense.id}`}
+              style={{
+                flex: 1, padding: "10px 0", borderRadius: 12, border: "none",
+                background: isDeleting ? "rgba(255,82,82,0.1)" : "#FF5252",
+                color: isDeleting ? "#FF5252" : "#FFFFFF",
+                fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 13,
+                cursor: isDeleting ? "not-allowed" : "pointer",
+                transition: "background 0.15s, opacity 0.15s",
+                opacity: isDeleting ? 0.6 : 1,
+              }}
+            >
+              {isDeleting ? "Deleting…" : "Yes, delete"}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
