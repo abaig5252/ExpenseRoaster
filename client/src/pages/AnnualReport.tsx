@@ -155,7 +155,7 @@ export default function AnnualReport() {
               <div className="flex flex-col gap-3">
                 {reportData.top5Categories?.map((cat: any, i: number) => {
                   const pct = reportData.totalSpend > 0 ? Math.round((cat.amount / reportData.totalSpend) * 100) : 0;
-                  const colors = ["hsl(var(--primary))", "hsl(var(--secondary))", "hsl(var(--accent))", "hsl(270, 80%, 60%)", "hsl(200, 100%, 55%)"];
+                  const colors = ["#E85D26", "#C4A832", "#7B6FE8", "#3BB8A0", "#E8526A"];
                   return (
                     <div key={cat.category}>
                       <div className="flex justify-between items-center mb-1">

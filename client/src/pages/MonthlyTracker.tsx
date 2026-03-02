@@ -42,9 +42,9 @@ function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
 
       {/* Roast */}
       {item.roast && (
-        <div className="flex items-start gap-2.5 bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-2.5">
-          <Flame className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
-          <p className="font-roast text-sm text-orange-200 leading-snug">{item.roast}</p>
+        <div className="flex items-start gap-2.5 rounded-xl px-3 py-2.5" style={{ background: 'var(--roast-bg)', border: '1px solid var(--roast-border)' }}>
+          <Flame className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
+          <p className="font-roast text-sm text-white/70 leading-snug">{item.roast}</p>
         </div>
       )}
 
@@ -93,7 +93,7 @@ export default function MonthlyTracker() {
   const monthDiffPct = prevMonth?.total ? Math.round((monthDiff! / prevMonth.total) * 100) : null;
   const improved = monthDiff !== null && monthDiff < 0;
 
-  const categoryColors = ["hsl(var(--primary))", "hsl(var(--secondary))", "hsl(var(--accent))", "hsl(270, 90%, 65%)", "hsl(140, 80%, 50%)", "hsl(200, 100%, 55%)", "hsl(260, 20%, 60%)"];
+  const categoryColors = ["#E85D26", "#C4A832", "#7B6FE8", "#3BB8A0", "#E8526A", "#5BA85E", "#8A9099"];
 
   return (
     <div className="min-h-screen pb-24">

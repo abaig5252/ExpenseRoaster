@@ -10,13 +10,14 @@ interface ExpenseCardProps {
 }
 
 const categoryColors: Record<string, string> = {
-  "Food & Drink": "hsl(var(--primary))",
-  "Shopping": "hsl(var(--secondary))",
-  "Transport": "hsl(var(--accent))",
-  "Entertainment": "270, 90%, 65%",
-  "Health": "140, 80%, 50%",
-  "Subscriptions": "200, 100%, 55%",
-  "Other": "260, 20%, 60%",
+  "Food & Drink":  "var(--cat-food)",
+  "Shopping":      "var(--cat-groceries)",
+  "Transport":     "var(--cat-transport)",
+  "Entertainment": "var(--cat-subs)",
+  "Health":        "var(--cat-selfcare)",
+  "Subscriptions": "var(--cat-subs)",
+  "Coffee":        "var(--cat-coffee)",
+  "Other":         "var(--text-2)",
 };
 
 const sourceIcon = (source: string | null) => {
@@ -39,12 +40,12 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting }: ExpenseCar
       className="glass-panel glass-panel-hover rounded-3xl p-6 flex flex-col relative overflow-hidden group"
     >
       <div className="absolute -top-16 -right-16 w-36 h-36 rounded-full opacity-20 group-hover:opacity-35 transition-opacity duration-500 blur-[60px]"
-        style={{ background: `hsl(${color})` }} />
+        style={{ background: color }} />
 
       {/* Top row */}
       <div className="flex justify-between items-start mb-4 relative z-10">
         <div className="bg-white/5 rounded-2xl p-2.5 border border-white/10 flex items-center justify-center">
-          <Receipt className="w-5 h-5" style={{ color: `hsl(${color})` }} />
+          <Receipt className="w-5 h-5" style={{ color }} />
         </div>
         <div className="text-right">
           <span className="text-2xl font-amount-card text-white block">{formattedAmount}</span>
@@ -59,7 +60,7 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting }: ExpenseCar
       <div className="mb-5 relative z-10">
         <h3 className="text-base font-bold text-white leading-tight mb-1.5">{expense.description}</h3>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider" style={{ color: `hsl(${color})` }}>
+          <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider" style={{ color }}>
             <Tag className="w-3 h-3" />
             {expense.category}
           </div>
@@ -72,9 +73,9 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting }: ExpenseCar
 
       {/* Roast */}
       <div className="mt-auto pt-4 border-t border-white/[0.07] relative z-10">
-        <div className="flex items-start gap-2.5 bg-[hsl(var(--destructive))]/10 border border-[hsl(var(--destructive))]/20 rounded-2xl p-3.5">
-          <Flame className="w-4 h-4 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
-          <p className="font-roast text-sm text-white/85 leading-relaxed">"{expense.roast}"</p>
+        <div className="flex items-start gap-2.5 rounded-2xl p-3.5" style={{ background: 'var(--roast-bg)', border: '1px solid var(--roast-border)' }}>
+          <Flame className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
+          <p className="font-roast text-sm text-white/75 leading-relaxed">"{expense.roast}"</p>
         </div>
       </div>
 
