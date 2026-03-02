@@ -16,6 +16,8 @@ export interface IStorage {
   deleteExpense(id: number, userId: string): Promise<void>;
   getMonthlySummary(userId: string): Promise<{ monthlyTotal: number; recentRoasts: string[] }>;
   getMonthlySeries(userId: string): Promise<{ month: string; total: number; count: number }[]>;
+  setEmailVerificationCode(userId: string, code: string, expires: Date): Promise<void>;
+  verifyEmailCode(userId: string, code: string): Promise<'valid' | 'expired' | 'invalid'>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -133,6 +135,27 @@ export class DatabaseStorage implements IStorage {
 
   async createContactSubmission(data: InsertContact): Promise<void> {
     await db.insert(contactSubmissions).values(data);
+  }
+
+  async setEmailVerificationCode(userId: string, code: string, expires: Date): Promise<void> {
+    await db.update(users).set({
+      emailVerificationCode: code,
+      emailVerificationExpires: expires,
+      updatedAt: new Date(),
+    }).where(eq(users.id, userId));
+  }
+
+  async verifyEmailCode(userId: string, code: string): Promise<'valid' | 'expired' | 'invalid'> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user?.emailVerificationCode || user.emailVerificationCode !== code) return 'invalid';
+    if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) return 'expired';
+    await db.update(users).set({
+      emailVerified: true,
+      emailVerificationCode: null,
+      emailVerificationExpires: null,
+      updatedAt: new Date(),
+    }).where(eq(users.id, userId));
+    return 'valid';
   }
 }
 

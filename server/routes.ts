@@ -50,6 +50,71 @@ function getPriceForPlan(plan: string, prices: any[]): string | null {
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   registerAuthRoutes(app);
 
+  // ─── Email Verification ────────────────────────────────────────────
+  const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY ?? "1x0000000000000000000000000000000AA";
+
+  async function verifyCaptcha(token: string): Promise<boolean> {
+    try {
+      const r = await fetch("https://challenges.cloudflare.com/turnstile/v1/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: TURNSTILE_SECRET, response: token }),
+      });
+      const data = await r.json() as { success: boolean };
+      return data.success;
+    } catch {
+      return false;
+    }
+  }
+
+  app.post("/api/auth/send-verification", isAuthenticated, async (req: any, res: Response) => {
+    const { captchaToken } = req.body;
+    if (!captchaToken) return res.status(400).json({ message: "CAPTCHA required" });
+    const ok = await verifyCaptcha(captchaToken);
+    if (!ok) return res.status(400).json({ message: "CAPTCHA verification failed" });
+
+    const userId = getUserId(req);
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.emailVerified) return res.status(400).json({ message: "Email already verified" });
+    if (!user.email) return res.status(400).json({ message: "No email on account" });
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+    await storage.setEmailVerificationCode(userId, code, expires);
+
+    const { getUncachableResendClient } = await import("./resend/resendClient");
+    const resend = await getUncachableResendClient();
+    await resend.emails.send({
+      from: "RoastMyWallet <onboarding@resend.dev>",
+      to: user.email,
+      subject: "Your RoastMyWallet verification code",
+      html: `
+        <div style="background:#0A0A0A;color:#F0F0F0;font-family:sans-serif;padding:40px;max-width:480px;margin:0 auto;border-radius:16px;border:1px solid rgba(255,255,255,0.06)">
+          <h2 style="color:#00E676;margin-top:0;font-size:22px">RoastMyWallet 🔥</h2>
+          <p style="margin:0 0 16px">Your email verification code is:</p>
+          <div style="background:#1A1A1A;border:1px solid rgba(0,230,118,0.22);border-radius:12px;padding:24px;text-align:center;margin:0 0 24px">
+            <span style="font-size:40px;font-weight:800;letter-spacing:10px;color:#00E676">${code}</span>
+          </div>
+          <p style="color:#8A9099;font-size:13px;margin:0">Expires in 10 minutes. If you didn't request this, ignore this email.</p>
+        </div>
+      `,
+    });
+
+    res.json({ ok: true });
+  });
+
+  app.post("/api/auth/verify-email", isAuthenticated, async (req: any, res: Response) => {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ message: "Code required" });
+    const userId = getUserId(req);
+    const result = await storage.verifyEmailCode(userId, String(code).trim());
+    if (result === "invalid") return res.status(400).json({ message: "Invalid code" });
+    if (result === "expired") return res.status(400).json({ message: "Code expired — request a new one" });
+    const user = await storage.getUser(userId);
+    res.json({ user });
+  });
+
   // ─── Stripe: Publishable key ───────────────────────────────────────
   app.get("/api/stripe/config", async (_req, res) => {
     try {

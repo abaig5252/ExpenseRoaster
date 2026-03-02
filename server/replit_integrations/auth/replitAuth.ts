@@ -57,6 +57,8 @@ async function upsertUser(claims: any) {
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
+    // New users get emailVerified: false; conflict update in auth storage leaves this untouched
+    emailVerified: false,
   });
 }
 

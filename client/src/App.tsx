@@ -13,14 +13,17 @@ import AnnualReport from "@/pages/AnnualReport";
 import UpgradeSuccess from "@/pages/UpgradeSuccess";
 import Install from "@/pages/Install";
 import Contact from "@/pages/Contact";
+import VerifyEmail from "@/pages/VerifyEmail";
 import { useAuth } from "@/hooks/use-auth";
+import { useMe } from "@/hooks/use-subscription";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const { data: me, isLoading: meLoading } = useMe();
 
-  if (isLoading) {
+  if (isLoading || meLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -34,6 +37,10 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   if (!isAuthenticated) {
     window.location.href = "/api/login";
     return null;
+  }
+
+  if (me && me.emailVerified === false) {
+    return <Redirect to="/verify" />;
   }
 
   return <Component />;
@@ -52,6 +59,7 @@ function Router() {
         );
         return isAuthenticated ? <Redirect to="/upload" /> : <Landing />;
       }} />
+      <Route path="/verify" component={VerifyEmail} />
       <Route path="/upload" component={() => <ProtectedRoute component={Upload} />} />
       <Route path="/bank" component={() => <ProtectedRoute component={BankStatement} />} />
       <Route path="/tracker" component={() => <ProtectedRoute component={MonthlyTracker} />} />

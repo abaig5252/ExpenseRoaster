@@ -30,6 +30,10 @@ export const users = pgTable("users", {
   monthlyUploadResetDate: timestamp("monthly_upload_reset_date"),
   // One-time annual report purchase
   hasAnnualReport: boolean("has_annual_report").default(false).notNull(),
+  // Email verification — defaults true to grandfather existing users; new users inserted as false
+  emailVerified: boolean("email_verified").default(true).notNull(),
+  emailVerificationCode: varchar("email_verification_code"),
+  emailVerificationExpires: timestamp("email_verification_expires"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
