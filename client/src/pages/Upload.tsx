@@ -30,6 +30,18 @@ export default function Upload() {
 
   const firstName = user?.firstName || user?.email?.split("@")[0] || "friend";
 
+  const now = new Date();
+  const currentMonthExpenses = expenses?.filter(e => {
+    const d = new Date(e.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }) ?? [];
+  const disgraceExpense = currentMonthExpenses.length > 0
+    ? currentMonthExpenses.reduce((max, e) => e.amount > max.amount ? e : max)
+    : null;
+  const restExpenses = disgraceExpense
+    ? (expenses?.filter(e => e.id !== disgraceExpense.id) ?? [])
+    : (expenses ?? []);
+
   const handleUploadSuccess = (data: any) => {
     if (data.ephemeral) {
       setEphemeralRoast(data);
@@ -180,16 +192,50 @@ export default function Upload() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {expenses?.map((expense, i) => (
-                  <ExpenseCard
-                    key={expense.id}
-                    expense={expense}
-                    index={i}
-                    onDelete={() => deleteMutation.mutate(expense.id)}
-                    isDeleting={deleteMutation.isPending}
-                  />
-                ))}
+              <div>
+                {/* Monthly Disgrace — worst transaction this month */}
+                {disgraceExpense && (
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#FF5252" }}>
+                        🏆 Monthly Disgrace
+                      </span>
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,82,82,0.2)" }} />
+                    </div>
+                    <ExpenseCard
+                      expense={disgraceExpense}
+                      index={0}
+                      isDisgrace={true}
+                      onDelete={() => deleteMutation.mutate(disgraceExpense.id)}
+                      isDeleting={deleteMutation.isPending}
+                    />
+                  </div>
+                )}
+
+                {/* Rest of the feed */}
+                {restExpenses.length > 0 && (
+                  <>
+                    {disgraceExpense && (
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                          All Transactions
+                        </span>
+                        <div className="flex-1 h-px bg-white/5" />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {restExpenses.map((expense, i) => (
+                        <ExpenseCard
+                          key={expense.id}
+                          expense={expense}
+                          index={i}
+                          onDelete={() => deleteMutation.mutate(expense.id)}
+                          isDeleting={deleteMutation.isPending}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
