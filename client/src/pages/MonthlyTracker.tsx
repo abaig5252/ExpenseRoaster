@@ -113,6 +113,30 @@ export default function MonthlyTracker() {
           </p>
         </motion.div>
 
+        {/* Trend banner */}
+        {monthDiffPct !== null && (
+          <div
+            className="flex items-center gap-3 mb-6"
+            style={{
+              background: improved ? "rgba(74,155,111,0.1)" : "rgba(192,57,43,0.1)",
+              border: `1px solid ${improved ? "rgba(74,155,111,0.2)" : "rgba(192,57,43,0.2)"}`,
+              borderRadius: 14,
+              padding: "12px 16px",
+            }}
+          >
+            <span style={{ fontSize: 20, flexShrink: 0 }}>{improved ? "📉" : "📈"}</span>
+            <p style={{ margin: 0, fontSize: 14, color: improved ? "#6BCF9A" : "#E07B6B", lineHeight: 1.5 }}>
+              <strong>
+                {improved ? "Down" : "Up"} {Math.abs(monthDiffPct)}% from{" "}
+                {new Date(prevMonth.month + "-02").toLocaleString("en-US", { month: "long" })}.
+              </strong>{" "}
+              {improved
+                ? "We're shocked, honestly."
+                : "Bold strategy. We're not going to say it's working."}
+            </p>
+          </div>
+        )}
+
         {/* Stats row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
