@@ -85,8 +85,16 @@ function isoWeekday(d: Date): number {
 
 function SpendingHeatmap({ expenses }: { expenses: Expense[] }) {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+
+  // Use the month of the most recently added expense, falling back to current month
+  const latestExpense = expenses.length > 0
+    ? expenses.reduce((latest, e) => new Date(e.date) > new Date(latest.date) ? e : latest)
+    : null;
+  const anchor = latestExpense ? new Date(latestExpense.date) : now;
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
+
+  const monthLabel = anchor.toLocaleString("en-US", { month: "long", year: "numeric" });
 
   // Start grid on the Monday on or before 1st of this month
   const firstOfMonth = new Date(year, month, 1);
@@ -101,9 +109,10 @@ function SpendingHeatmap({ expenses }: { expenses: Expense[] }) {
     days.push(d);
   }
 
-  const isInCurrentMonth = (d: Date) => d.getFullYear() === year && d.getMonth() === month;
+  // A day is "filled" if it's within the target month and not after today
+  const isInTargetMonth = (d: Date) => d.getFullYear() === year && d.getMonth() === month;
   const isFuture = (d: Date) => d > now;
-  const isFilled = (d: Date) => isInCurrentMonth(d) && !isFuture(d);
+  const isFilled = (d: Date) => isInTargetMonth(d) && !isFuture(d);
 
   // Aggregate expenses by local date string
   const hasAnyExpenses = expenses.length > 0;
@@ -160,7 +169,7 @@ function SpendingHeatmap({ expenses }: { expenses: Expense[] }) {
         letterSpacing: '0.05em',
         margin: '0 0 14px',
       }}>
-        Spending Heat This Month
+        Spending Heat — {monthLabel}
       </p>
 
       {/* Grid */}
