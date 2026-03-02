@@ -21,16 +21,16 @@ const categoryEmoji: Record<string, string> = {
   "Other":         "🧾",
 };
 
-const funCategoryNames: Record<string, string> = {
-  "Food & Drink":  "FLAVOR CRIMES",
-  "Shopping":      "RETAIL THERAPY",
-  "Transport":     "ESCAPE ATTEMPTS",
-  "Entertainment": "AVOIDANCE BUDGET",
-  "Health":        "DAMAGE CONTROL",
-  "Subscriptions": "DIGITAL HOARDING",
-  "Coffee":        "DAILY SURRENDER",
-  "Groceries":     "SUSTENANCE",
-  "Other":         "MISC. SIN",
+const categoryPillColors: Record<string, string> = {
+  "Food & Drink":  "#E85D26",
+  "Shopping":      "#C4A832",
+  "Transport":     "#3BB8A0",
+  "Entertainment": "#E8526A",
+  "Health":        "#5BA85E",
+  "Subscriptions": "#E8526A",
+  "Coffee":        "#7B6FE8",
+  "Groceries":     "#C4A832",
+  "Other":         "#4A5060",
 };
 
 const sourceLabels: Record<string, string> = {
@@ -45,7 +45,7 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
   const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(expense.date));
 
   const emoji = categoryEmoji[expense.category] || "🧾";
-  const funCategory = funCategoryNames[expense.category] || expense.category.toUpperCase();
+  const pillColor = isDisgrace ? "#FF5252" : (categoryPillColors[expense.category] || "#4A5060");
   const sourceLabel = sourceLabels[expense.source || ""] || "Receipt";
 
   const baseSeverity = amountDollars < 10 ? 1 : amountDollars < 50 ? 2 : amountDollars < 150 ? 3 : amountDollars < 500 ? 4 : 5;
@@ -106,11 +106,11 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
             <span style={{
               fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 800,
               letterSpacing: "0.08em", textTransform: "uppercase",
-              color: isDisgrace ? "#1A0000" : "#002A14",
-              background: accentColor,
+              color: "#FFFFFF",
+              background: pillColor,
               padding: "3px 7px", borderRadius: 6,
             }}>
-              {funCategory}
+              {expense.category}
             </span>
             <span style={{
               fontFamily: "'DM Sans', sans-serif", fontSize: 10,
