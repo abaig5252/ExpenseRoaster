@@ -27,20 +27,20 @@ function FlameSVG({ px }: { px: number }) {
       <rect x="10" y="10" width="100" height="100" rx="22"
         stroke="#7CFF4D" strokeWidth="5" fill="none" />
 
-      {/* Outer flame — flickering stroke with sharp flicks */}
+      {/* Outer flame — sharp jagged flicks, exact path preserved */}
       <path
         className="flame-outer"
-        d="M60 22C60 22 52 38 45 50C38 60 35 72 35 82C35 92 46 98 60 98C74 98 85 92 85 82C85 70 75 55 68 45C72 50 78 60 78 70C78 70 82 38 60 22Z"
+        d="M60 20 C60 20 50 35 45 45 C35 55 30 70 30 82 C30 95 43 100 60 100 C77 100 90 95 90 82 C90 70 82 55 75 45 L82 55 C82 55 85 35 60 20 Z"
         fill="none"
         stroke="#7CFF4D"
         strokeWidth="4.5"
-        strokeLinejoin="round"
+        strokeLinejoin="miter"
       />
 
-      {/* Inner flame — pulsing solid core */}
+      {/* Inner flame — solid flickering core */}
       <path
         className="flame-inner"
-        d="M60 55C60 55 52 65 52 75C52 80 55 84 60 84C65 84 68 80 68 75C68 68 60 55 60 55Z"
+        d="M60 50 L52 70 C52 70 50 85 60 85 C70 85 68 70 68 70 L60 50 Z"
         fill="#7CFF4D"
       />
     </svg>

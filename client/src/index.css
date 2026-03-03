@@ -177,24 +177,23 @@
 }
 
 .flame-outer {
-  filter: drop-shadow(0 0 5px rgba(124, 255, 77, 0.8));
-  animation: flicker 2s infinite alternate ease-in-out;
+  filter: drop-shadow(0 0 5px #7CFF4D);
+  animation: roar 1.5s infinite alternate;
 }
 
 .flame-inner {
-  animation: pulse-core 1.5s infinite alternate ease-in-out;
+  animation: flicker-core 0.8s infinite alternate;
   transform-origin: center bottom;
 }
 
-@keyframes flicker {
-  0%   { filter: drop-shadow(0 0 4px rgba(124, 255, 77, 0.7));  opacity: 0.9;  }
-  50%  { filter: drop-shadow(0 0 10px rgba(124, 255, 77, 0.9)); opacity: 1;    }
-  100% { filter: drop-shadow(0 0 6px rgba(124, 255, 77, 0.8));  opacity: 0.95; }
+@keyframes roar {
+  0%   { opacity: 0.8; stroke-width: 4.5; filter: drop-shadow(0 0 5px #7CFF4D); }
+  100% { opacity: 1;   stroke-width: 5.5; filter: drop-shadow(0 0 12px #7CFF4D); }
 }
 
-@keyframes pulse-core {
-  0%   { transform: scale(0.95) translateY(1px);  }
-  100% { transform: scale(1.05) translateY(-1px); }
+@keyframes flicker-core {
+  0%   { transform: scaleY(0.9) skewX(-2deg); }
+  100% { transform: scaleY(1.1) skewX(2deg); }
 }
 
 ::-webkit-scrollbar { width: 6px; }
