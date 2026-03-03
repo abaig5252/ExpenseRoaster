@@ -172,50 +172,28 @@
   }
 }
 
-.brand-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: fit-content;
-}
-
-.flame-icon {
+.flame-logo {
   display: block;
-  overflow: visible;
-  filter: drop-shadow(0 0 8px rgba(124, 255, 77, 0.6));
 }
 
-.brand-text {
-  margin-top: 4px;
-  display: flex;
-  flex-direction: column;
-  color: #ffffff;
-  font-family: 'Inter', sans-serif;
-  font-weight: 900;
-  line-height: 1.1;
-  letter-spacing: 1px;
-  text-align: center;
+.flame-outer {
+  filter: drop-shadow(0 0 5px #7CFF4D);
+  animation: roar 1.5s infinite alternate;
 }
 
-.flame-group {
-  animation: jitter 0.2s infinite ease-in-out;
-}
-
-.flame-flick-left,
-.flame-flick-right {
-  animation: wave 1.5s infinite alternate ease-in-out;
+.flame-inner {
+  animation: flicker-core 0.8s infinite alternate;
   transform-origin: center bottom;
 }
 
-@keyframes jitter {
-  0%   { transform: translateX(0); }
-  50%  { transform: translateX(0.5px) translateY(-0.5px); }
-  100% { transform: translateX(-0.5px); }
+@keyframes roar {
+  0%   { opacity: 0.8; stroke-width: 4.5; filter: drop-shadow(0 0 5px #7CFF4D); }
+  100% { opacity: 1;   stroke-width: 5.5; filter: drop-shadow(0 0 12px #7CFF4D); }
 }
 
-@keyframes wave {
-  from { transform: rotate(-2deg) scaleY(0.95); opacity: 0.8; }
-  to   { transform: rotate(2deg)  scaleY(1.05); opacity: 1; }
+@keyframes flicker-core {
+  0%   { transform: scaleY(0.9) skewX(-2deg); }
+  100% { transform: scaleY(1.1) skewX(2deg); }
 }
 
 ::-webkit-scrollbar { width: 6px; }

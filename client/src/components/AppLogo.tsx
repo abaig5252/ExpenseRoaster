@@ -3,14 +3,16 @@ interface AppLogoProps {
   showText?: boolean;
 }
 
-const PX  = { xs: 60, sm: 80, md: 104, lg: 150 };
-const GAP = { xs: "gap-2", sm: "gap-2.5", md: "gap-3", lg: "gap-4" };
-const TXT = {
-  xs: "text-[11px]",
-  sm: "text-[14px]",
-  md: "text-[16px]",
-  lg: "text-[20px]",
+const PX = { xs: 60, sm: 80, md: 104, lg: 132 };
+
+const TEXT = {
+  xs: "text-[10px] tracking-[0.18em]",
+  sm: "text-[12px] tracking-[0.18em]",
+  md: "text-[15px] tracking-[0.18em]",
+  lg: "text-[18px] tracking-[0.18em]",
 };
+
+const GAP = { xs: "gap-2", sm: "gap-2.5", md: "gap-3", lg: "gap-3.5" };
 
 function FlameSVG({ px }: { px: number }) {
   return (
@@ -20,35 +22,31 @@ function FlameSVG({ px }: { px: number }) {
       viewBox="0 0 120 120"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="flame-icon"
+      className="flame-logo"
       aria-hidden="true"
     >
-      <rect x="10" y="10" width="100" height="100" rx="18" fill="#0D0D0D" />
-      <rect x="10" y="10" width="100" height="100" rx="18"
-        stroke="#7CFF4D" strokeWidth="6" fill="none" />
+      {/* Dark background fill so the box is visible */}
+      <rect x="10" y="10" width="100" height="100" rx="22" fill="#0D0D0D" />
+      {/* Glowing green border */}
+      <rect x="10" y="10" width="100" height="100" rx="22"
+        stroke="#7CFF4D" strokeWidth="5" fill="none" />
 
-      <g className="flame-group">
-        <path
-          className="flame-main"
-          d="M60 25 L70 45 L82 65 C82 85 75 92 60 92 C45 92 38 85 38 65 L50 45 L60 25Z"
-          stroke="#7CFF4D" strokeWidth="4.5" fill="none" strokeLinejoin="miter"
-        />
-        <path
-          className="flame-flick-right"
-          d="M72 48 L88 32 L78 60"
-          stroke="#7CFF4D" strokeWidth="4" fill="none" strokeLinecap="round"
-        />
-        <path
-          className="flame-flick-left"
-          d="M48 50 L35 35 L42 62"
-          stroke="#7CFF4D" strokeWidth="4" fill="none" strokeLinecap="round"
-        />
-        <path
-          className="flame-core"
-          d="M60 55 L52 75 C52 82 68 82 68 75 L60 55Z"
-          fill="#7CFF4D"
-        />
-      </g>
+      {/* Outer flame — sharp jagged flicks, exact path preserved */}
+      <path
+        className="flame-outer"
+        d="M60 20 C60 20 50 35 45 45 C35 55 30 70 30 82 C30 95 43 100 60 100 C77 100 90 95 90 82 C90 70 82 55 75 45 L82 55 C82 55 85 35 60 20 Z"
+        fill="none"
+        stroke="#7CFF4D"
+        strokeWidth="4.5"
+        strokeLinejoin="miter"
+      />
+
+      {/* Inner flame — solid flickering core */}
+      <path
+        className="flame-inner"
+        d="M60 50 L52 70 C52 70 50 85 60 85 C70 85 68 70 68 70 L60 50 Z"
+        fill="#7CFF4D"
+      />
     </svg>
   );
 }
@@ -57,13 +55,15 @@ export function AppLogo({ size = "sm", showText = true }: AppLogoProps) {
   const px = PX[size];
 
   return (
-    <div className={`brand-container ${GAP[size]} select-none`}>
+    <div className={`flex flex-col items-center ${GAP[size]} select-none`}>
       <FlameSVG px={px} />
       {showText && (
-        <div className={`brand-text ${TXT[size]}`}>
-          <span>EXPENSE</span>
-          <span>ROASTER</span>
-        </div>
+        <span
+          className={`font-black uppercase text-white text-center whitespace-nowrap ${TEXT[size]}`}
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+        >
+          EXPENSE ROASTER
+        </span>
       )}
     </div>
   );
