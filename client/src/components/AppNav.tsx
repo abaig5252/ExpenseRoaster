@@ -4,6 +4,7 @@ import { Flame, Wallet, BarChart3, LogOut, Crown, FileText, Download, Mail, Chev
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
 import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
+import { AppLogo } from "@/components/AppLogo";
 
 const navLinks = [
   { href: "/upload", label: "Roast Receipt", icon: Flame },
@@ -37,11 +38,11 @@ export function AppNav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/upload" data-testid="link-home">
-          <div className="flex items-center gap-2 cursor-pointer select-none">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center">
-              <Flame className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-display font-black text-white text-lg hidden sm:block">Expense Roaster</span>
+          <div className="cursor-pointer hidden sm:flex">
+            <AppLogo size="sm" />
+          </div>
+          <div className="cursor-pointer flex sm:hidden">
+            <AppLogo size="sm" showText={false} />
           </div>
         </Link>
 

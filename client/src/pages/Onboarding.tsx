@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Flame } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
@@ -44,10 +44,9 @@ export default function Onboarding() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center mb-4 shadow-lg">
-            <Flame className="w-7 h-7 text-white" />
+          <div className="mb-4">
+            <AppLogo size="lg" />
           </div>
-          <h1 className="font-display font-black text-3xl text-white mb-1">Welcome!</h1>
           <p className="text-muted-foreground text-sm text-center">
             Let's get you set up before the roasting begins.
           </p>
