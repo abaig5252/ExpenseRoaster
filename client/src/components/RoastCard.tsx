@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { motion } from "framer-motion";
 import { Flame, X, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/hooks/use-currency";
 
 interface RoastCardProps {
   expense: {
@@ -17,6 +18,7 @@ interface RoastCardProps {
 export function RoastCard({ expense, watermark = false, onClose }: RoastCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { formatAmount } = useCurrency();
 
   const handleShare = async () => {
     const text = `😭 I just got financially roasted:\n\n"${expense.roast}"\n\n— Expense Roaster`;
@@ -56,7 +58,7 @@ export function RoastCard({ expense, watermark = false, onClose }: RoastCardProp
         {/* Expense info */}
         <div className="mb-6">
           <div className="text-5xl font-amount-card text-white mb-1">
-            {(expense.amount / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}
+            {formatAmount(expense.amount)}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-lg">{expense.description}</span>

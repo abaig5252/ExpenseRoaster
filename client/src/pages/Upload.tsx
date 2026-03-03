@@ -8,6 +8,7 @@ import { AppNav } from "@/components/AppNav";
 import { RoastCard } from "@/components/RoastCard";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
+import { useCurrency } from "@/hooks/use-currency";
 import { Link } from "wouter";
 
 export default function Upload() {
@@ -19,14 +20,15 @@ export default function Upload() {
   const { data: expenses, isLoading, error } = useExpenses();
   const { data: summary } = useExpenseSummary();
   const deleteMutation = useDeleteExpense();
+  const { formatAmount } = useCurrency();
 
   const isFree = !me || me.tier === "free";
   const uploadsUsed = me?.monthlyUploadCount || 0;
   const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
 
   const formattedTotal = summary
-    ? (summary.monthlyTotal / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })
-    : "$0.00";
+    ? formatAmount(summary.monthlyTotal)
+    : formatAmount(0);
 
   const firstName = user?.firstName || user?.email?.split("@")[0] || "friend";
 

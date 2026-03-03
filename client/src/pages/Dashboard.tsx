@@ -2,18 +2,20 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Plus, Flame, Activity, DollarSign, RefreshCw } from "lucide-react";
 import { useExpenses, useExpenseSummary } from "@/hooks/use-expenses";
+import { useCurrency } from "@/hooks/use-currency";
 import { ExpenseCard } from "@/components/ExpenseCard";
 import { UploadModal } from "@/components/UploadModal";
 
 export default function Dashboard() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const { formatAmount } = useCurrency();
   
   const { data: expenses, isLoading: expensesLoading, error: expensesError } = useExpenses();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
 
   const formattedTotal = summary 
-    ? (summary.monthlyTotal / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })
-    : "$0.00";
+    ? formatAmount(summary.monthlyTotal)
+    : formatAmount(0);
 
   return (
     <div className="min-h-screen pb-24 relative">

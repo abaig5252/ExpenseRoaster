@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Trash2, AlertTriangle, X } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
+import { useCurrency } from "@/hooks/use-currency";
 
 interface ExpenseCardProps {
   expense: ExpenseResponse;
@@ -42,9 +43,10 @@ const sourceLabels: Record<string, string> = {
 
 export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false }: ExpenseCardProps) {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const { formatAmount } = useCurrency();
 
   const amountDollars = expense.amount / 100;
-  const formattedAmount = amountDollars.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  const formattedAmount = formatAmount(expense.amount);
   const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(expense.date));
 
   const emoji = categoryEmoji[expense.category] || "🧾";

@@ -4,6 +4,7 @@ import { useDropzone } from "react-dropzone";
 import { UploadCloud, X, Loader2, Flame, AlertCircle, Camera, ChevronDown } from "lucide-react";
 import { useUploadExpense } from "@/hooks/use-expenses";
 import { useMe } from "@/hooks/use-subscription";
+import { useCurrency } from "@/hooks/use-currency";
 import { Link } from "wouter";
 import type { ExpenseResponse } from "@shared/routes";
 
@@ -37,6 +38,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
   const [loadingMsg] = useState(() => loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
   const uploadMutation = useUploadExpense();
   const { data: me } = useMe();
+  const { formatAmount } = useCurrency();
 
   const isPremium = me?.tier === "premium";
 
@@ -160,7 +162,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                   <div className="w-full bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--secondary))]/10 rounded-3xl p-6 border border-[hsl(var(--primary))]/20">
                     <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Financial Damage</div>
                     <div className="text-5xl font-amount-card text-white mb-2">
-                      {(result.amount / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                      {formatAmount(result.amount)}
                     </div>
                     <div className="text-base text-muted-foreground">{result.description}</div>
                     <div className="inline-flex items-center gap-1 px-3 py-1 bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] rounded-full text-xs font-bold uppercase tracking-wider mt-2">

@@ -5,10 +5,7 @@ import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, t
 import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Expense } from "@shared/schema";
-
-function fmtCurrency(cents: number) {
-  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
+import { useCurrency } from "@/hooks/use-currency";
 
 function fmtMonth(ym: string) {
   const [year, month] = ym.split("-");
@@ -16,6 +13,7 @@ function fmtMonth(ym: string) {
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
+  const { formatAmount: fmtCurrency } = useCurrency();
   if (!active || !payload?.length) return null;
   return (
     <div className="glass-panel rounded-xl px-4 py-3 border border-white/10 text-sm">
@@ -27,6 +25,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
+  const { formatAmount: fmtCurrency } = useCurrency();
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
       {/* Header: category + savings */}
@@ -84,6 +83,7 @@ function isoWeekday(d: Date): number {
 }
 
 function SpendingHeatmap({ expenses }: { expenses: Expense[] }) {
+  const { formatAmount: fmtCurrency } = useCurrency();
   const now = new Date();
 
   // Use the month of the most recently added expense, falling back to current month
@@ -237,6 +237,7 @@ function SpendingHeatmap({ expenses }: { expenses: Expense[] }) {
 }
 
 export default function MonthlyTracker() {
+  const { formatAmount: fmtCurrency } = useCurrency();
   const { data: series, isLoading: seriesLoading } = useMonthlySeries();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
   const { data: expenses } = useExpenses();

@@ -4,6 +4,7 @@ import { useDropzone } from "react-dropzone";
 import { Wallet, UploadCloud, Plus, Flame, Trash2, Calendar, DollarSign, AlertCircle, Loader2, FileText, Lock, Image } from "lucide-react";
 import { useAddManualExpense, useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
+import { useCurrency } from "@/hooks/use-currency";
 import { AppNav } from "@/components/AppNav";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,7 @@ const empty: FormState = {
 };
 
 export default function BankStatement() {
+  const { formatAmount } = useCurrency();
   const [form, setForm] = useState<FormState>(empty);
   const [tone, setTone] = useState("savage");
   const [submitted, setSubmitted] = useState<string | null>(null);
@@ -370,7 +372,7 @@ export default function BankStatement() {
                     <div className="flex justify-between items-start gap-2">
                       <p className="font-bold text-white text-sm truncate">{exp.description}</p>
                       <span className="text-base font-amount-card text-white shrink-0">
-                        {(exp.amount / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                        {formatAmount(exp.amount)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">

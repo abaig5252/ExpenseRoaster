@@ -5,10 +5,7 @@ import { AppNav } from "@/components/AppNav";
 import { useMe, useAnnualReport } from "@/hooks/use-subscription";
 import { useCheckout, useStripeProducts } from "@/hooks/use-subscription";
 import { Link } from "wouter";
-
-function fmtCurrency(cents: number) {
-  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
+import { useCurrency } from "@/hooks/use-currency";
 
 function fmtMonth(ym: string) {
   const [year, month] = ym.split("-");
@@ -22,6 +19,7 @@ export default function AnnualReport() {
   const reportMutation = useAnnualReport();
   const reportRef = useRef<HTMLDivElement>(null);
   const [reportData, setReportData] = useState<any>(null);
+  const { formatAmount: fmtCurrency } = useCurrency();
 
   const canAccess = me?.hasAnnualReport || me?.tier === "premium";
   const annualPrice = products?.find((p: any) => p.price_metadata?.plan === "annual_report" || p.metadata?.plan === "annual_report");
