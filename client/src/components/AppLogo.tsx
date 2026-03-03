@@ -6,13 +6,13 @@ interface AppLogoProps {
 const PX = { xs: 60, sm: 80, md: 104, lg: 132 };
 
 const TEXT = {
-  xs: "text-[10px] tracking-[0.18em]",
-  sm: "text-[12px] tracking-[0.18em]",
-  md: "text-[15px] tracking-[0.18em]",
-  lg: "text-[18px] tracking-[0.18em]",
+  xs: "text-[12px] tracking-[0.18em]",
+  sm: "text-[15px] tracking-[0.18em]",
+  md: "text-[18px] tracking-[0.18em]",
+  lg: "text-[22px] tracking-[0.18em]",
 };
 
-const GAP = { xs: "gap-2", sm: "gap-2.5", md: "gap-3", lg: "gap-3.5" };
+const GAP = { xs: "gap-1", sm: "gap-1", md: "gap-1.5", lg: "gap-2" };
 
 function FlameSVG({ px }: { px: number }) {
   return (
