@@ -179,6 +179,13 @@ export default function Contact() {
             expenseroaster@gmail.com
           </a>
         </p>
+
+        <div className="mt-8 pt-6 border-t border-white/[0.06] flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/30">
+          <a href="/privacy-policy" className="hover:text-white/60 transition-colors" data-testid="link-contact-privacy">Privacy Policy</a>
+          <a href="/terms-of-service" className="hover:text-white/60 transition-colors" data-testid="link-contact-tos">Terms of Service</a>
+          <a href="/refund-policy" className="hover:text-white/60 transition-colors" data-testid="link-contact-refund">Refund Policy</a>
+          <a href="/data-deletion" className="hover:text-white/60 transition-colors" data-testid="link-contact-data-deletion">Data Deletion Policy</a>
+        </div>
       </div>
     </div>
   );
