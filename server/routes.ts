@@ -251,6 +251,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(user);
   });
 
+  // ─── Update profile (onboarding, currency, name) ─────────────────
+  app.patch("/api/me/profile", isAuthenticated, async (req: any, res) => {
+    const userId = getUserId(req);
+    const schema = z.object({
+      firstName: z.string().min(1).optional(),
+      lastName: z.string().optional(),
+      currency: z.string().min(2).max(5).optional(),
+      onboardingComplete: z.boolean().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
+    const user = await storage.updateUserProfile(userId, parsed.data);
+    res.json(user);
+  });
+
   // ─── Expenses: List ─────────────────────────────────────────────
   app.get(api.expenses.list.path, isAuthenticated, async (req: any, res) => {
     const userId = getUserId(req);

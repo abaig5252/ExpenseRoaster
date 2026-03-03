@@ -1,8 +1,8 @@
-# RoastMyWallet — replit.md
+# Expense Roaster — replit.md
 
 ## Overview
 
-**RoastMyWallet** is a tiered SaaS web app that lets users upload receipts or manually enter expenses, then uses AI to generate savage roasts of their spending habits. It has a Stripe-powered subscription model with Free, Premium, and Annual Report tiers.
+**Expense Roaster** is a tiered SaaS web app (PWA, installable on iOS/Android) that lets users upload receipts or manually enter expenses, then uses AI to generate savage roasts of their spending habits. It has a Stripe-powered subscription model with Free, Premium, and Annual Report tiers.
 
 ---
 

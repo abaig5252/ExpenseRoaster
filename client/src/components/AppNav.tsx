@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { useEffect } from "react";
 import { Flame, Wallet, BarChart3, LogOut, Crown, FileText, Download, Mail, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
@@ -15,7 +16,13 @@ export function AppNav() {
   const { user, logout } = useAuth();
   const { data: me } = useMe();
   const [location] = useLocation();
-  const { currency, setCurrency } = useCurrency();
+  const { currency, setCurrency, syncFromServer } = useCurrency();
+
+  useEffect(() => {
+    if (me?.currency) {
+      syncFromServer(me.currency);
+    }
+  }, [me?.currency]);
 
   const isPremium = me?.tier === "premium";
   const hasAnnualReport = me?.hasAnnualReport;

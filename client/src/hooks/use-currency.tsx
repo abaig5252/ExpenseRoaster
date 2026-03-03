@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
 
 export const CURRENCIES = [
   { code: "USD", label: "USD — US Dollar" },
@@ -22,12 +23,14 @@ export const CURRENCIES = [
 interface CurrencyContextValue {
   currency: string;
   setCurrency: (code: string) => void;
+  syncFromServer: (code: string) => void;
   formatAmount: (cents: number) => string;
 }
 
 const CurrencyContext = createContext<CurrencyContextValue>({
   currency: "USD",
   setCurrency: () => {},
+  syncFromServer: () => {},
   formatAmount: (cents) =>
     (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" }),
 });
@@ -40,6 +43,13 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   function setCurrency(code: string) {
     localStorage.setItem("er_currency", code);
     setCurrencyState(code);
+    apiRequest("PATCH", "/api/me/profile", { currency: code }).catch(() => {});
+  }
+
+  function syncFromServer(code: string) {
+    if (!code) return;
+    localStorage.setItem("er_currency", code);
+    setCurrencyState(code);
   }
 
   function formatAmount(cents: number) {
@@ -47,7 +57,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, formatAmount }}>
+    <CurrencyContext.Provider value={{ currency, setCurrency, syncFromServer, formatAmount }}>
       {children}
     </CurrencyContext.Provider>
   );

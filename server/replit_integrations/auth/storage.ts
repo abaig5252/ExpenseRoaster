@@ -14,10 +14,10 @@ class AuthStorage implements IAuthStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    // On INSERT (new user): use values as-is (emailVerified: false passed explicitly).
-    // On conflict (existing user): update profile fields only — do NOT touch emailVerified
-    // so verified users don't get reset on every login.
-    const { emailVerified: _ev, emailVerificationCode: _vc, emailVerificationExpires: _ve, ...profileData } = userData;
+    // On INSERT (new user): use values as-is (emailVerified/onboardingComplete: false passed explicitly).
+    // On conflict (existing user): update profile fields only — do NOT touch emailVerified or onboardingComplete
+    // so verified/onboarded users don't get reset on every login.
+    const { emailVerified: _ev, emailVerificationCode: _vc, emailVerificationExpires: _ve, onboardingComplete: _oc, ...profileData } = userData;
     const [user] = await db
       .insert(users)
       .values(userData)

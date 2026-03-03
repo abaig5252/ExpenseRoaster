@@ -59,6 +59,8 @@ async function upsertUser(claims: any) {
     profileImageUrl: claims["profile_image_url"],
     // New users get emailVerified: false; conflict update in auth storage leaves this untouched
     emailVerified: false,
+    // New users need onboarding; conflict update leaves this untouched
+    onboardingComplete: false,
   });
 }
 

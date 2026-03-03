@@ -19,6 +19,7 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
 import DataDeletion from "@/pages/DataDeletion";
 import VerifyEmail from "@/pages/VerifyEmail";
+import Onboarding from "@/pages/Onboarding";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
 import { MobileTabBar } from "@/components/MobileTabBar";
@@ -48,7 +49,39 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return <Redirect to="/verify" />;
   }
 
+  if (me && me.onboardingComplete === false) {
+    return <Redirect to="/onboarding" />;
+  }
+
   return <Component />;
+}
+
+function OnboardingRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const { data: me, isLoading: meLoading } = useMe();
+
+  if (isLoading || meLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-4 border-[hsl(var(--primary))]/20 border-t-[hsl(var(--primary))] animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    window.location.href = "/api/login";
+    return null;
+  }
+
+  if (me && me.emailVerified === false) {
+    return <Redirect to="/verify" />;
+  }
+
+  if (me && me.onboardingComplete === true) {
+    return <Redirect to="/upload" />;
+  }
+
+  return <Onboarding />;
 }
 
 function Router() {
@@ -65,6 +98,7 @@ function Router() {
         return isAuthenticated ? <Redirect to="/upload" /> : <Landing />;
       }} />
       <Route path="/verify" component={VerifyEmail} />
+      <Route path="/onboarding" component={OnboardingRoute} />
       <Route path="/upload" component={() => <ProtectedRoute component={Upload} />} />
       <Route path="/bank" component={() => <ProtectedRoute component={BankStatement} />} />
       <Route path="/tracker" component={() => <ProtectedRoute component={MonthlyTracker} />} />
