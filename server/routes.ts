@@ -88,12 +88,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const { getUncachableResendClient } = await import("./resend/resendClient");
     const resend = await getUncachableResendClient();
     await resend.emails.send({
-      from: "RoastMyWallet <onboarding@resend.dev>",
+      from: "Expense Roaster <onboarding@resend.dev>",
       to: user.email,
-      subject: "Your RoastMyWallet verification code",
+      subject: "Your Expense Roaster verification code",
       html: `
         <div style="background:#0A0A0A;color:#F0F0F0;font-family:sans-serif;padding:40px;max-width:480px;margin:0 auto;border-radius:16px;border:1px solid rgba(255,255,255,0.06)">
-          <h2 style="color:#00E676;margin-top:0;font-size:22px">RoastMyWallet 🔥</h2>
+          <h2 style="color:#00E676;margin-top:0;font-size:22px">Expense Roaster 🔥</h2>
           <p style="margin:0 0 16px">Your email verification code is:</p>
           <div style="background:#1A1A1A;border:1px solid rgba(0,230,118,0.22);border-radius:12px;padding:24px;text-align:center;margin:0 0 24px">
             <span style="font-size:40px;font-weight:800;letter-spacing:10px;color:#00E676">${code}</span>
@@ -740,7 +740,7 @@ All content must directly reference their actual spending data.`,
       const { getUncachableResendClient } = await import("./resend/resendClient");
       const resend = await getUncachableResendClient();
       await resend.emails.send({
-        from: "RoastMyWallet <onboarding@resend.dev>",
+        from: "Expense Roaster <onboarding@resend.dev>",
         to: ["expenseroaster@gmail.com"],
         replyTo: email,
         subject: `Contact from ${name}`,

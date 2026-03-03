@@ -123,7 +123,7 @@ export default function VerifyEmail() {
             <Flame style={{ width: 20, height: 20, color: "#00E676" }} />
           </div>
           <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 18, color: "#FFFFFF" }}>
-            RoastMyWallet
+            Expense Roaster
           </span>
         </div>
 

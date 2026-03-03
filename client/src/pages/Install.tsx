@@ -58,7 +58,7 @@ export default function Install() {
         </div>
         <CheckCircle className="w-12 h-12 text-[hsl(var(--secondary))] mb-4" />
         <h1 className="text-3xl font-black text-white mb-2">You're all set!</h1>
-        <p className="text-white/60 mb-8">RoastMyWallet is installed on your device.</p>
+        <p className="text-white/60 mb-8">Expense Roaster is installed on your device.</p>
         <Link href="/upload"
           className="bg-[hsl(var(--primary))] text-white font-bold px-8 py-3 rounded-2xl hover:opacity-90 transition-opacity">
           Open App
@@ -74,7 +74,7 @@ export default function Install() {
           style={{ boxShadow: "0 0 60px hsla(320,100%,55%,0.3)" }}>
           🔥
         </div>
-        <h1 className="text-3xl font-black text-white mb-2">Install RoastMyWallet</h1>
+        <h1 className="text-3xl font-black text-white mb-2">Install Expense Roaster</h1>
         <p className="text-white/50 text-sm">Add to your home screen for instant access — works like a real app, no App Store needed.</p>
       </div>
 

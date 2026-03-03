@@ -32,7 +32,7 @@ export function AppNav() {
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center">
               <Flame className="w-4 h-4 text-white" />
             </div>
-            <span className="font-display font-black text-white text-lg hidden sm:block">RoastMyWallet</span>
+            <span className="font-display font-black text-white text-lg hidden sm:block">Expense Roaster</span>
           </div>
         </Link>
 

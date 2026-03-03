@@ -1,6 +1,6 @@
 {
-  "name": "RoastMyWallet",
-  "short_name": "RoastMyWallet",
+  "name": "Expense Roaster",
+  "short_name": "Expense Roaster",
   "description": "Upload receipts and get brutally roasted about your spending habits.",
   "start_url": "/",
   "display": "standalone",

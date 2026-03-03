@@ -19,7 +19,7 @@ export function RoastCard({ expense, watermark = false, onClose }: RoastCardProp
   const { toast } = useToast();
 
   const handleShare = async () => {
-    const text = `😭 I just got financially roasted:\n\n"${expense.roast}"\n\n— RoastMyWallet.app`;
+    const text = `😭 I just got financially roasted:\n\n"${expense.roast}"\n\n— Expense Roaster`;
     if (navigator.share) {
       await navigator.share({ text });
     } else {
@@ -50,7 +50,7 @@ export function RoastCard({ expense, watermark = false, onClose }: RoastCardProp
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center">
             <Flame className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="text-sm font-display font-black text-white">RoastMyWallet</span>
+          <span className="text-sm font-display font-black text-white">Expense Roaster</span>
         </div>
 
         {/* Expense info */}

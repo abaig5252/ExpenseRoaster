@@ -34,7 +34,7 @@ export default function Landing() {
           </div>
 
           <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold leading-[0.9] mb-8">
-            <span className="text-gradient-primary">RoastMyWallet</span>
+            <span className="text-gradient-primary">Expense Roaster</span>
           </h1>
 
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-4 leading-relaxed">
@@ -150,7 +150,7 @@ export default function Landing() {
       </section>
 
       <footer className="py-8 text-center text-muted-foreground text-sm border-t border-white/5">
-        <p>RoastMyWallet &copy; 2026 — Your wallet's worst nightmare, your finances' best friend.</p>
+        <p>Expense Roaster &copy; 2026 — Your wallet's worst nightmare, your finances' best friend.</p>
       </footer>
     </div>
   );
