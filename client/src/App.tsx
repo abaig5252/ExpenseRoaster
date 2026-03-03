@@ -14,6 +14,9 @@ import UpgradeSuccess from "@/pages/UpgradeSuccess";
 import Install from "@/pages/Install";
 import Contact from "@/pages/Contact";
 import RefundPolicy from "@/pages/RefundPolicy";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfService from "@/pages/TermsOfService";
+import DataDeletion from "@/pages/DataDeletion";
 import VerifyEmail from "@/pages/VerifyEmail";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
@@ -70,6 +73,9 @@ function Router() {
       <Route path="/install" component={Install} />
       <Route path="/contact" component={Contact} />
       <Route path="/refund-policy" component={RefundPolicy} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
+      <Route path="/terms-of-service" component={TermsOfService} />
+      <Route path="/data-deletion" component={DataDeletion} />
       <Route component={NotFound} />
     </Switch>
   );

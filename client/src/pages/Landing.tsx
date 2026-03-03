@@ -149,13 +149,14 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      <footer className="py-8 text-center text-muted-foreground text-sm border-t border-white/5 space-y-2">
+      <footer className="py-8 text-center text-muted-foreground text-sm border-t border-white/5 space-y-3">
         <p>Expense Roaster &copy; 2026 — Your wallet's worst nightmare, your finances' best friend.</p>
-        <p>
-          <a href="/refund-policy" className="hover:text-white transition-colors underline underline-offset-2" data-testid="link-refund-policy">
-            Refund Policy
-          </a>
-        </p>
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          <a href="/privacy-policy" className="hover:text-white transition-colors underline underline-offset-2" data-testid="link-privacy-policy">Privacy Policy</a>
+          <a href="/terms-of-service" className="hover:text-white transition-colors underline underline-offset-2" data-testid="link-terms-of-service">Terms of Service</a>
+          <a href="/refund-policy" className="hover:text-white transition-colors underline underline-offset-2" data-testid="link-refund-policy">Refund Policy</a>
+          <a href="/data-deletion" className="hover:text-white transition-colors underline underline-offset-2" data-testid="link-data-deletion">Data Deletion Policy</a>
+        </div>
       </footer>
     </div>
   );

@@ -1,0 +1,309 @@
+📜 PRIVACY POLICY
+
+Last Updated: [Insert Date]
+
+1. Introduction
+
+Expense Roaster (“we,” “our,” or “us”) respects your privacy and is committed to protecting your personal information.
+
+This Privacy Policy explains how we collect, use, store, and protect information when you use our website and services (the “Service”).
+
+By using Expense Roaster, you agree to the practices described in this policy.
+
+2. Information We Collect
+
+We may collect the following types of information:
+
+A. Account Information
+
+Name (if provided)
+
+Email address
+
+Subscription status
+
+Billing-related metadata (processed securely via Stripe)
+
+We do not store full credit card details.
+
+B. Financial Data You Upload
+
+When you use Expense Roaster, you may upload:
+
+Receipt images
+
+Bank statement CSV files
+
+Transaction data
+
+Spending records
+
+This data is used solely to generate AI-based financial insights and behavioral analysis.
+
+C. Usage Data
+
+We may collect:
+
+Log data
+
+IP address
+
+Device type
+
+Browser type
+
+Pages visited
+
+Feature usage
+
+This helps improve performance and security.
+
+D. Cookies
+
+We may use cookies or similar technologies for:
+
+Authentication
+
+Session management
+
+Analytics
+
+You may disable cookies via your browser settings.
+
+3. How We Use Your Information
+
+We use collected data to:
+
+Provide financial analysis and AI-generated insights
+
+Process subscriptions and payments
+
+Improve our services
+
+Monitor usage and prevent abuse
+
+Communicate with you about your account
+
+We do not sell your personal or financial data.
+
+4. AI Processing
+
+Uploaded financial data may be processed through third-party AI service providers to generate insights and analysis.
+
+We do not use your financial data to train public AI models.
+
+5. Data Storage & Security
+
+We implement reasonable technical and organizational measures to protect your information, including:
+
+Encrypted data transmission (HTTPS)
+
+Secure authentication systems
+
+Restricted internal access
+
+Cloud-based storage security measures
+
+However, no system is 100% secure, and we cannot guarantee absolute security.
+
+6. Data Retention
+
+We retain your data:
+
+While your account is active
+
+As needed to provide services
+
+As required for legal or compliance purposes
+
+You may request deletion of your data at any time (see Data Deletion Policy).
+
+7. Third-Party Services
+
+We use trusted third-party providers, including but not limited to:
+
+Stripe (payment processing)
+
+Cloud hosting providers
+
+AI service providers
+
+Analytics platforms
+
+These providers may process data necessary to perform their services.
+
+8. Your Rights
+
+Depending on your jurisdiction, you may have the right to:
+
+Access your personal data
+
+Request correction
+
+Request deletion
+
+Withdraw consent
+
+Request data portability
+
+To exercise these rights, contact us at:
+
+[Your Support Email]
+
+9. Children’s Privacy
+
+Expense Roaster is not intended for individuals under the age of 18.
+
+10. Changes to This Policy
+
+We may update this Privacy Policy from time to time. Continued use of the Service after changes constitutes acceptance.
+
+📜 TERMS OF SERVICE
+
+Last Updated: [Insert Date]
+
+1. Acceptance of Terms
+
+By accessing or using Expense Roaster, you agree to these Terms of Service.
+
+If you do not agree, do not use the Service.
+
+2. Description of Service
+
+Expense Roaster provides AI-powered financial behavior insights, receipt analysis, spending tracking, and subscription-based features.
+
+The Service is provided for informational and educational purposes only.
+
+3. Not Financial Advice
+
+Expense Roaster does not provide financial, legal, tax, or investment advice.
+
+All insights and analysis are informational only and should not be relied upon as professional advice.
+
+You are responsible for your financial decisions.
+
+4. User Responsibilities
+
+You agree to:
+
+Provide accurate information
+
+Use the service lawfully
+
+Not attempt to exploit, reverse-engineer, or abuse the system
+
+Not upload malicious or illegal content
+
+5. Subscriptions & Billing
+
+Premium features require a paid subscription.
+
+By subscribing, you authorize recurring charges to your payment method.
+
+Subscriptions:
+
+Renew automatically unless canceled
+
+May be canceled at any time before renewal
+
+Do not provide refunds beyond the stated Refund Policy
+
+6. Refund Policy
+
+Refunds are governed by our Refund Policy.
+
+By subscribing, you acknowledge and agree to that policy.
+
+7. Account Termination
+
+We reserve the right to suspend or terminate accounts that:
+
+Violate these Terms
+
+Engage in fraudulent activity
+
+Abuse refund policies
+
+Attempt to exploit system limits
+
+8. Intellectual Property
+
+All branding, software, design, and AI outputs are property of Expense Roaster.
+
+You may not copy, reproduce, or distribute our materials without permission.
+
+9. Limitation of Liability
+
+Expense Roaster is provided “as is.”
+
+We are not liable for:
+
+Financial losses
+
+Inaccurate analysis
+
+Service interruptions
+
+Data loss
+
+Third-party service failures
+
+To the fullest extent permitted by law, our liability is limited to the amount paid for the service in the preceding 30 days.
+
+10. Governing Law
+
+These Terms shall be governed by the laws of:
+
+[Insert Your Jurisdiction – e.g., Province of Ontario, Canada]
+
+📜 DATA DELETION POLICY
+
+Last Updated: [Insert Date]
+
+Expense Roaster respects your right to control your data.
+
+1. Account Deletion
+
+You may request deletion of your account at any time by:
+
+Using the in-app delete feature (if available), or
+
+Contacting [Your Support Email]
+
+Upon verified request, we will:
+
+Delete your account
+
+Remove associated financial data
+
+Remove stored receipts and transaction records
+
+Within 30 days of request.
+
+2. Immediate Effects
+
+After deletion:
+
+You will lose access to your account
+
+All saved financial analysis will be permanently removed
+
+Subscriptions must be canceled prior to deletion
+
+Deletion cannot be undone.
+
+3. Backup Retention
+
+We may retain limited data in encrypted backups for a short period for:
+
+Security
+
+Legal compliance
+
+Fraud prevention
+
+Such data will not be used for active processing.
+
+4. Legal Retention
+
+We may retain certain billing or transactional records as required by law.
