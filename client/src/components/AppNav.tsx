@@ -38,10 +38,10 @@ export function AppNav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-28 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/upload" data-testid="link-home">
-          <div className="cursor-pointer hidden sm:flex">
+          <div className="cursor-pointer hidden sm:flex mt-4">
             <AppLogo size="sm" />
           </div>
-          <div className="cursor-pointer flex sm:hidden">
+          <div className="cursor-pointer flex sm:hidden mt-4">
             <AppLogo size="xs" showText={false} />
           </div>
         </Link>
