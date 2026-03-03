@@ -45,7 +45,7 @@ export default function Onboarding() {
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
           <div className="mb-4">
-            <AppLogo size="lg" />
+            <AppLogo size="md" />
           </div>
           <p className="text-muted-foreground text-sm text-center">
             Let's get you set up before the roasting begins.
