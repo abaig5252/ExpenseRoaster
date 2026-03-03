@@ -173,8 +173,8 @@
 }
 
 .logo-glow {
-  filter: drop-shadow(0 0 5px rgba(124, 255, 77, 0.6))
-          drop-shadow(0 0 15px rgba(124, 255, 77, 0.3));
+  filter: drop-shadow(0 0 5px rgba(124, 255, 77, 0.5))
+          drop-shadow(0 0 15px rgba(124, 255, 77, 0.2));
   transition: filter 0.3s ease-in-out;
 }
 
