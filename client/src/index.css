@@ -174,26 +174,31 @@
 
 .flame-logo {
   display: block;
+  overflow: visible;
 }
 
-.flame-outer {
-  filter: drop-shadow(0 0 5px #7CFF4D);
-  animation: roar 1.5s infinite alternate;
+.burning-flame {
+  filter: drop-shadow(0 0 8px #7CFF4D);
 }
 
-.flame-inner {
-  animation: flicker-core 0.8s infinite alternate;
-  transform-origin: center bottom;
+.burning-flame path:nth-child(2),
+.burning-flame path:nth-child(3) {
+  animation: flicker-flicks 0.5s infinite alternate ease-in-out;
 }
 
-@keyframes roar {
-  0%   { opacity: 0.8; stroke-width: 4.5; filter: drop-shadow(0 0 5px #7CFF4D); }
-  100% { opacity: 1;   stroke-width: 5.5; filter: drop-shadow(0 0 12px #7CFF4D); }
+.core {
+  animation: pulse-core 1s infinite alternate ease-in-out;
+  transform-origin: 60px 80px;
 }
 
-@keyframes flicker-core {
-  0%   { transform: scaleY(0.9) skewX(-2deg); }
-  100% { transform: scaleY(1.1) skewX(2deg); }
+@keyframes flicker-flicks {
+  0%   { opacity: 0.7; transform: translateY(0); }
+  100% { opacity: 1;   transform: translateY(-3px) scale(1.05); }
+}
+
+@keyframes pulse-core {
+  from { transform: scale(0.9); }
+  to   { transform: scale(1.1); }
 }
 
 ::-webkit-scrollbar { width: 6px; }
