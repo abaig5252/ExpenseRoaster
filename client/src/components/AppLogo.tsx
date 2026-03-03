@@ -20,22 +20,27 @@ function FlameSVG({ px }: { px: number }) {
       viewBox="0 0 120 120"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="logo-glow"
+      className="flame-logo"
       aria-hidden="true"
     >
-      {/* Rounded square border — stroke only, transparent fill */}
+      {/* Rounded square border */}
       <rect x="10" y="10" width="100" height="100" rx="22"
         stroke="#7CFF4D" strokeWidth="5" fill="none" />
 
-      {/* Outer flame — stroke outline */}
+      {/* Outer flame — flickering stroke with sharp flicks */}
       <path
-        d="M60 28C60 28 42 52 42 72C42 81.94 50.06 90 60 90C69.94 90 78 81.94 78 72C78 52 60 28 60 28Z"
-        stroke="#7CFF4D" strokeWidth="4.5" fill="none" strokeLinejoin="round"
+        className="flame-outer"
+        d="M60 22C60 22 52 38 45 50C38 60 35 72 35 82C35 92 46 98 60 98C74 98 85 92 85 82C85 70 75 55 68 45C72 50 78 60 78 70C78 70 82 38 60 22Z"
+        fill="none"
+        stroke="#7CFF4D"
+        strokeWidth="4.5"
+        strokeLinejoin="round"
       />
 
-      {/* Inner flame — solid filled teardrop */}
+      {/* Inner flame — pulsing solid core */}
       <path
-        d="M60 58C60 58 52 68 52 74C52 78.42 55.58 82 60 82C64.42 82 68 78.42 68 74C68 68 60 58 60 58Z"
+        className="flame-inner"
+        d="M60 55C60 55 52 65 52 75C52 80 55 84 60 84C65 84 68 80 68 75C68 68 60 55 60 55Z"
         fill="#7CFF4D"
       />
     </svg>
