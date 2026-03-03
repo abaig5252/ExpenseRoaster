@@ -172,6 +172,17 @@
   }
 }
 
+.logo-glow {
+  filter: drop-shadow(0 0 5px rgba(124, 255, 77, 0.6))
+          drop-shadow(0 0 15px rgba(124, 255, 77, 0.3));
+  transition: filter 0.3s ease-in-out;
+}
+
+.logo-glow:hover {
+  filter: drop-shadow(0 0 8px rgba(124, 255, 77, 0.8))
+          drop-shadow(0 0 25px rgba(124, 255, 77, 0.5));
+}
+
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #0A0A0A; }
 ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
