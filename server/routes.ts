@@ -32,13 +32,14 @@ function getUserId(req: any): string {
   return req.user?.claims?.sub;
 }
 
-async function generateRoast(description: string, amountCents: number, category: string, tone = "savage"): Promise<string> {
+async function generateRoast(description: string, amountCents: number, category: string, tone = "savage", location?: string, currency = "USD"): Promise<string> {
   const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage;
+  const locationCtx = location ? `, location: ${location}` : "";
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
-      { role: "system", content: prompt },
-      { role: "user", content: `Expense: ${description}, $${(amountCents / 100).toFixed(2)}, category: ${category}. Roast me in ONE sharp, specific sentence.` },
+      { role: "system", content: `${prompt} The user's currency is ${currency}${location ? ` and they are spending in ${location}` : ""}. Use the local currency symbol and make any cost comparisons relevant to that location's price levels.` },
+      { role: "user", content: `Expense: ${description}, ${(amountCents / 100).toFixed(2)} ${currency}, category: ${category}${locationCtx}. Roast me in ONE sharp, specific sentence.` },
     ],
     max_completion_tokens: 120,
   });
@@ -332,12 +333,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         })
         .join("\n");
 
+      const adviceUser = await storage.getUser(userId);
+      const adviceCurrency = adviceUser?.currency || "USD";
+
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
           {
             role: "system",
             content: `You are a sharp financial advisor. Analyze spending and return ONLY valid JSON — no markdown, no explanation.
+The user's currency is ${adviceCurrency}. All monetary amounts in your response (advice, alternatives, savings) must use ${adviceCurrency} and reflect realistic local prices for that currency's region.
 
 Return this exact shape:
 {
@@ -348,24 +353,24 @@ Return this exact shape:
     {
       "category": "Category Name",
       "roast": "One savage, funny roast sentence about this category's spending. Be specific and brutal.",
-      "insight": "1-2 direct sentences of practical advice for this category.",
-      "alternatives": ["Brand — $X/mo", "Brand2 — $X/mo", "DIY option — free"],
+      "insight": "1-2 direct sentences of practical advice for this category. Use locally relevant alternatives and price points for ${adviceCurrency} users.",
+      "alternatives": ["Brand — X ${adviceCurrency}/mo", "Brand2 — X ${adviceCurrency}/mo", "DIY option — free"],
       "potentialSaving": <realistic cents saved per month>
     }
   ]
 }
 
 Rules:
-- roast: savage and funny, reference the specific merchant or amount if known (e.g. "Paying $850/mo for a gym you go to twice a month — at least the guilt is cardio.")
+- roast: savage and funny, reference the specific merchant or amount if known (e.g. "Paying 850 ${adviceCurrency}/mo for a gym you go to twice a month — at least the guilt is cardio.")
 - insight: 1-2 direct sentences of practical advice for that category. Be specific, name the problem and what to change.
-- alternatives: short chip-style labels like "Planet Fitness — $10/mo" or "Home workouts — free" (max 6 words each)
+- alternatives: short chip-style labels (max 6 words each), use local brands/services relevant to the ${adviceCurrency} region
 - Include 2-4 alternatives per category
 - Include every category with notable spend
-- potentialSaving should be realistic`,
+- potentialSaving should be realistic for the ${adviceCurrency} region`,
           },
           {
             role: "user",
-            content: `Total spend: $${(totalSpend / 100).toFixed(2)}\n\nSpending breakdown:\n${categoryLines}`,
+            content: `Currency: ${adviceCurrency}\nTotal spend: ${(totalSpend / 100).toFixed(2)} ${adviceCurrency}\n\nSpending breakdown:\n${categoryLines}`,
           },
         ],
         max_completion_tokens: 800,
@@ -407,11 +412,14 @@ Rules:
       for (const exp of allExpenses) categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
       const topCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([cat, amt]) => `${cat}: $${(amt / 100).toFixed(2)}`).join(", ");
 
+      const roastUser = await storage.getUser(userId);
+      const roastCurrency = roastUser?.currency || "USD";
+
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
-          { role: "system", content: `You are a savage comedian doing a monthly roast of someone's spending habits. Be brutal, be funny, be specific. 3-4 sentences max.` },
-          { role: "user", content: `Total spent: $${(totalSpend / 100).toFixed(2)}. Top categories: ${topCategories}. Roast my entire month of spending.` },
+          { role: "system", content: `You are a savage comedian doing a monthly roast of someone's spending habits. Be brutal, be funny, be specific. 3-4 sentences max. The user's currency is ${roastCurrency} — use it when referencing amounts and make comparisons appropriate for that region.` },
+          { role: "user", content: `Currency: ${roastCurrency}\nTotal spent: ${(totalSpend / 100).toFixed(2)} ${roastCurrency}. Top categories: ${topCategories}. Roast my entire month of spending.` },
         ],
         max_completion_tokens: 200,
       });
@@ -440,9 +448,10 @@ Rules:
       }
 
       const input = api.expenses.upload.input.parse(req.body);
+      const userCurrency = user.currency || "USD";
       const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
-Extract expense data from this receipt image and deliver a roast.`;
+Extract expense data from this receipt image and deliver a roast. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert the amount to ${userCurrency} for the JSON output. Use the location on the receipt (city, country) to make the roast geographically relevant — reference local price norms, alternatives available in that area, and use the local currency symbol in your roast.`;
 
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -451,7 +460,7 @@ Extract expense data from this receipt image and deliver a roast.`;
           {
             role: "user",
             content: [
-              { type: "text", text: `Extract the expense details and roast me. Respond ONLY with JSON: { "amount": <number in cents>, "description": "<short name>", "date": "<ISO date>", "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>", "roast": "<your roast>" }` },
+              { type: "text", text: `Extract the expense details and roast me. Respond ONLY with JSON: { "amount": <number in cents, in ${userCurrency}>, "description": "<short name>", "date": "<ISO date>", "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>", "location": "<city and country from the receipt, or null if not visible>", "roast": "<your roast — reference the location and use ${userCurrency} amounts>" }` },
               { type: "image_url", image_url: { url: input.image } },
             ],
           },
@@ -517,7 +526,7 @@ Extract expense data from this receipt image and deliver a roast.`;
 
       const input = api.expenses.addManual.input.parse(req.body);
       const tone = (req.body.tone as string) || "savage";
-      const roast = await generateRoast(input.description, input.amount, input.category, tone);
+      const roast = await generateRoast(input.description, input.amount, input.category, tone, undefined, user.currency || "USD");
 
       const expense = await storage.createExpense({
         userId,
@@ -542,7 +551,9 @@ Extract expense data from this receipt image and deliver a roast.`;
   async function processTransactions(
     userId: string,
     transactions: { description: string; amount: number; date: string }[],
-    tone: string
+    tone: string,
+    location?: string,
+    currency = "USD"
   ) {
     const created: Expense[] = [];
     for (const tx of transactions.slice(0, 100)) {
@@ -558,7 +569,7 @@ Extract expense data from this receipt image and deliver a roast.`;
         max_completion_tokens: 10,
       });
       const category = aiCat.choices[0]?.message?.content?.trim() || "Other";
-      const roast = await generateRoast(tx.description, Math.round(tx.amount * 100), category, tone);
+      const roast = await generateRoast(tx.description, Math.round(tx.amount * 100), category, tone, location, currency);
       const expense = await storage.createExpense({
         userId,
         amount: Math.round(tx.amount * 100),
@@ -585,6 +596,7 @@ Extract expense data from this receipt image and deliver a roast.`;
     const { data, format, tone } = req.body;
     const fmt: string = format || "pdf";
     const toneVal = tone || "savage";
+    const userCurrency = user.currency || "USD";
 
     try {
       // ── PDF ──────────────────────────────────────────────────────
@@ -602,25 +614,29 @@ Extract expense data from this receipt image and deliver a roast.`;
           messages: [
             {
               role: "system",
-              content: `You are a bank statement parser. Extract all transactions from the text and return a JSON array.
-Each item must have: { "description": string, "amount": number (positive, in dollars), "date": "YYYY-MM-DD" }.
+              content: `You are a bank statement parser. Extract all transactions from the text and return a JSON object with two keys:
+1. "location": the account holder's city and country inferred from the statement header, bank address, or merchant names (e.g. "Toronto, Canada"), or null if not determinable.
+2. "transactions": a JSON array where each item has: { "description": string, "amount": number (positive, in ${userCurrency}), "date": "YYYY-MM-DD" }.
 Only include spending transactions (positive amounts). Skip refunds, deposits, and transfers in.
-Return ONLY the JSON array, no other text.`,
+Return ONLY valid JSON, no other text.`,
             },
             { role: "user", content: pdfText },
           ],
+          response_format: { type: "json_object" },
         });
 
         let txs: { description: string; amount: number; date: string }[] = [];
+        let statementLocation: string | undefined;
         try {
-          const raw = extraction.choices[0]?.message?.content?.trim() || "[]";
-          const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "");
-          txs = JSON.parse(cleaned);
+          const raw = extraction.choices[0]?.message?.content?.trim() || "{}";
+          const parsed2 = JSON.parse(raw);
+          txs = Array.isArray(parsed2.transactions) ? parsed2.transactions : Array.isArray(parsed2) ? parsed2 : [];
+          statementLocation = parsed2.location || undefined;
         } catch {
           return res.status(400).json({ message: "Could not parse transactions from PDF" });
         }
 
-        const created = await processTransactions(userId, txs, toneVal);
+        const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
         return res.status(201).json({ imported: created.length, expenses: created });
       }
 
@@ -633,28 +649,32 @@ Return ONLY the JSON array, no other text.`,
           messages: [
             {
               role: "system",
-              content: `You are a bank statement parser. Extract all transactions visible in this image and return a JSON array.
-Each item must have: { "description": string, "amount": number (positive, in dollars), "date": "YYYY-MM-DD" }.
+              content: `You are a bank statement parser. Extract all transactions visible in this image and return a JSON object with two keys:
+1. "location": the account holder's city and country inferred from the statement header, bank address, or merchant names (e.g. "Mumbai, India"), or null if not determinable.
+2. "transactions": a JSON array where each item has: { "description": string, "amount": number (positive, in ${userCurrency}), "date": "YYYY-MM-DD" }.
 Only include spending transactions (positive amounts). Skip refunds, deposits, and transfers in.
-Return ONLY the JSON array, no other text.`,
+Return ONLY valid JSON, no other text.`,
             },
             {
               role: "user",
               content: [{ type: "image_url", image_url: { url: data } }],
             },
           ],
+          response_format: { type: "json_object" },
         });
 
         let txs: { description: string; amount: number; date: string }[] = [];
+        let statementLocation: string | undefined;
         try {
-          const raw = extraction.choices[0]?.message?.content?.trim() || "[]";
-          const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "");
-          txs = JSON.parse(cleaned);
+          const raw = extraction.choices[0]?.message?.content?.trim() || "{}";
+          const parsed2 = JSON.parse(raw);
+          txs = Array.isArray(parsed2.transactions) ? parsed2.transactions : Array.isArray(parsed2) ? parsed2 : [];
+          statementLocation = parsed2.location || undefined;
         } catch {
           return res.status(400).json({ message: "Could not parse transactions from image" });
         }
 
-        const created = await processTransactions(userId, txs, toneVal);
+        const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
         return res.status(201).json({ imported: created.length, expenses: created });
       }
 
@@ -694,11 +714,15 @@ Return ONLY the JSON array, no other text.`,
       const avgMonthly = totalSpend / Math.max(Object.keys(monthlyTotals).length, 1);
       const projection5yr = avgMonthly * 12 * 5;
 
+      const annualReportUser = await storage.getUser(userId);
+      const annualCurrency = annualReportUser?.currency || "USD";
+
       const summaryText = `
-Total spending: $${(totalSpend / 100).toFixed(2)}
-Top categories: ${top5Categories.map(([c, a]) => `${c} $${(a / 100).toFixed(2)}`).join(", ")}
-Worst month: ${worstMonth?.[0]} with $${((worstMonth?.[1] || 0) / 100).toFixed(2)}
-Average monthly spend: $${(avgMonthly / 100).toFixed(2)}
+Currency: ${annualCurrency}
+Total spending: ${(totalSpend / 100).toFixed(2)} ${annualCurrency}
+Top categories: ${top5Categories.map(([c, a]) => `${c} ${(a / 100).toFixed(2)} ${annualCurrency}`).join(", ")}
+Worst month: ${worstMonth?.[0]} with ${((worstMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency}
+Average monthly spend: ${(avgMonthly / 100).toFixed(2)} ${annualCurrency}
       `.trim();
 
       const aiResponse = await openai.chat.completions.create({
@@ -709,8 +733,8 @@ Average monthly spend: $${(avgMonthly / 100).toFixed(2)}
             content: `You are generating a brutal, honest annual financial roast report. The user paid for this, so make it count. Be specific, savage, insightful, and ultimately motivating. Structure your response as JSON with these exact keys:
 - roast: string (3-4 sentences of brutal honesty about their year of spending)
 - behavioralAnalysis: string (2-3 sentences analyzing their spending patterns and what it says about them as a person)
-- improvements: array of 3 strings (specific, actionable financial improvement suggestions)
-All content must directly reference their actual spending data.`,
+- improvements: array of 3 strings (specific, actionable financial improvement suggestions using local alternatives and prices relevant to ${annualCurrency} users)
+All content must directly reference their actual spending data and use ${annualCurrency} when mentioning amounts.`,
           },
           { role: "user", content: summaryText },
         ],
