@@ -32,12 +32,21 @@ export default function DataDeletion() {
           <Section number="1" title="Account Deletion">
             <div className="space-y-3">
               <p>You may request deletion of your account at any time by:</p>
-              <BulletList items={[
-                "Using the in-app delete feature (if available), or",
-                "Contacting us via the contact page",
-              ]} note={
-                <Link href="/contact" className="text-[hsl(var(--primary))] hover:underline">Contact us here</Link>
-              } />
+              <ul className="space-y-2 ml-4">
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] shrink-0" />
+                  <span>Using the in-app delete feature (if available), or</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] shrink-0" />
+                  <span>
+                    <Link href="/contact" className="text-[hsl(var(--primary))] hover:underline">
+                      Contacting us
+                    </Link>{" "}
+                    via our contact page
+                  </span>
+                </li>
+              </ul>
               <p>Upon verified request, we will:</p>
               <BulletList items={[
                 "Delete your account",
@@ -102,7 +111,7 @@ function Section({ number, title, children }: { number: string; title: string; c
   );
 }
 
-function BulletList({ items, note }: { items: string[]; note?: React.ReactNode }) {
+function BulletList({ items }: { items: string[] }) {
   return (
     <ul className="space-y-2 ml-4">
       {items.map((item) => (
@@ -111,11 +120,6 @@ function BulletList({ items, note }: { items: string[]; note?: React.ReactNode }
           <span>{item}</span>
         </li>
       ))}
-      {note && (
-        <li className="flex items-start gap-2 ml-0 mt-1">
-          <span className="text-sm">{note}</span>
-        </li>
-      )}
     </ul>
   );
 }
