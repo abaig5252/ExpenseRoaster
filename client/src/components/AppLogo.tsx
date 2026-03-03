@@ -3,14 +3,16 @@ interface AppLogoProps {
   showText?: boolean;
 }
 
-const PX   = { xs: 46, sm: 62, md: 86, lg: 112 };
+const PX = { xs: 60, sm: 80, md: 104, lg: 132 };
+
 const TEXT = {
-  xs: { size: "text-[9px]",  leading: "leading-[1.1]", tracking: "tracking-[0.15em]" },
-  sm: { size: "text-[11px]", leading: "leading-[1.1]", tracking: "tracking-[0.15em]" },
-  md: { size: "text-[13px]", leading: "leading-[1.1]", tracking: "tracking-[0.15em]" },
-  lg: { size: "text-[16px]", leading: "leading-[1.1]", tracking: "tracking-[0.15em]" },
+  xs: "text-[10px] tracking-[0.18em]",
+  sm: "text-[12px] tracking-[0.18em]",
+  md: "text-[15px] tracking-[0.18em]",
+  lg: "text-[18px] tracking-[0.18em]",
 };
-const GAP  = { xs: "gap-2", sm: "gap-2.5", md: "gap-3", lg: "gap-3.5" };
+
+const GAP = { xs: "gap-2", sm: "gap-2.5", md: "gap-3", lg: "gap-3.5" };
 
 function FlameSVG({ px }: { px: number }) {
   return (
@@ -23,7 +25,9 @@ function FlameSVG({ px }: { px: number }) {
       className="flame-logo"
       aria-hidden="true"
     >
-      {/* Rounded square border */}
+      {/* Dark background fill so the box is visible */}
+      <rect x="10" y="10" width="100" height="100" rx="22" fill="#0D0D0D" />
+      {/* Glowing green border */}
       <rect x="10" y="10" width="100" height="100" rx="22"
         stroke="#7CFF4D" strokeWidth="5" fill="none" />
 
@@ -48,20 +52,18 @@ function FlameSVG({ px }: { px: number }) {
 }
 
 export function AppLogo({ size = "sm", showText = true }: AppLogoProps) {
-  const px  = PX[size];
-  const txt = TEXT[size];
+  const px = PX[size];
 
   return (
     <div className={`flex flex-col items-center ${GAP[size]} select-none`}>
       <FlameSVG px={px} />
-
       {showText && (
-        <p
-          className={`font-black uppercase text-white text-center m-0 ${txt.size} ${txt.leading} ${txt.tracking}`}
+        <span
+          className={`font-black uppercase text-white text-center whitespace-nowrap ${TEXT[size]}`}
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
-          EXPENSE<br />ROASTER
-        </p>
+          EXPENSE ROASTER
+        </span>
       )}
     </div>
   );

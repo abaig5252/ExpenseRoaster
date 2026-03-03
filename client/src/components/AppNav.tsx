@@ -35,11 +35,11 @@ export function AppNav() {
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-background/80 backdrop-blur-xl"
       style={{ paddingTop: "env(safe-area-inset-top)" }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-28 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/upload" data-testid="link-home">
           <div className="cursor-pointer hidden sm:flex">
-            <AppLogo size="xs" />
+            <AppLogo size="sm" />
           </div>
           <div className="cursor-pointer flex sm:hidden">
             <AppLogo size="xs" showText={false} />
