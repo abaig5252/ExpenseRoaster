@@ -1,0 +1,59 @@
+1. Overview
+
+Expense Roaster is a digital subscription service that provides AI-generated financial analysis, receipt roasting, bank statement insights, and behavioral spending feedback.
+
+Because the service provides immediate digital access and on-demand AI processing, refunds are limited and subject to the conditions outlined below.
+
+2. Subscription Refunds (Premium Plan)
+
+We offer refunds within 24 hours of the initial subscription purchase under the following conditions:
+
+The refund request is submitted within 24 hours of the original payment.
+
+No meaningful usage of Premium features has occurred.
+
+No AI-generated roasts, financial analysis, bank statement uploads, reports, or behavioral insights have been generated under the Premium plan.
+
+If Premium features have been used in any capacity, the subscription becomes non-refundable.
+
+Refunds are not available for subscription renewal charges.
+
+Subscriptions may be canceled at any time. Cancellation prevents future billing but does not retroactively refund prior payments.
+
+3. One-Time Purchases (Reports or Add-Ons)
+
+All one-time digital purchases, including but not limited to annual financial reports or deep analysis features, are final and non-refundable once the report or analysis has been generated.
+
+Due to the immediate digital delivery and AI processing costs, refunds are not provided after report generation.
+
+4. Abuse & Fraud Prevention
+
+Expense Roaster reserves the right to deny refund requests in cases of:
+
+Suspected abuse of the service
+
+Excessive usage prior to refund request
+
+Multiple refund attempts
+
+Fraudulent activity
+
+5. How to Request a Refund
+
+To request a refund within the 24-hour window, please contact:
+
+[Your Support Email]
+
+Include:
+
+The email associated with your account
+
+Date and time of purchase
+
+A brief explanation of your request
+
+Approved refunds will be processed to the original payment method within 5–10 business days, depending on your financial institution.
+
+6. Policy Updates
+
+Expense Roaster reserves the right to update this Refund Policy at any time. Continued use of the service after updates constitutes acceptance of the revised policy.

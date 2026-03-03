@@ -13,6 +13,7 @@ import AnnualReport from "@/pages/AnnualReport";
 import UpgradeSuccess from "@/pages/UpgradeSuccess";
 import Install from "@/pages/Install";
 import Contact from "@/pages/Contact";
+import RefundPolicy from "@/pages/RefundPolicy";
 import VerifyEmail from "@/pages/VerifyEmail";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
@@ -68,6 +69,7 @@ function Router() {
       <Route path="/upgrade/success" component={() => <ProtectedRoute component={UpgradeSuccess} />} />
       <Route path="/install" component={Install} />
       <Route path="/contact" component={Contact} />
+      <Route path="/refund-policy" component={RefundPolicy} />
       <Route component={NotFound} />
     </Switch>
   );
