@@ -59,20 +59,12 @@ export function AppLogo({ size = "sm", showText = true }: AppLogoProps) {
         </div>
       </div>
       {showText && (
-        <div className="brand-text">
-          <span
-            className={`font-black uppercase text-white text-center whitespace-nowrap ${TEXT[size]}`}
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            EXPENSE
-          </span>
-          <span
-            className={`font-black uppercase text-white text-center whitespace-nowrap ${TEXT[size]}`}
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            ROASTER
-          </span>
-        </div>
+      <span
+          className={`font-black uppercase text-white text-center whitespace-nowrap ${TEXT[size]}`}
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+        >
+          EXPENSE ROASTER
+        </span>
       )}
     </div>
   );
