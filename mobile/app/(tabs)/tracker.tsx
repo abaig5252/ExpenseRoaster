@@ -55,6 +55,7 @@ export default function TrackerScreen() {
 
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ['/api/expenses'],
@@ -77,7 +78,12 @@ export default function TrackerScreen() {
   // ── Derived data ──────────────────────────────────────────────────
   const allExpenses = expenses ?? [];
   const currentYM = new Date().toISOString().slice(0, 7);
-  const isFiltered = selectedCats.size > 0 || selectedMonth !== null;
+  const isFiltered = selectedCats.size > 0 || selectedMonth !== null || selectedYear !== null;
+
+  const availableYears = useMemo(() => {
+    const years = new Set(allExpenses.map(e => (e.date ?? '').slice(0, 4)).filter(Boolean));
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [allExpenses]);
 
   function toggleCat(cat: string) {
     setSelectedCats(prev => {
@@ -97,17 +103,20 @@ export default function TrackerScreen() {
     return new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }
 
-  // Expenses filtered by selected month — or last 12 months when no month is selected
+  // Expenses filtered by selected month → selected year → last 12 months
   const monthFilteredExpenses = useMemo(() => {
     if (selectedMonth) {
       return allExpenses.filter(e => (e.date ?? '').slice(0, 7) === selectedMonth);
+    }
+    if (selectedYear) {
+      return allExpenses.filter(e => (e.date ?? '').slice(0, 4) === selectedYear);
     }
     const cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - 11);
     cutoff.setDate(1);
     const cutoffYM = cutoff.toISOString().slice(0, 7);
     return allExpenses.filter(e => (e.date ?? '').slice(0, 7) >= cutoffYM);
-  }, [allExpenses, selectedMonth]);
+  }, [allExpenses, selectedMonth, selectedYear]);
 
   // Expenses filtered by BOTH month and categories
   const filteredExpenses = useMemo(
@@ -127,17 +136,34 @@ export default function TrackerScreen() {
 
   // Display total for stats card
   const displayMonthTotal = useMemo(() => {
-    if (selectedMonth) return filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+    if (selectedMonth || selectedYear) return filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
     if (selectedCats.size > 0) {
       return allExpenses
         .filter(e => e.date?.slice(0, 7) === currentYM && selectedCats.has(e.category))
         .reduce((sum, e) => sum + e.amount, 0);
     }
     return allExpenses.filter(e => e.date?.slice(0, 7) === currentYM).reduce((sum, e) => sum + e.amount, 0);
-  }, [filteredExpenses, selectedMonth, selectedCats, allExpenses, currentYM]);
+  }, [filteredExpenses, selectedMonth, selectedYear, selectedCats, allExpenses, currentYM]);
 
-  // Chart: filter by categories only — all months stay visible and tappable
+  // Chart: when year selected build Jan-Dec from allExpenses; otherwise use API series
   const chartData = useMemo(() => {
+    if (selectedYear) {
+      const now = new Date();
+      const yearNum = parseInt(selectedYear);
+      const endMonth = yearNum === now.getFullYear() ? now.getMonth() + 1 : 12;
+      const slots = Array.from({ length: endMonth }, (_, i) => {
+        const m = String(i + 1).padStart(2, '0');
+        return { month: `${selectedYear}-${m}`, total: 0, count: 0 };
+      });
+      const src = selectedCats.size > 0 ? allExpenses.filter(e => selectedCats.has(e.category)) : allExpenses;
+      src.forEach(e => {
+        if ((e.date ?? '').slice(0, 4) !== selectedYear) return;
+        const ym = (e.date ?? '').slice(0, 7);
+        const slot = slots.find(s => s.month === ym);
+        if (slot) { slot.total += e.amount; slot.count++; }
+      });
+      return slots;
+    }
     if (!series) return [];
     if (selectedCats.size === 0) return series;
     const byMonth: Record<string, number> = {};
@@ -146,7 +172,7 @@ export default function TrackerScreen() {
       if (ym) byMonth[ym] = (byMonth[ym] || 0) + e.amount;
     });
     return series.map(row => ({ ...row, total: byMonth[row.month] ?? 0 }));
-  }, [series, allExpenses, selectedCats]);
+  }, [series, allExpenses, selectedYear, selectedCats]);
 
   const maxTotal = Math.max(...(chartData.map(m => m.total) ?? [1]), 1);
 
@@ -192,6 +218,12 @@ export default function TrackerScreen() {
         {isFiltered && (
           <View style={s.filterBanner}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll}>
+              {selectedYear && !selectedMonth && (
+                <TouchableOpacity style={[s.filterChip, s.filterChipYear]} onPress={() => setSelectedYear(null)}>
+                  <Text style={[s.filterChipText, s.filterChipYearText]}>📆 {selectedYear}</Text>
+                  <Ionicons name="close" size={11} color="#c084fc" />
+                </TouchableOpacity>
+              )}
               {selectedMonth && (
                 <TouchableOpacity key="month" style={[s.filterChip, s.filterChipMonth]} onPress={() => setSelectedMonth(null)}>
                   <Text style={[s.filterChipText, s.filterChipMonthText]}>📅 {selectedMonthLabel()}</Text>
@@ -205,7 +237,7 @@ export default function TrackerScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity onPress={() => { setSelectedCats(new Set()); setSelectedMonth(null); }} style={s.clearBtn}>
+            <TouchableOpacity onPress={() => { setSelectedCats(new Set()); setSelectedMonth(null); setSelectedYear(null); }} style={s.clearBtn}>
               <Text style={s.clearText}>Clear</Text>
             </TouchableOpacity>
           </View>
@@ -218,6 +250,8 @@ export default function TrackerScreen() {
               ? selectedCats.size > 0
                 ? `${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })} — Filtered`
                 : selectedMonthLabel()
+              : selectedYear
+              ? selectedCats.size > 0 ? `${selectedYear} — Filtered` : `${selectedYear} Total`
               : selectedCats.size > 0
               ? 'Filtered — This Month'
               : 'This Month'}
@@ -233,14 +267,35 @@ export default function TrackerScreen() {
           <ActivityIndicator color={colors.primary} />
         ) : chartData.length > 0 ? (
           <View style={s.chartCard}>
-            <Text style={s.cardTitle}>
-              {selectedCats.size > 0 ? 'Spending — Filtered' : 'Spending History'}
-            </Text>
+            <View style={s.chartHeader}>
+              <Text style={s.cardTitle}>
+                {selectedCats.size > 0 ? 'Spending — Filtered' : 'Spending History'}
+              </Text>
+              {availableYears.length > 1 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.yearPillScroll} contentContainerStyle={s.yearPillRow}>
+                  <TouchableOpacity
+                    style={[s.yearPill, !selectedYear && s.yearPillActive]}
+                    onPress={() => { setSelectedYear(null); setSelectedMonth(null); }}
+                  >
+                    <Text style={[s.yearPillText, !selectedYear && s.yearPillTextActive]}>12 mo</Text>
+                  </TouchableOpacity>
+                  {availableYears.map(y => (
+                    <TouchableOpacity
+                      key={y}
+                      style={[s.yearPill, selectedYear === y && s.yearPillYear]}
+                      onPress={() => { setSelectedYear(y); setSelectedMonth(null); }}
+                    >
+                      <Text style={[s.yearPillText, selectedYear === y && s.yearPillYearText]}>{y}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
             <Text style={s.tapHint}>
               {selectedMonth ? `${selectedMonthLabel()} — tap again to deselect` : 'Tap a bar to focus on that month'}
             </Text>
             <View style={[s.chart, { height: CHART_H + 48 }]}>
-              {chartData.slice(-6).map((m) => {
+              {(selectedYear ? chartData : chartData.slice(-6)).map((m) => {
                 const barH = Math.max(4, (m.total / maxTotal) * CHART_H);
                 const isMonthSelected = selectedMonth === m.month;
                 const hasMonthFilter = selectedMonth !== null;
@@ -427,6 +482,10 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(123,216,232,0.12)', borderColor: 'rgba(123,216,232,0.3)',
   },
   filterChipMonthText: { color: '#7BD8E8' },
+  filterChipYear: {
+    backgroundColor: 'rgba(192,132,252,0.12)', borderColor: 'rgba(192,132,252,0.3)',
+  },
+  filterChipYearText: { color: '#c084fc' },
   clearBtn: { paddingHorizontal: spacing.sm },
   clearText: { ...typography.caption, color: colors.textMuted },
 
@@ -440,9 +499,25 @@ const s = StyleSheet.create({
 
   chartCard: {
     backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.lg, gap: spacing.md,
+    padding: spacing.lg, gap: spacing.sm,
     borderWidth: 1, borderColor: colors.border,
   },
+  chartHeader: { gap: spacing.xs },
+  yearPillScroll: { marginTop: 4 },
+  yearPillRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
+  yearPill: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full,
+    backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  yearPillActive: {
+    backgroundColor: colors.primaryDim, borderColor: 'rgba(124,255,77,0.35)',
+  },
+  yearPillYear: {
+    backgroundColor: 'rgba(192,132,252,0.12)', borderColor: 'rgba(192,132,252,0.35)',
+  },
+  yearPillText: { ...typography.caption, color: colors.textMuted, fontSize: 11 },
+  yearPillTextActive: { color: colors.primary, fontWeight: '700' },
+  yearPillYearText: { color: '#c084fc', fontWeight: '700' },
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   barCol: { flex: 1, alignItems: 'center', gap: spacing.xs },
   bar: { width: '60%', backgroundColor: colors.primary, borderRadius: radius.xs ?? 4, minHeight: 4 },

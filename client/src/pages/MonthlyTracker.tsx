@@ -77,6 +77,7 @@ export default function MonthlyTracker() {
 
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   function toggleCat(cat: string) {
     setSelectedCats(prev => {
@@ -95,12 +96,27 @@ export default function MonthlyTracker() {
   const allExpenses = expenses ?? [];
   const currentYM = new Date().toISOString().slice(0, 7);
 
-  // Expenses filtered by selected month — or last 12 months when no month is selected
+  // Years that have expense data — for the year dropdown
+  const availableYears = useMemo(() => {
+    const years = new Set(allExpenses.map(e => {
+      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      return String(d.getFullYear());
+    }));
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [allExpenses]);
+
+  // Expenses filtered by selected month → selected year → last 12 months
   const monthFilteredExpenses = useMemo(() => {
     if (selectedMonth) {
       return allExpenses.filter(e => {
         const d = e.date instanceof Date ? e.date : new Date(e.date);
         return d.toISOString().slice(0, 7) === selectedMonth;
+      });
+    }
+    if (selectedYear) {
+      return allExpenses.filter(e => {
+        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        return String(d.getFullYear()) === selectedYear;
       });
     }
     const cutoff = new Date();
@@ -111,7 +127,7 @@ export default function MonthlyTracker() {
       const d = e.date instanceof Date ? e.date : new Date(e.date);
       return d.toISOString().slice(0, 7) >= cutoffYM;
     });
-  }, [allExpenses, selectedMonth]);
+  }, [allExpenses, selectedMonth, selectedYear]);
 
   // Expenses filtered by BOTH month and categories (for transactions + stats)
   const filteredExpenses = useMemo(
@@ -121,7 +137,7 @@ export default function MonthlyTracker() {
 
   // Display total for the stats card
   const displayMonthTotal = useMemo(() => {
-    if (selectedMonth) return filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+    if (selectedMonth || selectedYear) return filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
     if (selectedCats.size > 0) {
       return allExpenses
         .filter(e => {
@@ -131,7 +147,7 @@ export default function MonthlyTracker() {
         .reduce((sum, e) => sum + e.amount, 0);
     }
     return summary?.monthlyTotal ?? 0;
-  }, [filteredExpenses, selectedMonth, selectedCats, allExpenses, currentYM, summary]);
+  }, [filteredExpenses, selectedMonth, selectedYear, selectedCats, allExpenses, currentYM, summary]);
 
   // Category totals: from month-filtered expenses (so clicking a bar shows that month's breakdown)
   const categoryTotals = useMemo(() => {
@@ -143,8 +159,27 @@ export default function MonthlyTracker() {
   const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
   const grandTotal = Object.values(categoryTotals).reduce((s, v) => s + v, 0);
 
-  // Chart: filter by categories but NOT month — all months stay visible and clickable
+  // Chart: when a year is selected, build Jan–Dec from allExpenses; otherwise use API series (last 12 mo)
   const chartData = useMemo(() => {
+    if (selectedYear) {
+      const now = new Date();
+      const yearNum = parseInt(selectedYear);
+      const endMonth = yearNum === now.getFullYear() ? now.getMonth() + 1 : 12;
+      const slots = Array.from({ length: endMonth }, (_, i) => {
+        const m = String(i + 1).padStart(2, '0');
+        const ym = `${selectedYear}-${m}`;
+        return { month: ym, total: 0, count: 0, label: fmtMonth(ym) };
+      });
+      const src = selectedCats.size > 0 ? allExpenses.filter(e => selectedCats.has(e.category)) : allExpenses;
+      src.forEach(e => {
+        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        if (String(d.getFullYear()) !== selectedYear) return;
+        const ym = d.toISOString().slice(0, 7);
+        const slot = slots.find(s => s.month === ym);
+        if (slot) { slot.total += e.amount; slot.count++; }
+      });
+      return slots;
+    }
     const base = series?.map(s => ({ ...s, label: fmtMonth(s.month) })) ?? [];
     if (selectedCats.size === 0) return base;
     const byMonth: Record<string, number> = {};
@@ -154,7 +189,7 @@ export default function MonthlyTracker() {
       byMonth[ym] = (byMonth[ym] || 0) + e.amount;
     });
     return base.map(row => ({ ...row, total: byMonth[row.month] ?? 0 }));
-  }, [series, allExpenses, selectedCats]);
+  }, [series, allExpenses, selectedYear, selectedCats]);
 
   // Filtered advice breakdown
   const filteredBreakdown = useMemo(() => {
@@ -181,7 +216,7 @@ export default function MonthlyTracker() {
   const monthDiffPct = prevMonth?.total ? Math.round((monthDiff! / prevMonth.total) * 100) : null;
   const improved = monthDiff !== null && monthDiff < 0;
 
-  const isFiltered = selectedCats.size > 0 || selectedMonth !== null;
+  const isFiltered = selectedCats.size > 0 || selectedMonth !== null || selectedYear !== null;
 
   function selectedMonthLabel() {
     if (!selectedMonth) return "";
@@ -193,7 +228,16 @@ export default function MonthlyTracker() {
       const short = new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "short", year: "2-digit" });
       return selectedCats.size > 0 ? `${short} — Filtered` : short;
     }
+    if (selectedYear) {
+      return selectedCats.size > 0 ? `${selectedYear} — Filtered` : `${selectedYear} Total`;
+    }
     return selectedCats.size > 0 ? "Filtered (This Month)" : "This Month";
+  }
+
+  function clearAllFilters() {
+    setSelectedCats(new Set());
+    setSelectedMonth(null);
+    setSelectedYear(null);
   }
 
   return (
@@ -224,6 +268,15 @@ export default function MonthlyTracker() {
           >
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--primary))]">Filtered by:</span>
+              {selectedYear && !selectedMonth && (
+                <button
+                  onClick={() => setSelectedYear(null)}
+                  className="flex items-center gap-1 text-xs font-semibold bg-purple-500/15 border border-purple-400/30 text-purple-300 px-2.5 py-1 rounded-full hover:bg-purple-500/25 transition-colors"
+                >
+                  📆 {selectedYear}
+                  <X className="w-3 h-3" />
+                </button>
+              )}
               {selectedMonth && (
                 <button
                   onClick={() => setSelectedMonth(null)}
@@ -245,7 +298,7 @@ export default function MonthlyTracker() {
               ))}
             </div>
             <button
-              onClick={() => { setSelectedCats(new Set()); setSelectedMonth(null); }}
+              onClick={clearAllFilters}
               className="text-xs text-muted-foreground hover:text-white transition-colors whitespace-nowrap"
             >
               Clear all
@@ -335,10 +388,22 @@ export default function MonthlyTracker() {
                 {selectedMonth ? `Showing ${selectedMonthLabel()} — click bar again to deselect` : "Click a bar to focus on that month"}
               </p>
             </div>
-            {selectedCats.size > 0 && (
-              <span className="text-xs text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/20 px-2.5 py-1 rounded-full font-semibold">
-                {selectedCats.size} {selectedCats.size === 1 ? "category" : "categories"}
-              </span>
+            {availableYears.length > 0 && (
+              <select
+                value={selectedYear ?? ""}
+                onChange={e => { setSelectedYear(e.target.value || null); setSelectedMonth(null); }}
+                className="text-xs font-semibold rounded-xl px-3 py-1.5 border transition-colors outline-none cursor-pointer"
+                style={{
+                  background: selectedYear ? "rgba(168,85,247,0.12)" : "rgba(255,255,255,0.05)",
+                  borderColor: selectedYear ? "rgba(168,85,247,0.4)" : "rgba(255,255,255,0.12)",
+                  color: selectedYear ? "#c084fc" : "hsl(var(--muted-foreground))",
+                }}
+              >
+                <option value="">Last 12 months</option>
+                {availableYears.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             )}
           </div>
           {seriesLoading ? (
@@ -390,10 +455,13 @@ export default function MonthlyTracker() {
                 {selectedMonth && (
                   <p className="text-xs text-[hsl(var(--accent))] mt-0.5 font-semibold">{selectedMonthLabel()}</p>
                 )}
+                {selectedYear && !selectedMonth && (
+                  <p className="text-xs text-purple-300 mt-0.5 font-semibold">{selectedYear}</p>
+                )}
               </div>
               {isFiltered ? (
                 <button
-                  onClick={() => { setSelectedCats(new Set()); setSelectedMonth(null); }}
+                  onClick={clearAllFilters}
                   className="text-xs text-muted-foreground hover:text-white transition-colors flex items-center gap-1"
                 >
                   <X className="w-3 h-3" /> Clear
