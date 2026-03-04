@@ -97,10 +97,16 @@ export default function TrackerScreen() {
     return new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }
 
-  // Expenses filtered by selected month only
+  // Expenses filtered by selected month — or last 12 months when no month is selected
   const monthFilteredExpenses = useMemo(() => {
-    if (!selectedMonth) return allExpenses;
-    return allExpenses.filter(e => (e.date ?? '').slice(0, 7) === selectedMonth);
+    if (selectedMonth) {
+      return allExpenses.filter(e => (e.date ?? '').slice(0, 7) === selectedMonth);
+    }
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 11);
+    cutoff.setDate(1);
+    const cutoffYM = cutoff.toISOString().slice(0, 7);
+    return allExpenses.filter(e => (e.date ?? '').slice(0, 7) >= cutoffYM);
   }, [allExpenses, selectedMonth]);
 
   // Expenses filtered by BOTH month and categories

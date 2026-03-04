@@ -95,12 +95,21 @@ export default function MonthlyTracker() {
   const allExpenses = expenses ?? [];
   const currentYM = new Date().toISOString().slice(0, 7);
 
-  // Expenses filtered by selected month only (used for category totals)
+  // Expenses filtered by selected month — or last 12 months when no month is selected
   const monthFilteredExpenses = useMemo(() => {
-    if (!selectedMonth) return allExpenses;
+    if (selectedMonth) {
+      return allExpenses.filter(e => {
+        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        return d.toISOString().slice(0, 7) === selectedMonth;
+      });
+    }
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 11);
+    cutoff.setDate(1);
+    const cutoffYM = cutoff.toISOString().slice(0, 7);
     return allExpenses.filter(e => {
       const d = e.date instanceof Date ? e.date : new Date(e.date);
-      return d.toISOString().slice(0, 7) === selectedMonth;
+      return d.toISOString().slice(0, 7) >= cutoffYM;
     });
   }, [allExpenses, selectedMonth]);
 
