@@ -12,7 +12,7 @@ const TEXT = {
   lg: "text-[22px] tracking-[0.18em]",
 };
 
-const GAP = { xs: "gap-1", sm: "gap-1", md: "gap-1.5", lg: "gap-2" };
+const GAP = { xs: "gap-0", sm: "gap-0", md: "gap-0.5", lg: "gap-1" };
 
 function FlameSVG({ px }: { px: number }) {
   return (
@@ -61,7 +61,7 @@ export function AppLogo({ size = "sm", showText = true }: AppLogoProps) {
       {showText && (
       <span
           className={`font-black uppercase text-white text-center whitespace-nowrap ${TEXT[size]}`}
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
+          style={{ fontFamily: "'DM Sans', sans-serif", marginTop: "-6px" }}
         >
           EXPENSE ROASTER
         </span>
