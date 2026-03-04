@@ -52,7 +52,7 @@ export function AppLogo({ size = "sm", showText = true }: AppLogoProps) {
   const px = PX[size];
 
   return (
-    <div className={`flex flex-col items-center ${GAP[size]} select-none`}>
+    <div className={`flex flex-row items-center ${GAP[size]} select-none`}>
       <div className="brand-container">
         <div className="logo-box">
           <FlameSVG px={px} />
