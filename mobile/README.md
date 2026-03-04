@@ -1,13 +1,14 @@
 # Expense Roaster — Mobile App
 
-React Native (Expo) app for the Expense Roaster platform, targeting iOS App Store and Google Play Store.
+React Native (Expo SDK 55) app for the Expense Roaster platform, targeting iOS App Store and Google Play Store.
+
+**SDK versions:** Expo 55 · React Native 0.84 · React 19 · New Architecture enabled
 
 ## Prerequisites
 
 - Node.js 18+
-- Xcode 15+ (for iOS builds)
-- Android Studio (for Android builds)
-- Expo CLI: `npm install -g expo-cli`
+- Xcode 16+ (for iOS builds, required for React Native 0.84 / New Architecture)
+- Android Studio Ladybug or later (for Android builds)
 - EAS CLI: `npm install -g eas-cli`
 - An Apple Developer account (for App Store) or Google Play developer account
 
