@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Flame, TrendingDown, BadgeDollarSign, BarChart3, Sparkles, ChevronRight, Receipt, Wallet } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
 
 export default function Landing() {
   const features = [
@@ -26,6 +27,10 @@ export default function Landing() {
           transition={{ duration: 0.7, ease: "easeOut" }}
           className="relative z-10 max-w-4xl"
         >
+          <div className="flex justify-center mb-8">
+            <AppLogo size="sm" />
+          </div>
+
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel mb-8 border-[hsl(var(--primary))]/30">
             <Flame className="w-4 h-4 text-[hsl(var(--primary))]" />
             <span className="text-sm font-semibold text-[hsl(var(--primary))] uppercase tracking-widest">

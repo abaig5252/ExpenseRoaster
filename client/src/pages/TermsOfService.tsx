@@ -1,5 +1,6 @@
 import { Link } from "wouter";
-import { Flame, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
 
 export default function TermsOfService() {
   return (
@@ -13,11 +14,8 @@ export default function TermsOfService() {
               <span className="text-sm">Back to home</span>
             </div>
           </Link>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center">
-              <Flame className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-display font-black text-white text-xl">Expense Roaster</span>
+          <div className="mb-6">
+            <AppLogo size="xs" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2">Terms of Service</h1>
           <p className="text-muted-foreground text-sm">Last updated: March 3, 2026</p>

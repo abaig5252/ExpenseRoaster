@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Flame, Mail, CheckCircle, RefreshCw } from "lucide-react";
+import { Mail, CheckCircle, RefreshCw } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
 
 function TurnstileWidget({ onSuccess }: { onSuccess: (token: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -118,13 +119,8 @@ export default function VerifyEmail() {
       <div style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 24, padding: "40px 36px", width: "100%", maxWidth: 440 }}>
 
         {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32 }}>
-          <div style={{ background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.22)", borderRadius: 12, padding: 10, display: "flex" }}>
-            <Flame style={{ width: 20, height: 20, color: "#00E676" }} />
-          </div>
-          <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 18, color: "#FFFFFF" }}>
-            Expense Roaster
-          </span>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
+          <AppLogo size="xs" />
         </div>
 
         {verified ? (
