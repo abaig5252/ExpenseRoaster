@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ActivityIndicator, Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/auth';
@@ -12,98 +13,37 @@ import { AppLogo } from '../../src/components/AppLogo';
 import { colors, spacing, radius, typography } from '../../src/theme';
 
 export default function LoginScreen() {
-  const [showWebView, setShowWebView] = useState(false);
-  const [webViewLoading, setWebViewLoading] = useState(true);
-  const [signingIn, setSigningIn] = useState(false);
-  const webViewRef = useRef<WebView>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { signIn } = useAuth();
   const router = useRouter();
 
-  const LOGIN_URL = `${API_BASE_URL}/api/login`;
-
-  const INJECT_JS = `
-    (function() {
-      var path = window.location.pathname;
-      var isApp = path === '/upload' || path === '/dashboard' ||
-                  path === '/onboarding' || path === '/';
-      var isExternal = window.location.hostname !== '${new URL(API_BASE_URL.startsWith('http') ? API_BASE_URL : 'https://' + API_BASE_URL).hostname}';
-      if (isApp && !isExternal && !window.__mobileTokenFetched) {
-        window.__mobileTokenFetched = true;
-        fetch('/api/mobile/token', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          if (d.token) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'AUTH_TOKEN', token: d.token }));
-          }
-        })
-        .catch(function(e) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'AUTH_ERROR', error: String(e) }));
-        });
-      }
-      true;
-    })();
-  `;
-
-  async function handleMessage(event: { nativeEvent: { data: string } }) {
+  async function handleSignIn() {
+    setError(null);
+    setLoading(true);
     try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === 'AUTH_TOKEN' && msg.token) {
-        setSigningIn(true);
-        await signIn(msg.token);
-        router.replace('/(tabs)/upload');
-      }
-    } catch {
-      /* ignore parse errors */
-    }
-  }
+      const loginUrl = `${API_BASE_URL}/api/login?mobile=1`;
+      const result = await WebBrowser.openAuthSessionAsync(loginUrl, 'expenseroaster://');
 
-  if (showWebView) {
-    return (
-      <View style={styles.webViewWrap}>
-        {webViewLoading && (
-          <View style={styles.webViewLoader}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        )}
-        {signingIn && (
-          <View style={styles.signingInOverlay}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[typography.body, { marginTop: spacing.md }]}>Signing in…</Text>
-          </View>
-        )}
-        <WebView
-          ref={webViewRef}
-          source={{ uri: LOGIN_URL }}
-          onLoadStart={() => setWebViewLoading(true)}
-          onLoadEnd={() => setWebViewLoading(false)}
-          onMessage={handleMessage}
-          injectedJavaScript={INJECT_JS}
-          javaScriptEnabled
-          sharedCookiesEnabled
-          thirdPartyCookiesEnabled
-          style={styles.webView}
-          onNavigationStateChange={(state) => {
-            if (
-              state.url.startsWith(API_BASE_URL) &&
-              !state.url.includes('/api/') &&
-              !state.loading
-            ) {
-              webViewRef.current?.injectJavaScript(INJECT_JS);
-            }
-          }}
-        />
-        <SafeAreaView style={styles.webViewFooter}>
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowWebView(false)}>
-            <Ionicons name="close" size={18} color={colors.textMuted} />
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </SafeAreaView>
-      </View>
-    );
+      if (result.type === 'success') {
+        const parsed = Linking.parse(result.url);
+        const token = parsed.queryParams?.token as string | undefined;
+        const err = parsed.queryParams?.error as string | undefined;
+
+        if (token) {
+          await signIn(token);
+          router.replace('/(tabs)/upload');
+        } else {
+          setError(err ?? 'Login failed — please try again.');
+        }
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        // User closed the browser — do nothing
+      }
+    } catch (e: any) {
+      setError(e?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -134,8 +74,24 @@ export default function LoginScreen() {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.signInBtn} onPress={() => setShowWebView(true)} activeOpacity={0.85}>
-          <Text style={styles.signInText}>Sign In to Get Roasted</Text>
+        {error && (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={16} color="#ff6b6b" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.signInBtn, loading && styles.signInBtnDisabled]}
+          onPress={handleSignIn}
+          activeOpacity={0.85}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#0D0D0D" />
+          ) : (
+            <Text style={styles.signInText}>Sign In to Get Roasted</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.terms}>
@@ -180,48 +136,37 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(124,255,77,0.15)',
   },
   featureText: { ...typography.body, flex: 1 },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: 'rgba(255,107,107,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,107,0.3)',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    width: '100%',
+  },
+  errorText: {
+    ...typography.caption,
+    color: '#ff6b6b',
+    flex: 1,
+  },
   signInBtn: {
     width: '100%',
     backgroundColor: colors.primary,
     paddingVertical: spacing.md,
     borderRadius: radius.lg,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
   },
+  signInBtnDisabled: { opacity: 0.6 },
   signInText: { fontSize: 16, fontWeight: '700', color: '#0D0D0D' },
   terms: {
     ...typography.caption,
     textAlign: 'center',
     paddingHorizontal: spacing.md,
   },
-  webViewWrap: { flex: 1, backgroundColor: '#fff' },
-  webViewLoader: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  signingInOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-  webView: { flex: 1 },
-  webViewFooter: {
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-  },
-  cancelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  cancelText: { ...typography.bodyMuted },
 });

@@ -108,6 +108,10 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
+    // Tag session so callback knows to issue a mobile JWT deep-link redirect
+    if (req.query.mobile === "1") {
+      (req.session as any).mobileLogin = true;
+    }
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -117,9 +121,25 @@ export async function setupAuth(app: Express) {
   app.get("/api/callback", (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
-    })(req, res, next);
+    })(req, res, async (err?: any) => {
+      if (err) return next(err);
+      const isMobile = (req.session as any).mobileLogin;
+      if (isMobile) {
+        delete (req.session as any).mobileLogin;
+        const user = req.user as any;
+        const userId = user?.claims?.sub;
+        if (!userId) return res.redirect("expenseroaster://auth/callback?error=no_user");
+        const jwtLib = await import("jsonwebtoken");
+        const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
+        const token = jwtLib.default.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
+        return res.redirect(`expenseroaster://auth/callback?token=${encodeURIComponent(token)}`);
+      }
+      // Web login — go to app root
+      const returnTo = (req.session as any).returnTo || "/";
+      delete (req.session as any).returnTo;
+      return res.redirect(returnTo);
+    });
   });
 
   app.get("/api/logout", (req, res) => {
