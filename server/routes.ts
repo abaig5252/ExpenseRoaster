@@ -518,10 +518,31 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
         }));
       }
 
+      // Sanity clamp: savings can never exceed what was actually spent in the filtered period.
+      // Per-category: max 40% of that category's real spend.
+      // Total: max 30% of total real spend.
+      const MAX_CAT_RATIO = 0.40;
+      const MAX_TOTAL_RATIO = 0.30;
+      breakdown = breakdown.map((item: any) => {
+        const catSpend = categoryTotals[item.category] ?? totalSpend;
+        const maxCatSaving = Math.round(catSpend * MAX_CAT_RATIO);
+        return {
+          ...item,
+          potentialSaving: Math.min(Math.max(0, Number(item.potentialSaving) || 0), maxCatSaving),
+        };
+      });
+
+      const savingsSumFromBreakdown = breakdown.reduce((s: number, b: any) => s + b.potentialSaving, 0);
+      const maxTotalSaving = Math.round(totalSpend * MAX_TOTAL_RATIO);
+      const savingsPotential = Math.min(
+        Math.max(0, Number(parsed.savingsPotential) || savingsSumFromBreakdown),
+        maxTotalSaving,
+      );
+
       res.json({
         advice: parsed.advice || `${topCategory} is your biggest problem — start there.`,
         topCategory: parsed.topCategory || topCategory,
-        savingsPotential: parsed.savingsPotential || Math.round(totalSpend * 0.15),
+        savingsPotential,
         breakdown,
         timeContext,
       });
