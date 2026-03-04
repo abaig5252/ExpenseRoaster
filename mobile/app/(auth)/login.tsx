@@ -22,7 +22,7 @@ export default function LoginScreen() {
     setError(null);
     setLoading(true);
     try {
-      const loginUrl = `${API_BASE_URL}/api/login?mobile=1`;
+      const loginUrl = `${API_BASE_URL}/api/mobile/login`;
       const result = await WebBrowser.openAuthSessionAsync(loginUrl, 'expenseroaster://');
 
       if (result.type === 'success') {

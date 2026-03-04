@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { authStorage } from "./storage";
+import jwt from "jsonwebtoken";
 
 const getOidcConfig = memoize(
   async () => {
@@ -82,36 +83,41 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  // Keep track of registered strategies
+  // Track registered strategies by name
   const registeredStrategies = new Set<string>();
 
-  // Helper function to ensure strategy exists for a domain
-  const ensureStrategy = (domain: string) => {
-    const strategyName = `replitauth:${domain}`;
-    if (!registeredStrategies.has(strategyName)) {
-      const strategy = new Strategy(
-        {
-          name: strategyName,
-          config,
-          scope: "openid email profile offline_access",
-          callbackURL: `https://${domain}/api/callback`,
-        },
+  // Register a web strategy for a given domain (callback: /api/callback)
+  const ensureWebStrategy = (domain: string) => {
+    const name = `replitauth:${domain}`;
+    if (!registeredStrategies.has(name)) {
+      passport.use(new Strategy(
+        { name, config, scope: "openid email profile offline_access",
+          callbackURL: `https://${domain}/api/callback` },
         verify
-      );
-      passport.use(strategy);
-      registeredStrategies.add(strategyName);
+      ));
+      registeredStrategies.add(name);
+    }
+  };
+
+  // Register a mobile strategy for a given domain (callback: /api/mobile/callback)
+  const ensureMobileStrategy = (domain: string) => {
+    const name = `replitauth-mobile:${domain}`;
+    if (!registeredStrategies.has(name)) {
+      passport.use(new Strategy(
+        { name, config, scope: "openid email profile offline_access",
+          callbackURL: `https://${domain}/api/mobile/callback` },
+        verify
+      ));
+      registeredStrategies.add(name);
     }
   };
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
+  // ── Web login ──────────────────────────────────────────────────────
   app.get("/api/login", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    // Tag session so callback knows to issue a mobile JWT deep-link redirect
-    if (req.query.mobile === "1") {
-      (req.session as any).mobileLogin = true;
-    }
+    ensureWebStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -119,29 +125,44 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
-    ensureStrategy(req.hostname);
+    ensureWebStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
+      successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
-    })(req, res, async (err?: any) => {
-      if (err) return next(err);
-      const isMobile = (req.session as any).mobileLogin;
-      if (isMobile) {
-        delete (req.session as any).mobileLogin;
-        const user = req.user as any;
-        const userId = user?.claims?.sub;
-        if (!userId) return res.redirect("expenseroaster://auth/callback?error=no_user");
-        const jwtLib = await import("jsonwebtoken");
-        const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
-        const token = jwtLib.default.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
-        return res.redirect(`expenseroaster://auth/callback?token=${encodeURIComponent(token)}`);
+    })(req, res, next);
+  });
+
+  // ── Mobile login — uses a separate callback URL so no session flags needed ──
+  app.get("/api/mobile/login", (req, res, next) => {
+    ensureMobileStrategy(req.hostname);
+    passport.authenticate(`replitauth-mobile:${req.hostname}`, {
+      prompt: "login consent",
+      scope: ["openid", "email", "profile", "offline_access"],
+    })(req, res, next);
+  });
+
+  app.get("/api/mobile/callback", (req, res, next) => {
+    ensureMobileStrategy(req.hostname);
+    passport.authenticate(`replitauth-mobile:${req.hostname}`, {
+      failureRedirect: "expenseroaster://auth/callback?error=auth_failed",
+    })(req, res, (err?: any) => {
+      if (err) {
+        console.error("[mobile/callback] auth error:", err);
+        return res.redirect("expenseroaster://auth/callback?error=auth_error");
       }
-      // Web login — go to app root
-      const returnTo = (req.session as any).returnTo || "/";
-      delete (req.session as any).returnTo;
-      return res.redirect(returnTo);
+      const user = req.user as any;
+      const userId = user?.claims?.sub;
+      if (!userId) {
+        return res.redirect("expenseroaster://auth/callback?error=no_user");
+      }
+      const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
+      const token = jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
+      console.log("[mobile/callback] issuing JWT for user", userId);
+      return res.redirect(`expenseroaster://auth/callback?token=${encodeURIComponent(token)}`);
     });
   });
 
+  // ── Logout ─────────────────────────────────────────────────────────
   app.get("/api/logout", (req, res) => {
     req.logout(() => {
       res.redirect(
