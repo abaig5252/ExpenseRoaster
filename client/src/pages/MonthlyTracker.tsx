@@ -346,14 +346,20 @@ export default function MonthlyTracker() {
               color: improved ? "secondary" : "destructive",
             },
             {
-              label: isFiltered ? "Filtered Transactions" : "Transactions",
-              value: isFiltered ? filteredExpenses.length : (allExpenses.length || "—"),
+              label: selectedMonth
+                ? `${new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "short", year: "2-digit" })} Transactions`
+                : selectedYear
+                ? `${selectedYear} Transactions`
+                : selectedCats.size > 0
+                ? "Filtered Transactions"
+                : "Last 12 Months",
+              value: filteredExpenses.length || "—",
               icon: BarChart3,
               color: "accent",
             },
             {
               label: "Savings Potential",
-              value: advice ? fmtCurrency(isFiltered ? filteredBreakdown.reduce((s, b) => s + b.potentialSaving, 0) : advice.savingsPotential) : "—",
+              value: advice ? fmtCurrency(advice.savingsPotential) : adviceLoading ? null : "—",
               icon: Flame,
               color: "primary",
             },
