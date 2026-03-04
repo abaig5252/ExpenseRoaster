@@ -73,11 +73,16 @@ export default function MonthlyTracker() {
   const { data: series, isLoading: seriesLoading } = useMonthlySeries();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
   const { data: expenses } = useExpenses();
-  const { data: advice, isLoading: adviceLoading } = useFinancialAdvice();
 
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
+
+  const { data: advice, isLoading: adviceLoading } = useFinancialAdvice({
+    month: selectedMonth,
+    year: selectedYear,
+    categories: Array.from(selectedCats),
+  });
 
   function toggleCat(cat: string) {
     setSelectedCats(prev => {
@@ -191,12 +196,8 @@ export default function MonthlyTracker() {
     return base.map(row => ({ ...row, total: byMonth[row.month] ?? 0 }));
   }, [series, allExpenses, selectedYear, selectedCats]);
 
-  // Filtered advice breakdown
-  const filteredBreakdown = useMemo(() => {
-    if (!advice?.breakdown) return [];
-    if (selectedCats.size === 0) return advice.breakdown;
-    return advice.breakdown.filter(item => selectedCats.has(item.category));
-  }, [advice, selectedCats]);
+  // Advice breakdown — backend already filters by month/year/category so use directly
+  const filteredBreakdown = useMemo(() => advice?.breakdown ?? [], [advice]);
 
   // Recent transactions from filteredExpenses (sorted newest first)
   const recentTransactions = useMemo(() => {
@@ -519,7 +520,7 @@ export default function MonthlyTracker() {
             )}
           </motion.div>
 
-          {/* Financial Advice — filtered */}
+          {/* Financial Advice — context-aware */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}
             className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
             <div className="flex items-center justify-between">
@@ -527,11 +528,14 @@ export default function MonthlyTracker() {
                 <div className="w-9 h-9 rounded-xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
                   <Lightbulb className="w-5 h-5 text-[hsl(var(--accent))]" />
                 </div>
-                <h2 className="text-xl font-bold text-white">
-                  {isFiltered ? "Category Advice" : "Financial Advice"}
-                </h2>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Financial Advice</h2>
+                  {advice?.timeContext && advice.timeContext !== "all-time" && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{advice.timeContext}</p>
+                  )}
+                </div>
               </div>
-              {advice && !isFiltered && (
+              {advice && advice.savingsPotential > 0 && (
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Save up to</p>
                   <p className="text-base font-amount-card text-[hsl(var(--secondary))]">{fmtCurrency(advice.savingsPotential)}/mo</p>
@@ -544,10 +548,11 @@ export default function MonthlyTracker() {
                 <Skeleton className="h-6 w-3/4 bg-white/5" />
                 <Skeleton className="h-16 w-full bg-white/5 mt-1" />
                 <Skeleton className="h-16 w-full bg-white/5" />
+                <Skeleton className="h-16 w-full bg-white/5" />
               </div>
             ) : advice ? (
               <div className="flex flex-col gap-3">
-                {!isFiltered && (
+                {advice.advice && (
                   <div className="flex items-start gap-3 bg-[hsl(var(--accent))]/10 border border-[hsl(var(--accent))]/20 rounded-2xl px-4 py-3">
                     <Zap className="w-4 h-4 text-[hsl(var(--accent))] shrink-0 mt-0.5" />
                     <p className="text-base font-bold text-white leading-snug">{advice.advice}</p>
@@ -557,7 +562,7 @@ export default function MonthlyTracker() {
                 {filteredBreakdown.length > 0 ? (
                   <>
                     <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mt-1">
-                      {isFiltered ? `${filteredBreakdown.length} selected ${filteredBreakdown.length === 1 ? "category" : "categories"}` : "By Category"}
+                      By Category ({filteredBreakdown.length})
                     </p>
                     {filteredBreakdown.map((item, i) => (
                       <div key={item.category}>
@@ -566,12 +571,12 @@ export default function MonthlyTracker() {
                       </div>
                     ))}
                   </>
-                ) : isFiltered ? (
+                ) : (
                   <div className="flex flex-col items-center justify-center gap-3 text-center py-8">
                     <Flame className="w-8 h-8 text-muted-foreground" />
-                    <p className="text-muted-foreground text-sm">No advice available for the selected categories.</p>
+                    <p className="text-muted-foreground text-sm">No expenses match this filter — try a different period or category.</p>
                   </div>
-                ) : null}
+                )}
 
                 <div className="flex items-center gap-2 px-1">
                   <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

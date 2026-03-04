@@ -53,12 +53,26 @@ export type AdviceBreakdown = {
   potentialSaving: number;
 };
 
-export function useFinancialAdvice() {
-  return useQuery<{ advice: string; topCategory: string; savingsPotential: number; breakdown: AdviceBreakdown[] }>({
-    queryKey: [api.expenses.financialAdvice.path],
+export function useFinancialAdvice(filters?: { month?: string | null; year?: string | null; categories?: string[] }) {
+  const month = filters?.month ?? null;
+  const year = filters?.year ?? null;
+  const categories = filters?.categories ?? [];
+  const catKey = [...categories].sort().join(",");
+
+  const url = (() => {
+    const params = new URLSearchParams();
+    if (month) params.set("month", month);
+    else if (year) params.set("year", year);
+    if (categories.length > 0) params.set("categories", catKey);
+    const qs = params.toString();
+    return qs ? `${api.expenses.financialAdvice.path}?${qs}` : api.expenses.financialAdvice.path;
+  })();
+
+  return useQuery<{ advice: string; topCategory: string; savingsPotential: number; breakdown: AdviceBreakdown[]; timeContext?: string }>({
+    queryKey: [api.expenses.financialAdvice.path, month, year, catKey],
     retry: false,
     queryFn: async () => {
-      const res = await apiFetch(api.expenses.financialAdvice.path);
+      const res = await apiFetch(url);
       return res.json();
     },
   });

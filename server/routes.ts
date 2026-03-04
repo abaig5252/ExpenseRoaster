@@ -366,10 +366,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(403).json({ message: "Financial advice requires Premium" });
     }
     try {
-      const allExpenses = await storage.getExpenses(userId);
+      const { month, year, categories } = req.query as { month?: string; year?: string; categories?: string };
+      const filterCategories = categories ? categories.split(",").map((c: string) => c.trim()).filter(Boolean) : [];
+
+      let allExpenses = await storage.getExpenses(userId);
+
+      // Filter by month, year, or categories if provided
+      if (month) {
+        allExpenses = allExpenses.filter(e => {
+          const d = e.date instanceof Date ? e.date : new Date(e.date);
+          return d.toISOString().slice(0, 7) === month;
+        });
+      } else if (year) {
+        allExpenses = allExpenses.filter(e => {
+          const d = e.date instanceof Date ? e.date : new Date(e.date);
+          return String(d.getFullYear()) === year;
+        });
+      }
+      if (filterCategories.length > 0) {
+        allExpenses = allExpenses.filter(e => filterCategories.includes(e.category));
+      }
+
       if (allExpenses.length === 0) {
         return res.json({
-          advice: "Upload some receipts first so I have something to judge.",
+          advice: "No expenses match this filter — try a different time period or category.",
           topCategory: "Unknown",
           savingsPotential: 0,
           breakdown: [],
@@ -386,58 +406,81 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
       }
 
-      const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || "General";
+      const sortedCats = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+      const topCategory = sortedCats[0]?.[0] || "General";
       const totalSpend = allExpenses.reduce((s, e) => s + e.amount, 0);
+      const adviceCurrency = user?.currency || "USD";
 
-      const categoryLines = Object.entries(categoryTotals)
-        .sort((a, b) => b[1] - a[1])
+      const categoryLines = sortedCats
         .map(([cat, amt]) => {
-          const merchants = categoryMerchants[cat]?.slice(0, 5).join(", ") || "";
-          return `${cat}: $${(amt / 100).toFixed(2)} (merchants: ${merchants || "unknown"})`;
+          const merchants = categoryMerchants[cat]?.slice(0, 6).join(", ") || "various";
+          return `- ${cat}: ${(amt / 100).toFixed(2)} ${adviceCurrency} (merchants: ${merchants})`;
         })
         .join("\n");
 
-      const adviceUser = await storage.getUser(userId);
-      const adviceCurrency = adviceUser?.currency || "USD";
+      // Build time context string for the prompt
+      let timeContext = "all-time";
+      if (month) timeContext = new Date(month + "-02").toLocaleString("en-US", { month: "long", year: "numeric" });
+      else if (year) timeContext = year;
 
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
           {
             role: "system",
-            content: `You are a sharp financial advisor. Analyze spending and return ONLY valid JSON — no markdown, no explanation.
-The user's currency is ${adviceCurrency}. All monetary amounts in your response (advice, alternatives, savings) must use ${adviceCurrency} and reflect realistic local prices for that currency's region.
+            content: `You are a brutally honest, deeply knowledgeable financial advisor analyzing REAL spending data. You know local prices, brands, and alternatives for every major region.
 
-Return this exact shape:
+The user's currency is ${adviceCurrency}. All amounts must be in ${adviceCurrency} with realistic local pricing.
+Time period: ${timeContext}.
+
+You MUST return ONLY a valid JSON object — no markdown, no explanation, no code fences. The JSON MUST contain a "breakdown" array with one entry per category listed by the user. NEVER return an empty breakdown.
+
+Required JSON shape:
 {
-  "advice": "One punchy sentence (max 15 words) naming the #1 problem and what to do about it.",
-  "topCategory": "top spending category name",
-  "savingsPotential": <realistic savings in cents, 10-20% of total>,
+  "advice": "One punchy sentence (max 20 words) identifying the #1 spending problem and the single best action to fix it.",
+  "topCategory": "name of the highest-spend category",
+  "savingsPotential": <total realistic monthly savings in cents across all categories, 10-25% of total>,
   "breakdown": [
     {
-      "category": "Category Name",
-      "roast": "One savage, funny roast sentence about this category's spending. Be specific and brutal.",
-      "insight": "1-2 direct sentences of practical advice for this category. Use locally relevant alternatives and price points for ${adviceCurrency} users.",
-      "alternatives": ["Brand — X ${adviceCurrency}/mo", "Brand2 — X ${adviceCurrency}/mo", "DIY option — free"],
-      "potentialSaving": <realistic cents saved per month>
+      "category": "exact category name from input",
+      "roast": "One savage funny sentence roasting this specific spending — reference the actual merchant names or amounts. Make it sting.",
+      "insight": "2-3 SPECIFIC, ACTIONABLE sentences. State the exact problem (e.g. 'You're spending X/mo on coffee alone'). Give a concrete fix with a specific number or action. Name a real alternative vendor or habit.",
+      "alternatives": [
+        "Real cheaper option — ~X ${adviceCurrency}",
+        "Another real option — ~X ${adviceCurrency}",
+        "DIY / free option — free"
+      ],
+      "potentialSaving": <realistic cents saved per month if they follow the advice>
     }
   ]
 }
 
-Rules:
-- roast: savage and funny, reference the specific merchant or amount if known (e.g. "Paying 850 ${adviceCurrency}/mo for a gym you go to twice a month — at least the guilt is cardio.")
-- insight: 1-2 direct sentences of practical advice for that category. Be specific, name the problem and what to change.
-- alternatives: short chip-style labels (max 6 words each), use local brands/services relevant to the ${adviceCurrency} region
-- Include 2-4 alternatives per category
-- Include every category with notable spend
-- potentialSaving should be realistic for the ${adviceCurrency} region`,
+STRICT RULES FOR BREAKDOWN:
+- Every category in the input MUST appear in breakdown. No exceptions.
+- roast: reference specific merchant names from the data, be funny and sharp
+- insight: be concrete. Not "consider reducing" — say "cancel X and switch to Y, saving ~Z ${adviceCurrency}/mo"
+- alternatives: use REAL brand names that exist in the ${adviceCurrency} region. Examples:
+  * Dining (CAD): "Freshii — ~$12 CAD", "Meal prep Sunday — ~$8/meal", "Grocery store sushi — ~$10 CAD"
+  * Coffee (CAD): "Tim Hortons — ~$2.50 CAD", "Nespresso pods — ~$0.90/cup", "French press + bulk beans — ~$0.30/cup"
+  * Coffee (USD): "McDonald's McCafe — ~$2 USD", "Keurig pods — ~$0.75/cup", "Home brew — ~$0.20/cup"
+  * Subscriptions: "Share Netflix plan", "Bundle Disney+/Hulu/ESPN — ~$14.99 USD/mo", "Cancel and rotate"
+  * Fitness: "Planet Fitness — ~$10/mo", "YouTube workouts — free", "City rec center — ~$25/mo"
+  * Groceries: "ALDI / Lidl — 20% cheaper", "Store-brand swap", "Costco bulk — saves ~30%"
+  * Gas/Transport: "GasBuddy app", "Carpool", "Transit pass"
+- potentialSaving: be realistic. For a $400 dining habit, don't say $380 savings. Say $80-$150.`,
           },
           {
             role: "user",
-            content: `Currency: ${adviceCurrency}\nTotal spend: ${(totalSpend / 100).toFixed(2)} ${adviceCurrency}\n\nSpending breakdown:\n${categoryLines}`,
+            content: `Analyze this ${timeContext} spending for a ${adviceCurrency} user and return the JSON with a COMPLETE breakdown for every category:
+
+Total: ${(totalSpend / 100).toFixed(2)} ${adviceCurrency}
+Categories:
+${categoryLines}
+
+Remember: breakdown array must have ${sortedCats.length} entries, one per category above.`,
           },
         ],
-        max_completion_tokens: 800,
+        max_completion_tokens: 1600,
       });
 
       let parsed: any;
@@ -445,15 +488,42 @@ Rules:
         const raw = response.choices[0]?.message?.content || "{}";
         const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         parsed = JSON.parse(cleaned);
-      } catch {
-        parsed = { advice: "Spend less on the stuff you spend the most on.", topCategory, savingsPotential: Math.round(totalSpend * 0.15), breakdown: [] };
+      } catch (parseErr) {
+        console.error("Financial advice JSON parse error:", parseErr);
+        // Build a fallback breakdown from category data so the card is never blank
+        const fallbackBreakdown = sortedCats.map(([cat, amt]) => ({
+          category: cat,
+          roast: `${cat} is eating ${(amt / 100).toFixed(2)} ${adviceCurrency} of your budget. Bold choice.`,
+          insight: `You spent ${(amt / 100).toFixed(2)} ${adviceCurrency} on ${cat}. Look for cheaper alternatives or reduce frequency to cut this category by 15-20%.`,
+          alternatives: ["Compare prices before buying", "Buy in bulk when on sale", "Look for discount codes"],
+          potentialSaving: Math.round(amt * 0.15),
+        }));
+        parsed = {
+          advice: `Your biggest drain is ${topCategory} — target it first.`,
+          topCategory,
+          savingsPotential: Math.round(totalSpend * 0.15),
+          breakdown: fallbackBreakdown,
+        };
+      }
+
+      // Ensure breakdown is always an array and has content
+      let breakdown = Array.isArray(parsed.breakdown) ? parsed.breakdown : [];
+      if (breakdown.length === 0) {
+        breakdown = sortedCats.map(([cat, amt]) => ({
+          category: cat,
+          roast: `${(amt / 100).toFixed(2)} ${adviceCurrency} on ${cat}. Your wallet is crying.`,
+          insight: `Cut ${cat} spending by reviewing each merchant and eliminating low-value purchases. A 15% reduction here saves ${(amt * 0.15 / 100).toFixed(2)} ${adviceCurrency}/mo.`,
+          alternatives: ["Shop around for better deals", "Set a monthly budget cap", "Find free alternatives"],
+          potentialSaving: Math.round(amt * 0.15),
+        }));
       }
 
       res.json({
-        advice: parsed.advice || "Keep an eye on your top categories.",
+        advice: parsed.advice || `${topCategory} is your biggest problem — start there.`,
         topCategory: parsed.topCategory || topCategory,
         savingsPotential: parsed.savingsPotential || Math.round(totalSpend * 0.15),
-        breakdown: Array.isArray(parsed.breakdown) ? parsed.breakdown : [],
+        breakdown,
+        timeContext,
       });
     } catch (err) {
       console.error("Financial advice error:", err);
