@@ -76,6 +76,7 @@ export default function MonthlyTracker() {
   const { data: advice, isLoading: adviceLoading } = useFinancialAdvice();
 
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   function toggleCat(cat: string) {
     setSelectedCats(prev => {
@@ -86,51 +87,65 @@ export default function MonthlyTracker() {
     });
   }
 
+  function toggleMonth(month: string) {
+    setSelectedMonth(prev => prev === month ? null : month);
+  }
+
   // ── Derived data ──────────────────────────────────────────────────
   const allExpenses = expenses ?? [];
+  const currentYM = new Date().toISOString().slice(0, 7);
 
+  // Expenses filtered by selected month only (used for category totals)
+  const monthFilteredExpenses = useMemo(() => {
+    if (!selectedMonth) return allExpenses;
+    return allExpenses.filter(e => {
+      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      return d.toISOString().slice(0, 7) === selectedMonth;
+    });
+  }, [allExpenses, selectedMonth]);
+
+  // Expenses filtered by BOTH month and categories (for transactions + stats)
   const filteredExpenses = useMemo(
-    () => selectedCats.size === 0 ? allExpenses : allExpenses.filter(e => selectedCats.has(e.category)),
-    [allExpenses, selectedCats]
+    () => selectedCats.size === 0 ? monthFilteredExpenses : monthFilteredExpenses.filter(e => selectedCats.has(e.category)),
+    [monthFilteredExpenses, selectedCats]
   );
 
-  // Current month total from filteredExpenses (in cents)
-  const currentYM = new Date().toISOString().slice(0, 7);
-  const filteredMonthTotal = useMemo(() => {
-    return filteredExpenses
-      .filter(e => {
-        const d = e.date instanceof Date ? e.date : new Date(e.date);
-        return d.toISOString().slice(0, 7) === currentYM;
-      })
-      .reduce((sum, e) => sum + e.amount, 0);
-  }, [filteredExpenses, currentYM]);
+  // Display total for the stats card
+  const displayMonthTotal = useMemo(() => {
+    if (selectedMonth) return filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+    if (selectedCats.size > 0) {
+      return allExpenses
+        .filter(e => {
+          const d = e.date instanceof Date ? e.date : new Date(e.date);
+          return d.toISOString().slice(0, 7) === currentYM && selectedCats.has(e.category);
+        })
+        .reduce((sum, e) => sum + e.amount, 0);
+    }
+    return summary?.monthlyTotal ?? 0;
+  }, [filteredExpenses, selectedMonth, selectedCats, allExpenses, currentYM, summary]);
 
-  const displayMonthTotal = selectedCats.size > 0 ? filteredMonthTotal : (summary?.monthlyTotal ?? 0);
-
-  // Category totals from ALL expenses (bars always show full picture)
+  // Category totals: from month-filtered expenses (so clicking a bar shows that month's breakdown)
   const categoryTotals = useMemo(() => {
     const acc: Record<string, number> = {};
-    allExpenses.forEach(e => { acc[e.category] = (acc[e.category] || 0) + e.amount; });
+    monthFilteredExpenses.forEach(e => { acc[e.category] = (acc[e.category] || 0) + e.amount; });
     return acc;
-  }, [allExpenses]);
+  }, [monthFilteredExpenses]);
 
   const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
   const grandTotal = Object.values(categoryTotals).reduce((s, v) => s + v, 0);
 
-  // Monthly chart — filter by selected categories when active
+  // Chart: filter by categories but NOT month — all months stay visible and clickable
   const chartData = useMemo(() => {
     const base = series?.map(s => ({ ...s, label: fmtMonth(s.month) })) ?? [];
     if (selectedCats.size === 0) return base;
-
-    // Recompute monthly totals from filteredExpenses
     const byMonth: Record<string, number> = {};
-    filteredExpenses.forEach(e => {
+    allExpenses.filter(e => selectedCats.has(e.category)).forEach(e => {
       const d = e.date instanceof Date ? e.date : new Date(e.date);
       const ym = d.toISOString().slice(0, 7);
       byMonth[ym] = (byMonth[ym] || 0) + e.amount;
     });
     return base.map(row => ({ ...row, total: byMonth[row.month] ?? 0 }));
-  }, [series, filteredExpenses, selectedCats]);
+  }, [series, allExpenses, selectedCats]);
 
   // Filtered advice breakdown
   const filteredBreakdown = useMemo(() => {
@@ -157,7 +172,20 @@ export default function MonthlyTracker() {
   const monthDiffPct = prevMonth?.total ? Math.round((monthDiff! / prevMonth.total) * 100) : null;
   const improved = monthDiff !== null && monthDiff < 0;
 
-  const isFiltered = selectedCats.size > 0;
+  const isFiltered = selectedCats.size > 0 || selectedMonth !== null;
+
+  function selectedMonthLabel() {
+    if (!selectedMonth) return "";
+    return new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  }
+
+  function statMonthLabel() {
+    if (selectedMonth) {
+      const short = new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+      return selectedCats.size > 0 ? `${short} — Filtered` : short;
+    }
+    return selectedCats.size > 0 ? "Filtered (This Month)" : "This Month";
+  }
 
   return (
     <div className="min-h-screen pb-24">
@@ -187,6 +215,15 @@ export default function MonthlyTracker() {
           >
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--primary))]">Filtered by:</span>
+              {selectedMonth && (
+                <button
+                  onClick={() => setSelectedMonth(null)}
+                  className="flex items-center gap-1 text-xs font-semibold bg-[hsl(var(--accent))]/15 border border-[hsl(var(--accent))]/30 text-[hsl(var(--accent))] px-2.5 py-1 rounded-full hover:bg-[hsl(var(--accent))]/25 transition-colors"
+                >
+                  📅 {selectedMonthLabel()}
+                  <X className="w-3 h-3" />
+                </button>
+              )}
               {Array.from(selectedCats).map(cat => (
                 <button
                   key={cat}
@@ -199,7 +236,7 @@ export default function MonthlyTracker() {
               ))}
             </div>
             <button
-              onClick={() => setSelectedCats(new Set())}
+              onClick={() => { setSelectedCats(new Set()); setSelectedMonth(null); }}
               className="text-xs text-muted-foreground hover:text-white transition-colors whitespace-nowrap"
             >
               Clear all
@@ -233,7 +270,7 @@ export default function MonthlyTracker() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
             {
-              label: isFiltered ? "Filtered (This Month)" : "This Month",
+              label: statMonthLabel(),
               value: summaryLoading && !isFiltered ? null : fmtCurrency(displayMonthTotal),
               icon: DollarSign,
               color: "primary",
@@ -281,10 +318,15 @@ export default function MonthlyTracker() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="glass-panel rounded-3xl p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-white">
-              Monthly Spending{isFiltered ? " — Filtered" : " (Last 12 Months)"}
-            </h2>
-            {isFiltered && (
+            <div>
+              <h2 className="text-xl font-bold text-white">
+                Monthly Spending{selectedCats.size > 0 ? " — Filtered" : ""}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {selectedMonth ? `Showing ${selectedMonthLabel()} — click bar again to deselect` : "Click a bar to focus on that month"}
+              </p>
+            </div>
+            {selectedCats.size > 0 && (
               <span className="text-xs text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/20 px-2.5 py-1 rounded-full font-semibold">
                 {selectedCats.size} {selectedCats.size === 1 ? "category" : "categories"}
               </span>
@@ -306,13 +348,23 @@ export default function MonthlyTracker() {
                 <XAxis dataKey="label" tick={{ fill: "hsl(260, 10%, 60%)", fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis tickFormatter={(v) => `$${(v / 100).toFixed(0)}`} tick={{ fill: "hsl(260, 10%, 60%)", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-                  {chartData.map((entry, i) => (
-                    <Cell
-                      key={i}
-                      fill={entry.total === maxBar ? "hsl(var(--destructive))" : i === chartData.length - 1 ? "hsl(var(--primary))" : "hsl(var(--secondary) / 0.6)"}
-                    />
-                  ))}
+                <Bar
+                  dataKey="total"
+                  radius={[6, 6, 0, 0]}
+                  cursor="pointer"
+                  onClick={(data: any) => toggleMonth(data.month)}
+                >
+                  {chartData.map((entry, i) => {
+                    const isMonthSelected = selectedMonth === entry.month;
+                    const hasMonthFilter = selectedMonth !== null;
+                    let fill: string;
+                    if (hasMonthFilter) {
+                      fill = isMonthSelected ? "hsl(var(--accent))" : "rgba(255,255,255,0.08)";
+                    } else {
+                      fill = entry.total === maxBar ? "hsl(var(--destructive))" : i === chartData.length - 1 ? "hsl(var(--primary))" : "hsl(var(--secondary) / 0.6)";
+                    }
+                    return <Cell key={i} fill={fill} />;
+                  })}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -324,10 +376,15 @@ export default function MonthlyTracker() {
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
             className="glass-panel rounded-3xl p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-bold text-white">Spending by Category</h2>
+              <div>
+                <h2 className="text-xl font-bold text-white">Spending by Category</h2>
+                {selectedMonth && (
+                  <p className="text-xs text-[hsl(var(--accent))] mt-0.5 font-semibold">{selectedMonthLabel()}</p>
+                )}
+              </div>
               {isFiltered ? (
                 <button
-                  onClick={() => setSelectedCats(new Set())}
+                  onClick={() => { setSelectedCats(new Set()); setSelectedMonth(null); }}
                   className="text-xs text-muted-foreground hover:text-white transition-colors flex items-center gap-1"
                 >
                   <X className="w-3 h-3" /> Clear

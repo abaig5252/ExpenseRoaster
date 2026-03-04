@@ -54,6 +54,7 @@ export default function TrackerScreen() {
   const isPremium = user?.tier === 'premium';
 
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ['/api/expenses'],
@@ -75,7 +76,8 @@ export default function TrackerScreen() {
 
   // ── Derived data ──────────────────────────────────────────────────
   const allExpenses = expenses ?? [];
-  const isFiltered = selectedCats.size > 0;
+  const currentYM = new Date().toISOString().slice(0, 7);
+  const isFiltered = selectedCats.size > 0 || selectedMonth !== null;
 
   function toggleCat(cat: string) {
     setSelectedCats(prev => {
@@ -86,39 +88,59 @@ export default function TrackerScreen() {
     });
   }
 
+  function toggleMonth(month: string) {
+    setSelectedMonth(prev => prev === month ? null : month);
+  }
+
+  function selectedMonthLabel() {
+    if (!selectedMonth) return '';
+    return new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  // Expenses filtered by selected month only
+  const monthFilteredExpenses = useMemo(() => {
+    if (!selectedMonth) return allExpenses;
+    return allExpenses.filter(e => (e.date ?? '').slice(0, 7) === selectedMonth);
+  }, [allExpenses, selectedMonth]);
+
+  // Expenses filtered by BOTH month and categories
   const filteredExpenses = useMemo(
-    () => isFiltered ? allExpenses.filter(e => selectedCats.has(e.category)) : allExpenses,
-    [allExpenses, selectedCats, isFiltered]
+    () => selectedCats.size === 0 ? monthFilteredExpenses : monthFilteredExpenses.filter(e => selectedCats.has(e.category)),
+    [monthFilteredExpenses, selectedCats]
   );
 
-  // Category totals from ALL expenses (bars always show full picture)
+  // Category totals from month-filtered expenses (reflects selected month)
   const categoryTotals = useMemo(() => {
     const acc: Record<string, number> = {};
-    allExpenses.forEach(e => { acc[e.category] = (acc[e.category] || 0) + e.amount; });
+    monthFilteredExpenses.forEach(e => { acc[e.category] = (acc[e.category] || 0) + e.amount; });
     return acc;
-  }, [allExpenses]);
+  }, [monthFilteredExpenses]);
 
   const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
   const grandTotal = Object.values(categoryTotals).reduce((s, v) => s + v, 0);
 
-  // Current month total
-  const currentYM = new Date().toISOString().slice(0, 7);
+  // Display total for stats card
   const displayMonthTotal = useMemo(() => {
-    const src = isFiltered ? filteredExpenses : allExpenses;
-    return src.filter(e => e.date?.slice(0, 7) === currentYM).reduce((sum, e) => sum + e.amount, 0);
-  }, [filteredExpenses, allExpenses, isFiltered, currentYM]);
+    if (selectedMonth) return filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+    if (selectedCats.size > 0) {
+      return allExpenses
+        .filter(e => e.date?.slice(0, 7) === currentYM && selectedCats.has(e.category))
+        .reduce((sum, e) => sum + e.amount, 0);
+    }
+    return allExpenses.filter(e => e.date?.slice(0, 7) === currentYM).reduce((sum, e) => sum + e.amount, 0);
+  }, [filteredExpenses, selectedMonth, selectedCats, allExpenses, currentYM]);
 
-  // Monthly chart — filter by selected categories when active
+  // Chart: filter by categories only — all months stay visible and tappable
   const chartData = useMemo(() => {
     if (!series) return [];
-    if (!isFiltered) return series;
+    if (selectedCats.size === 0) return series;
     const byMonth: Record<string, number> = {};
-    filteredExpenses.forEach(e => {
+    allExpenses.filter(e => selectedCats.has(e.category)).forEach(e => {
       const ym = (e.date ?? '').slice(0, 7);
       if (ym) byMonth[ym] = (byMonth[ym] || 0) + e.amount;
     });
     return series.map(row => ({ ...row, total: byMonth[row.month] ?? 0 }));
-  }, [series, filteredExpenses, isFiltered]);
+  }, [series, allExpenses, selectedCats]);
 
   const maxTotal = Math.max(...(chartData.map(m => m.total) ?? [1]), 1);
 
@@ -164,6 +186,12 @@ export default function TrackerScreen() {
         {isFiltered && (
           <View style={s.filterBanner}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll}>
+              {selectedMonth && (
+                <TouchableOpacity key="month" style={[s.filterChip, s.filterChipMonth]} onPress={() => setSelectedMonth(null)}>
+                  <Text style={[s.filterChipText, s.filterChipMonthText]}>📅 {selectedMonthLabel()}</Text>
+                  <Ionicons name="close" size={11} color="#7BD8E8" />
+                </TouchableOpacity>
+              )}
               {Array.from(selectedCats).map(cat => (
                 <TouchableOpacity key={cat} style={s.filterChip} onPress={() => toggleCat(cat)}>
                   <Text style={s.filterChipText}>{cat}</Text>
@@ -171,7 +199,7 @@ export default function TrackerScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity onPress={() => setSelectedCats(new Set())} style={s.clearBtn}>
+            <TouchableOpacity onPress={() => { setSelectedCats(new Set()); setSelectedMonth(null); }} style={s.clearBtn}>
               <Text style={s.clearText}>Clear</Text>
             </TouchableOpacity>
           </View>
@@ -180,7 +208,13 @@ export default function TrackerScreen() {
         {/* Summary card */}
         <View style={s.summaryCard}>
           <Text style={s.summaryLabel}>
-            {isFiltered ? 'Filtered — This Month' : 'This Month'}
+            {selectedMonth
+              ? selectedCats.size > 0
+                ? `${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })} — Filtered`
+                : selectedMonthLabel()
+              : selectedCats.size > 0
+              ? 'Filtered — This Month'
+              : 'This Month'}
           </Text>
           <Text style={s.summaryAmount}>{fmt(displayMonthTotal)}</Text>
           {isFiltered && (
@@ -194,19 +228,32 @@ export default function TrackerScreen() {
         ) : chartData.length > 0 ? (
           <View style={s.chartCard}>
             <Text style={s.cardTitle}>
-              {isFiltered ? 'Monthly Spending — Filtered' : 'Spending History'}
+              {selectedCats.size > 0 ? 'Spending — Filtered' : 'Spending History'}
+            </Text>
+            <Text style={s.tapHint}>
+              {selectedMonth ? `${selectedMonthLabel()} — tap again to deselect` : 'Tap a bar to focus on that month'}
             </Text>
             <View style={[s.chart, { height: CHART_H + 48 }]}>
               {chartData.slice(-6).map((m) => {
                 const barH = Math.max(4, (m.total / maxTotal) * CHART_H);
+                const isMonthSelected = selectedMonth === m.month;
+                const hasMonthFilter = selectedMonth !== null;
+                const barColor = hasMonthFilter
+                  ? isMonthSelected ? '#7BD8E8' : 'rgba(255,255,255,0.12)'
+                  : colors.primary;
                 return (
-                  <View key={m.month} style={s.barCol}>
-                    <Text style={s.barAmount}>
+                  <TouchableOpacity
+                    key={m.month}
+                    style={s.barCol}
+                    onPress={() => toggleMonth(m.month)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.barAmount, isMonthSelected && { color: '#7BD8E8' }]}>
                       {m.total > 0 ? `${(m.total / 100).toFixed(0)}` : ''}
                     </Text>
-                    <View style={[s.bar, { height: barH }]} />
-                    <Text style={s.barLabel}>{shortMonth(m.month)}</Text>
-                  </View>
+                    <View style={[s.bar, { height: barH, backgroundColor: barColor }]} />
+                    <Text style={[s.barLabel, isMonthSelected && { color: '#7BD8E8', fontWeight: '700' }]}>{shortMonth(m.month)}</Text>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -222,7 +269,12 @@ export default function TrackerScreen() {
         {sortedCategories.length > 0 && (
           <View style={s.card}>
             <View style={s.cardHeader}>
-              <Text style={s.cardTitle}>Spending by Category</Text>
+              <View>
+                <Text style={s.cardTitle}>Spending by Category</Text>
+                {selectedMonth && (
+                  <Text style={[s.tapHint, { color: '#7BD8E8', marginTop: 2 }]}>{selectedMonthLabel()}</Text>
+                )}
+              </View>
               {!isFiltered && <Text style={s.tapHint}>Tap to filter</Text>}
             </View>
             {sortedCategories.map(([cat, total], i) => {
@@ -365,6 +417,10 @@ const s = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: spacing.sm, marginRight: spacing.xs,
   },
   filterChipText: { ...typography.caption, color: colors.primary, fontWeight: '600' },
+  filterChipMonth: {
+    backgroundColor: 'rgba(123,216,232,0.12)', borderColor: 'rgba(123,216,232,0.3)',
+  },
+  filterChipMonthText: { color: '#7BD8E8' },
   clearBtn: { paddingHorizontal: spacing.sm },
   clearText: { ...typography.caption, color: colors.textMuted },
 
