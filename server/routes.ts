@@ -96,8 +96,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const auth = req.headers.authorization;
     if (auth && auth.startsWith("Bearer ") && !req.isAuthenticated?.()) {
       try {
-        const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { sub: string };
-        req.user = { claims: { sub: payload.sub } };
+        const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { sub: string; exp?: number };
+        req.user = {
+          claims: { sub: payload.sub },
+          // expires_at is checked by isAuthenticated — use the JWT's own exp or 1 year out
+          expires_at: payload.exp ?? Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
+        };
         req.isAuthenticated = () => true;
       } catch {
         /* invalid token — fall through to session auth */
