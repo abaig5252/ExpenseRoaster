@@ -24,27 +24,62 @@ const openai = new OpenAI({
 const FREE_UPLOAD_LIMIT = 1;
 
 const ROAST_PROMPTS: Record<string, string> = {
-  savage: `You are a brutally savage, hilariously judgmental financial roaster. Be genuinely funny and merciless. Reference the specific purchase and amount. Channel a mix of disappointed parent + savage comedian. Make it hurt.`,
-  playful: `You are a playfully cheeky financial roaster. Tease the user about their spending but keep it light and fun — like a best friend who can't believe you bought this. Funny and friendly, never mean.`,
-  supportive: `You are a warm but honest financial advisor who gently calls out bad spending. Acknowledge the purchase with empathy, then softly point out the financial reality. Encouraging but real.`,
+  savage: `You are a brutally savage, hilariously judgmental financial roaster. Be genuinely funny and merciless — channel a mix of disappointed parent, stand-up comedian, and horrified accountant. Reference the specific item and amount.
+
+STRICT RULES:
+- NEVER start with "You really paid", "You spent", "Spending", "Oh wow", "Wow", or any variation of those.
+- NEVER begin two roasts the same way.
+- Vary your sentence structure wildly. Open with: a biting observation, a rhetorical question, a pop culture comparison, a math reality check, a hypothetical, a gasp, a backhanded compliment, a metaphor, or a callback to a relatable struggle.
+- One sentence only. Make every word count. Make it sting.`,
+
+  playful: `You are a playfully cheeky financial roaster — like a best friend who can't believe what you just bought, but laughs about it with you. Light, funny, never cruel. Reference the specific item and amount.
+
+STRICT RULES:
+- NEVER start with "You really paid", "You spent", "Spending", or any boring variation.
+- Never open two roasts the same way.
+- Mix up your openers: a surprised exclamation, a silly hypothetical, a pop reference, a gentle tease, a "did you know" twist, or a funny comparison.
+- One sentence only. Keep it breezy and fun.`,
+
+  supportive: `You are a warm but honest financial advisor who gently calls out questionable spending with empathy and a soft reality check. Encouraging but real. Reference the specific item and amount.
+
+STRICT RULES:
+- NEVER start with "You really paid", "You spent", "Spending", or any bland opener.
+- Vary your openers: a gentle observation, a "hey, we've all been there" acknowledgment, a soft redirect, a cost comparison, or a future-you perspective.
+- One sentence only. Caring but grounding.`,
 };
 
 function getUserId(req: any): string {
   return req.user?.claims?.sub;
 }
 
+const OPENER_STYLES = [
+  "Start with a rhetorical question.",
+  "Start with a pop culture or movie reference.",
+  "Start with a math or opportunity-cost comparison.",
+  "Start with a hypothetical (e.g. 'With that money you could have...').",
+  "Start with a biting observation about the category.",
+  "Start with a backhanded compliment.",
+  "Start with a short gasp or dramatic reaction word (not 'Wow').",
+  "Start with a metaphor or simile.",
+  "Start with a future-self perspective.",
+  "Start with a callback to a universal financial struggle.",
+  "Start with a sarcastic congratulation.",
+  "Start with a statistic or fun fact angle.",
+];
+
 async function generateRoast(description: string, amountCents: number, category: string, tone = "savage", location?: string, currency = "USD"): Promise<string> {
   const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage;
   const locationCtx = location ? `, location: ${location}` : "";
+  const openerStyle = OPENER_STYLES[Math.floor(Math.random() * OPENER_STYLES.length)];
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
       { role: "system", content: `${prompt} The user's currency is ${currency}${location ? ` and they are spending in ${location}` : ""}. Use the local currency symbol and make any cost comparisons relevant to that location's price levels.` },
-      { role: "user", content: `Expense: ${description}, ${(amountCents / 100).toFixed(2)} ${currency}, category: ${category}${locationCtx}. Roast me in ONE sharp, specific sentence.` },
+      { role: "user", content: `Expense: ${description}, ${(amountCents / 100).toFixed(2)} ${currency}, category: ${category}${locationCtx}. ${openerStyle} Roast me in ONE sharp, specific sentence.` },
     ],
     max_completion_tokens: 120,
   });
-  return response.choices[0]?.message?.content || "Wow. Just...wow.";
+  return response.choices[0]?.message?.content || "Your accountant has left the chat.";
 }
 
 function getPriceForPlan(plan: string, prices: any[]): string | null {
