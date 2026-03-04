@@ -1,0 +1,1 @@
+<svg class="burning-animation" width="100" height="100" viewBox="0 0 100 100"><rect x="1" y="1" width="98" height="98" rx="15" stroke="#00E676" fill="none"/><path d="M50 10C40 5 30 15 30 25C30 35 35 40 30 50C20 60 30 70 35 65C30 60 40 55 50 60C60 55 70 60 65 65C70 70 80 60 70 50C65 40 80 35 75 25C70 15 60 5 50 10Z" fill="#FF5722"/></svg>
