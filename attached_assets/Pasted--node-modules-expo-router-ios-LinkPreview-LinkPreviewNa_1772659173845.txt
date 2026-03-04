@@ -1,0 +1,60 @@
+
+❌  (node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeNavigation.swift:51:41)
+
+  49 |       return
+  50 |     }
+> 51 |     if let tabView = stackOrTabView as? RNSBottomTabsScreenComponentView {
+     |                                         ^ cannot find type 'RNSBottomTabsScreenComponentView' in scope
+  52 |       let newTabKeys = tabPath?.path.map { $0.newTabKey } ?? []
+  53 |       // The order is important here. findStackViewWithScreenIdInSubViews must be called
+  54 |       // even if screenId is nil to compute the tabChangeCommands.
+
+
+❌  (node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeNavigation.swift:153:38)
+
+  151 |       enumeratedViews
+  152 |       .first(where: { _, view in
+> 153 |         guard let tabView = view as? RNSBottomTabsScreenComponentView, let tabKey = tabView.tabKey
+      |                                      ^ cannot find type 'RNSBottomTabsScreenComponentView' in scope
+  154 |         else {
+  155 |           return false
+  156 |         }
+
+
+❌  (node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeNavigation.swift:165:37)
+
+  163 |
+  164 |   private func getTabBarControllerFromTabView(view: UIView) -> UITabBarController? {
+> 165 |     if let tabScreenView = view as? RNSBottomTabsScreenComponentView {
+      |                                     ^ cannot find type 'RNSBottomTabsScreenComponentView' in scope
+  166 |       return tabScreenView.reactViewController()?.tabBarController as? UITabBarController
+  167 |     }
+  168 |     if let tabHostView = view as? RNSBottomTabsHostComponentView {
+
+
+❌  (node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeNavigation.swift:168:35)
+
+  166 |       return tabScreenView.reactViewController()?.tabBarController as? UITabBarController
+  167 |     }
+> 168 |     if let tabHostView = view as? RNSBottomTabsHostComponentView {
+      |                                   ^ cannot find type 'RNSBottomTabsHostComponentView' in scope
+  169 |       return tabHostView.controller as? UITabBarController
+  170 |     }
+  171 |     return nil
+
+
+❌  (node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeNavigation.swift:185:49)
+
+  183 |           return view
+  184 |         }
+> 185 |       } else if let tabView = nextResponder as? RNSBottomTabsScreenComponentView {
+      |                                                 ^ cannot find type 'RNSBottomTabsScreenComponentView' in scope
+  186 |         if let tabKey = tabView.tabKey, tabKeys.contains(tabKey) {
+  187 |           return tabView
+  188 |         }
+
+    Run script build phase '[CP-User] [Hermes] Replace Hermes for the right configuration, if needed' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'hermes-engine' from project 'Pods')
+
+› 5 error(s), and 1 warning(s)
+
+CommandError: Failed to build iOS project. "xcodebuild" exited with error code 65.
