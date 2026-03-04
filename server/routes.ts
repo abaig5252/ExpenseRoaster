@@ -67,15 +67,14 @@ const OPENER_STYLES = [
   "Start with a statistic or fun fact angle.",
 ];
 
-async function generateRoast(description: string, amountCents: number, category: string, tone = "savage", location?: string, currency = "USD"): Promise<string> {
+async function generateRoast(description: string, amountCents: number, category: string, tone = "savage", _location?: string, currency = "USD"): Promise<string> {
   const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage;
-  const locationCtx = location ? `, location: ${location}` : "";
   const openerStyle = OPENER_STYLES[Math.floor(Math.random() * OPENER_STYLES.length)];
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
-      { role: "system", content: `${prompt} The user's currency is ${currency}${location ? ` and they are spending in ${location}` : ""}. Use the local currency symbol and make any cost comparisons relevant to that location's price levels.` },
-      { role: "user", content: `Expense: ${description}, ${(amountCents / 100).toFixed(2)} ${currency}, category: ${category}${locationCtx}. ${openerStyle} Roast me in ONE sharp, specific sentence.` },
+      { role: "system", content: `${prompt} The user's currency is ${currency}. Use the local currency symbol and make any cost comparisons relevant to that currency region's price levels. IMPORTANT: Do NOT mention city names, street addresses, neighbourhoods, or any geographic location in your roast unless that location appears in the expense description itself.` },
+      { role: "user", content: `Expense: ${description}, ${(amountCents / 100).toFixed(2)} ${currency}, category: ${category}. ${openerStyle} Roast me in ONE sharp, specific sentence.` },
     ],
     max_completion_tokens: 120,
   });
@@ -467,7 +466,8 @@ STRICT RULES FOR BREAKDOWN:
   * Fitness: "Planet Fitness — ~$10/mo", "YouTube workouts — free", "City rec center — ~$25/mo"
   * Groceries: "ALDI / Lidl — 20% cheaper", "Store-brand swap", "Costco bulk — saves ~30%"
   * Gas/Transport: "GasBuddy app", "Carpool", "Transit pass"
-- potentialSaving: be realistic. For a $400 dining habit, don't say $380 savings. Say $80-$150.`,
+- potentialSaving: be realistic. For a $400 dining habit, don't say $380 savings. Say $80-$150.
+- LOCATION RULE: Do NOT mention city names, street addresses, neighbourhoods, or any geographic location in roast or insight text unless that location appears in the merchant name itself.`,
           },
           {
             role: "user",
@@ -573,7 +573,7 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
-          { role: "system", content: `You are a savage comedian doing a monthly roast of someone's spending habits. Be brutal, be funny, be specific. 3-4 sentences max. The user's currency is ${roastCurrency} — use it when referencing amounts and make comparisons appropriate for that region.` },
+          { role: "system", content: `You are a savage comedian doing a monthly roast of someone's spending habits. Be brutal, be funny, be specific. 3-4 sentences max. The user's currency is ${roastCurrency} — use it when referencing amounts and make comparisons appropriate for that region. Do NOT mention city names, street addresses, or any geographic location.` },
           { role: "user", content: `Currency: ${roastCurrency}\nTotal spent: ${(totalSpend / 100).toFixed(2)} ${roastCurrency}. Top categories: ${topCategories}. Roast my entire month of spending.` },
         ],
         max_completion_tokens: 200,
@@ -606,7 +606,7 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
       const userCurrency = user.currency || "USD";
       const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
-Extract expense data from this receipt image and deliver a roast. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert the amount to ${userCurrency} for the JSON output. Use the location on the receipt (city, country) to make the roast geographically relevant — reference local price norms, alternatives available in that area, and use the local currency symbol in your roast.`;
+Extract expense data from this receipt image and deliver a roast. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert the amount to ${userCurrency} for the JSON output. IMPORTANT: Do NOT mention city names, street addresses, neighbourhoods, or any geographic location in your roast — roast the merchant name, the category of spending, and the amount instead.`;
 
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -615,7 +615,7 @@ Extract expense data from this receipt image and deliver a roast. The user's pre
           {
             role: "user",
             content: [
-              { type: "text", text: `Extract the expense details and roast me. Respond ONLY with JSON: { "amount": <number in cents, in ${userCurrency}>, "description": "<short name>", "date": "<ISO date>", "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>", "location": "<city and country from the receipt, or null if not visible>", "roast": "<your roast — reference the location and use ${userCurrency} amounts>" }` },
+              { type: "text", text: `Extract the expense details and roast me. Respond ONLY with JSON: { "amount": <number in cents, in ${userCurrency}>, "description": "<short name>", "date": "<ISO date>", "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>", "location": "<city and country from the receipt, or null if not visible>", "roast": "<your roast — reference the merchant name and amount, do NOT mention any city or address>" }` },
               { type: "image_url", image_url: { url: input.image } },
             ],
           },
