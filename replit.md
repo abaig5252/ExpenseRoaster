@@ -2,7 +2,9 @@
 
 ## Overview
 
-**Expense Roaster** is a tiered SaaS web app (PWA, installable on iOS/Android) that lets users upload receipts or manually enter expenses, then uses AI to generate savage roasts of their spending habits. It has a Stripe-powered subscription model with Free, Premium, and Annual Report tiers.
+**Expense Roaster** is a tiered SaaS web app and native mobile app (iOS App Store + Google Play) that lets users upload receipts or manually enter expenses, then uses AI to generate savage roasts of their spending habits. It has a Stripe-powered subscription model with Free, Premium, and Annual Report tiers.
+
+A full React Native (Expo) app lives in `mobile/`. It shares the same backend API, uses JWT-based auth (Bearer token), and mirrors the web UI in native components. See `mobile/README.md` for local setup and EAS build instructions.
 
 ---
 

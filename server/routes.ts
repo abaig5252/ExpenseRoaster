@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 import OpenAI from "openai";
+import jwt from "jsonwebtoken";
 import { isAuthenticated } from "./replit_integrations/auth/replitAuth";
 import { registerAuthRoutes } from "./replit_integrations/auth/routes";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripe/stripeClient";
@@ -52,6 +53,34 @@ function getPriceForPlan(plan: string, prices: any[]): string | null {
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   registerAuthRoutes(app);
+
+  // ─── Mobile JWT middleware ─────────────────────────────────────────
+  // Allow mobile clients to authenticate via Bearer token instead of session cookie.
+  const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
+
+  app.use((req: any, _res: Response, next: Function) => {
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith("Bearer ") && !req.isAuthenticated?.()) {
+      try {
+        const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { sub: string };
+        req.user = { claims: { sub: payload.sub } };
+        req.isAuthenticated = () => true;
+      } catch {
+        /* invalid token — fall through to session auth */
+      }
+    }
+    next();
+  });
+
+  // ─── Mobile token issuance ─────────────────────────────────────────
+  // Called from the in-app WebView after web login completes.
+  // The WebView has a valid session cookie; we issue a 30-day JWT for native API calls.
+  app.post("/api/mobile/token", isAuthenticated, (req: any, res: Response) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const token = jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
+    return res.json({ token });
+  });
 
   // ─── Email Verification ────────────────────────────────────────────
   const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY ?? "1x0000000000000000000000000000000AA";

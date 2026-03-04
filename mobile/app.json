@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Expense Roaster",
+    "slug": "expense-roaster",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "expenseroaster",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D0D"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.expenseroaster.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library to upload receipts.",
+        "NSCameraUsageDescription": "We need access to your camera to take photos of receipts.",
+        "NSPhotoLibraryAddUsageDescription": "We need access to save receipts."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D0D0D"
+      },
+      "package": "com.expenseroaster.app",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "We need access to your photo library to upload receipts.",
+          "cameraPermission": "We need access to your camera to take photos of receipts."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
