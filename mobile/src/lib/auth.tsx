@@ -30,6 +30,12 @@ const AuthContext = React.createContext<AuthContextType>({
   refreshUser: async () => {},
 });
 
+function timeout(ms: number): Promise<never> {
+  return new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('bootstrap timeout')), ms)
+  );
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<MeUser | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -42,7 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const stored = await getToken();
       if (stored) {
-        const me = await apiGet<MeUser>('/api/me');
+        // Race the API call against a 12-second safety timeout
+        const me = await Promise.race([
+          apiGet<MeUser>('/api/me'),
+          timeout(12_000),
+        ]);
         setUser(me);
       }
     } catch {
@@ -54,7 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signIn(jwt: string) {
     await setToken(jwt);
-    // Pass the JWT directly instead of re-reading from SecureStore — avoids timing issues
     const me = await apiGetWithToken<MeUser>('/api/me', jwt);
     setUser(me);
   }

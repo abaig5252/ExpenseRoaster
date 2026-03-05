@@ -4,6 +4,7 @@ export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || 'https://your-app.replit.app';
 
 const TOKEN_KEY = 'mobile_auth_token';
+const FETCH_TIMEOUT_MS = 10_000;
 
 export async function getToken(): Promise<string | null> {
   return SecureStore.getItemAsync(TOKEN_KEY);
@@ -17,6 +18,14 @@ export async function clearToken(): Promise<void> {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
+function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(id)
+  );
+}
+
 async function buildHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
   const token = await getToken();
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...extra };
@@ -26,7 +35,7 @@ async function buildHeaders(extra?: Record<string, string>): Promise<Record<stri
 
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const headers = await buildHeaders(options?.headers as Record<string, string>);
-  return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  return fetchWithTimeout(`${API_BASE_URL}${path}`, { ...options, headers });
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
@@ -35,9 +44,8 @@ export async function apiGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// Like apiGet but uses an explicit token — avoids SecureStore timing issues on first login
 export async function apiGetWithToken<T>(path: string, token: string): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json', 'x-app-token': token },
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -62,7 +70,7 @@ export async function apiUploadFile(path: string, formData: FormData): Promise<u
   const token = await getToken();
   const headers: Record<string, string> = {};
   if (token) headers['x-app-token'] = token;
-  const res = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', headers, body: formData });
+  const res = await fetchWithTimeout(`${API_BASE_URL}${path}`, { method: 'POST', headers, body: formData });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `Error ${res.status}` }));
     throw new Error((err as { message?: string }).message || `API error ${res.status}`);
