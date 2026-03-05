@@ -44,22 +44,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    // Hard safety valve — isLoading will always clear within 15 seconds no matter what
-    const safetyTimer = setTimeout(() => setIsLoading(false), 15_000);
-    bootstrap().finally(() => clearTimeout(safetyTimer));
+    bootstrap();
   }, []);
 
   async function bootstrap() {
     try {
-      const stored = await withTimeout(getToken(), 5_000);
+      const stored = await withTimeout(getToken(), 3_000);
       if (stored) {
-        const me = await withTimeout(apiGet<MeUser>('/api/me'), 10_000);
-        setUser(me);
+        // Show the app immediately with the stored token, verify in background
+        setIsLoading(false);
+        try {
+          const me = await withTimeout(apiGet<MeUser>('/api/me'), 8_000);
+          setUser(me);
+        } catch {
+          // Server unreachable or token invalid — sign out
+          clearToken().catch(() => {});
+          setUser(null);
+        }
+      } else {
+        setIsLoading(false);
       }
     } catch {
-      // Token invalid, expired, or network unavailable — clear and go to login
-      clearToken().catch(() => {}); // fire-and-forget, don't await
-    } finally {
+      clearToken().catch(() => {});
       setIsLoading(false);
     }
   }

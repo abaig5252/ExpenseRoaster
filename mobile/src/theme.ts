@@ -1,5 +1,5 @@
 export const colors = {
-  background:      '#121212',
+  background:      '#0A0A0A',
   surface:         '#1A1A1A',
   surfaceElevated: '#242424',
   border:          'rgba(255,255,255,0.06)',
@@ -7,6 +7,7 @@ export const colors = {
 
   primary:       '#00E676',
   primaryBright: '#69FF9C',
+  primaryDark:   '#00994F',
   primaryDim:    'rgba(0,230,118,0.07)',
   primaryGlow:   'rgba(0,230,118,0.18)',
   primaryBorder: 'rgba(0,230,118,0.22)',
@@ -14,6 +15,7 @@ export const colors = {
   text:      '#F0F0F0',
   textMuted: '#8A9099',
   textDim:   '#4A5060',
+  contrast:  '#0D0D0D',
 
   error:   '#FF5252',
   warning: '#FFB800',
