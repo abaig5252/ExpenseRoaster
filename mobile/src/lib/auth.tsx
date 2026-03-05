@@ -30,10 +30,13 @@ const AuthContext = React.createContext<AuthContextType>({
   refreshUser: async () => {},
 });
 
-function timeout(ms: number): Promise<never> {
-  return new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('bootstrap timeout')), ms)
-  );
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms)
+    ),
+  ]);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -41,22 +44,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    bootstrap();
+    // Hard safety valve — isLoading will always clear within 15 seconds no matter what
+    const safetyTimer = setTimeout(() => setIsLoading(false), 15_000);
+    bootstrap().finally(() => clearTimeout(safetyTimer));
   }, []);
 
   async function bootstrap() {
     try {
-      const stored = await getToken();
+      const stored = await withTimeout(getToken(), 5_000);
       if (stored) {
-        // Race the API call against a 12-second safety timeout
-        const me = await Promise.race([
-          apiGet<MeUser>('/api/me'),
-          timeout(12_000),
-        ]);
+        const me = await withTimeout(apiGet<MeUser>('/api/me'), 10_000);
         setUser(me);
       }
     } catch {
-      await clearToken();
+      // Token invalid, expired, or network unavailable — clear and go to login
+      clearToken().catch(() => {}); // fire-and-forget, don't await
     } finally {
       setIsLoading(false);
     }
