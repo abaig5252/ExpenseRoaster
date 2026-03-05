@@ -165,7 +165,7 @@ const s = StyleSheet.create({
   upgradeCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
     backgroundColor: colors.primaryDim, borderRadius: radius.lg,
-    padding: spacing.md, borderWidth: 1, borderColor: 'rgba(124,255,77,0.2)',
+    padding: spacing.md, borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
   },
   upgradeTitle: { ...typography.body, fontWeight: '700', color: colors.primary },
   upgradeSub: { ...typography.caption },

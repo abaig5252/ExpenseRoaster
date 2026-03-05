@@ -466,15 +466,15 @@ const s = StyleSheet.create({
 
   filterBanner: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(124,255,77,0.07)',
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.2)',
+    backgroundColor: 'rgba(0,230,118,0.07)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
     borderRadius: radius.lg, padding: spacing.sm, gap: spacing.sm,
   },
   filterScroll: { flex: 1 },
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: colors.primaryDim, borderWidth: 1,
-    borderColor: 'rgba(124,255,77,0.3)', borderRadius: radius.full,
+    borderColor: 'rgba(0,230,118,0.3)', borderRadius: radius.full,
     paddingVertical: 4, paddingHorizontal: spacing.sm, marginRight: spacing.xs,
   },
   filterChipText: { ...typography.caption, color: colors.primary, fontWeight: '600' },
@@ -491,7 +491,7 @@ const s = StyleSheet.create({
 
   summaryCard: {
     backgroundColor: colors.primaryDim, borderRadius: radius.lg,
-    padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(124,255,77,0.2)',
+    padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
   },
   summaryLabel: { ...typography.label, color: colors.primary },
   summaryAmount: { fontSize: 34, fontWeight: '800', color: colors.primary, marginTop: spacing.xs },
@@ -510,7 +510,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   yearPillActive: {
-    backgroundColor: colors.primaryDim, borderColor: 'rgba(124,255,77,0.35)',
+    backgroundColor: colors.primaryDim, borderColor: colors.primaryBorder,
   },
   yearPillYear: {
     backgroundColor: 'rgba(192,132,252,0.12)', borderColor: 'rgba(192,132,252,0.35)',
@@ -544,8 +544,8 @@ const s = StyleSheet.create({
     padding: spacing.sm, borderRadius: radius.md, gap: spacing.xs,
   },
   catRowSelected: {
-    backgroundColor: 'rgba(124,255,77,0.08)',
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.3)',
+    backgroundColor: 'rgba(0,230,118,0.08)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.3)',
   },
   catRowDimmed: { opacity: 0.35 },
   catTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -567,7 +567,7 @@ const s = StyleSheet.create({
   adviceCard: {
     backgroundColor: colors.surface, borderRadius: radius.lg,
     padding: spacing.lg, gap: spacing.sm,
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.15)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.15)',
   },
   adviceHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   adviceTitle: { ...typography.h3, color: colors.primary },
@@ -581,7 +581,7 @@ const s = StyleSheet.create({
   catChip: {
     backgroundColor: colors.primaryDim, borderRadius: radius.full,
     paddingVertical: 3, paddingHorizontal: spacing.sm,
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.2)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
   },
   catChipText: { ...typography.caption, color: colors.primary, fontWeight: '700' },
   savingText: { ...typography.caption, color: '#7B6FE8' },

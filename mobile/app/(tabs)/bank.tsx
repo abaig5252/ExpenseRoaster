@@ -333,7 +333,7 @@ const s = StyleSheet.create({
   roastResult: {
     backgroundColor: colors.primaryDim, borderRadius: radius.md,
     padding: spacing.md, gap: spacing.xs,
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.2)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
   },
   roastLabel: { ...typography.label, color: colors.primary },
   roastText: { ...typography.body, fontStyle: 'italic' },

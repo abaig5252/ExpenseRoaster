@@ -164,7 +164,7 @@ const s = StyleSheet.create({
   promoCard: {
     backgroundColor: colors.surface, borderRadius: radius.lg,
     padding: spacing.lg, gap: spacing.lg,
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.2)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
   },
   promoTitle: { ...typography.h2, textAlign: 'center' },
   promoSub: { ...typography.bodyMuted, textAlign: 'center', lineHeight: 22 },
@@ -182,7 +182,7 @@ const s = StyleSheet.create({
   summaryCard: {
     backgroundColor: colors.primaryDim, borderRadius: radius.lg,
     padding: spacing.lg, gap: spacing.sm,
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.2)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
   },
   summaryLabel: { ...typography.label, color: colors.primary },
   summaryAmount: { fontSize: 36, fontWeight: '800', color: colors.primary },
@@ -191,7 +191,7 @@ const s = StyleSheet.create({
   roastCard: {
     backgroundColor: colors.surface, borderRadius: radius.lg,
     padding: spacing.lg, gap: spacing.sm,
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.25)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.25)',
   },
   roastLabel: { ...typography.label, color: colors.primary },
   roastText: { ...typography.body, fontStyle: 'italic', lineHeight: 26, fontSize: 17 },

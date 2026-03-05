@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(124,255,77,0.15)',
+    borderColor: 'rgba(0,230,118,0.15)',
   },
   featureText: { ...typography.body, flex: 1 },
   errorBox: {

@@ -170,7 +170,7 @@ const s = StyleSheet.create({
   featureIcon: {
     width: 36, height: 36, borderRadius: radius.sm,
     backgroundColor: colors.primaryDim, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(124,255,77,0.15)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.15)',
   },
   featureText: { ...typography.body, flex: 1 },
   field: { gap: spacing.xs },

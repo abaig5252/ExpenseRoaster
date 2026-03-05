@@ -40,12 +40,12 @@ export function AppLogo({ size = 'md' }: Props) {
           <Svg width={box} height={box} viewBox="0 0 120 120">
             <Rect
               x="10" y="10" width="100" height="100" rx="22"
-              fill="#0D0D0D" stroke="#7CFF4D" strokeWidth="5"
+              fill="#121212" stroke="#00E676" strokeWidth="5"
             />
             <Path
               d="M60 20 L45 45 C40 55 38 62 42 70 C44 74 38 72 36 68 C32 78 38 92 48 96 C44 90 46 84 50 80 C52 88 56 92 60 95 C64 92 68 88 70 80 C74 84 76 90 72 96 C82 92 88 78 84 68 C82 72 76 74 78 70 C82 62 80 55 75 45 L60 20 Z"
               fill="none"
-              stroke="#7CFF4D"
+              stroke="#00E676"
               strokeWidth="3"
               strokeLinejoin="miter"
             />
@@ -57,7 +57,7 @@ export function AppLogo({ size = 'md' }: Props) {
           <Svg width={box} height={box} viewBox="0 0 120 120">
             <Path
               d="M60 50 L52 70 C52 70 50 85 60 85 C70 85 68 70 68 70 L60 50 Z"
-              fill="#7CFF4D"
+              fill="#00E676"
             />
           </Svg>
         </Animated.View>
@@ -71,5 +71,5 @@ export function AppLogo({ size = 'md' }: Props) {
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center' },
-  label: { color: '#7CFF4D', fontWeight: '700', letterSpacing: 1 },
+  label: { color: '#00E676', fontWeight: '700', letterSpacing: 1 },
 });
