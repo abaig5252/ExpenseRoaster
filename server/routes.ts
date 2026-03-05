@@ -94,6 +94,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.use((req: any, _res: Response, next: Function) => {
     const auth = req.headers.authorization;
+    if (req.path === '/api/me') {
+      console.log(`[jwt] /api/me auth=${auth ? auth.slice(0, 20) + '…' : 'NONE'} isAuth=${req.isAuthenticated?.()}`);
+    }
     if (auth && auth.startsWith("Bearer ") && !req.isAuthenticated?.()) {
       try {
         const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { sub: string; exp?: number };
@@ -102,8 +105,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           expires_at: payload.exp ?? Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
         };
         req.isAuthenticated = () => true;
-      } catch {
-        /* invalid token — fall through to session auth */
+        console.log(`[jwt] token accepted for ${payload.sub}`);
+      } catch (e: any) {
+        console.log(`[jwt] token rejected: ${e.message}`);
       }
     }
     next();

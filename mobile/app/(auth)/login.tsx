@@ -26,18 +26,21 @@ export default function LoginScreen() {
 
       if (result.type === 'success') {
         const url = result.url;
+        console.log('[login] redirect URL:', url.slice(0, 100));
         // Robust query param extraction — avoids Linking.parse edge cases
         const tokenMatch = url.match(/[?&]token=([^&]+)/);
         const errMatch = url.match(/[?&]error=([^&]+)/);
         const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
         const err = errMatch ? decodeURIComponent(errMatch[1]) : null;
 
+        console.log('[login] token present:', !!token, 'first20:', token?.slice(0, 20));
+
         if (token) {
           await signIn(token);
           router.replace('/(tabs)/upload');
         } else {
-          // Show the full URL in dev so we can diagnose parsing failures
-          setError(err ?? `No token in redirect.\nURL: ${url.slice(0, 120)}`);
+          // Show the full URL so we can diagnose parsing failures
+          setError(err ?? `No token in redirect.\nURL: ${url.slice(0, 200)}`);
         }
       } else {
         // Capture the result type if it's not success (cancel/dismiss/locked)
