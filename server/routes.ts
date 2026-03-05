@@ -94,9 +94,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.use((req: any, _res: Response, next: Function) => {
     const auth = req.headers.authorization;
-    if (req.path.startsWith("/api/me") || req.path.startsWith("/api/mobile")) {
-      console.log(`[jwt-debug] ${req.method} ${req.path} auth=${auth ? auth.slice(0,30)+'…' : 'NONE'} isAuth=${req.isAuthenticated?.()}`);
-    }
     if (auth && auth.startsWith("Bearer ") && !req.isAuthenticated?.()) {
       try {
         const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { sub: string; exp?: number };
@@ -105,17 +102,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           expires_at: payload.exp ?? Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
         };
         req.isAuthenticated = () => true;
-        console.log(`[jwt-debug] token accepted for user ${payload.sub}`);
-      } catch (e: any) {
-        console.log(`[jwt-debug] token rejected: ${e.message}`);
+      } catch {
+        /* invalid token — fall through to session auth */
       }
     }
     next();
   });
 
   // ─── Mobile token issuance ─────────────────────────────────────────
-  // Called from the in-app WebView after web login completes.
-  // The WebView has a valid session cookie; we issue a 30-day JWT for native API calls.
+  // Fallback endpoint — mobile app normally gets a JWT via the OAuth callback redirect.
+  // This endpoint allows token refresh for already-authenticated web sessions.
   app.post("/api/mobile/token", isAuthenticated, (req: any, res: Response) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Not authenticated" });

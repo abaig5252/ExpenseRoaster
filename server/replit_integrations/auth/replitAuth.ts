@@ -133,7 +133,6 @@ export async function setupAuth(app: Express) {
       if (err) return next(err);
 
       const isMobile = (req.session as any).mobileLogin;
-      console.log(`[callback] isMobile=${isMobile} session keys=${Object.keys(req.session).join(',')}`);
 
       if (isMobile) {
         delete (req.session as any).mobileLogin;
@@ -144,7 +143,6 @@ export async function setupAuth(app: Express) {
         }
         const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
         const token = jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
-        console.log("[callback] issuing mobile JWT for user", userId);
         return res.redirect(`expenseroaster://auth/callback?token=${encodeURIComponent(token)}`);
       }
 
