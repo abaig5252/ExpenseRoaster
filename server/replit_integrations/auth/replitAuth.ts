@@ -58,9 +58,7 @@ async function upsertUser(claims: any) {
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
-    // New users get emailVerified: false; conflict update in auth storage leaves this untouched
     emailVerified: false,
-    // New users need onboarding; conflict update leaves this untouched
     onboardingComplete: false,
   });
 }
@@ -83,11 +81,9 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  // Track registered strategies by name
   const registeredStrategies = new Set<string>();
 
-  // Register a web strategy for a given domain (callback: /api/callback)
-  const ensureWebStrategy = (domain: string) => {
+  const ensureStrategy = (domain: string) => {
     const name = `replitauth:${domain}`;
     if (!registeredStrategies.has(name)) {
       passport.use(new Strategy(
@@ -99,66 +95,63 @@ export async function setupAuth(app: Express) {
     }
   };
 
-  // Register a mobile strategy for a given domain (callback: /api/mobile/callback)
-  const ensureMobileStrategy = (domain: string) => {
-    const name = `replitauth-mobile:${domain}`;
-    if (!registeredStrategies.has(name)) {
-      passport.use(new Strategy(
-        { name, config, scope: "openid email profile offline_access",
-          callbackURL: `https://${domain}/api/mobile/callback` },
-        verify
-      ));
-      registeredStrategies.add(name);
-    }
-  };
-
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   // ── Web login ──────────────────────────────────────────────────────
   app.get("/api/login", (req, res, next) => {
-    ensureWebStrategy(req.hostname);
+    ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
     })(req, res, next);
   });
 
-  app.get("/api/callback", (req, res, next) => {
-    ensureWebStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
-    })(req, res, next);
-  });
-
-  // ── Mobile login — uses a separate callback URL so no session flags needed ──
+  // ── Mobile login — same OIDC strategy, but saves mobile flag first ─
+  // Force session.save() BEFORE the OIDC redirect so the flag persists
   app.get("/api/mobile/login", (req, res, next) => {
-    ensureMobileStrategy(req.hostname);
-    passport.authenticate(`replitauth-mobile:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
+    ensureStrategy(req.hostname);
+    (req.session as any).mobileLogin = true;
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error("[mobile/login] session save error:", saveErr);
+        return next(saveErr);
+      }
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    });
   });
 
-  app.get("/api/mobile/callback", (req, res, next) => {
-    ensureMobileStrategy(req.hostname);
-    passport.authenticate(`replitauth-mobile:${req.hostname}`, {
-      failureRedirect: "expenseroaster://auth/callback?error=auth_failed",
+  // ── Shared callback ────────────────────────────────────────────────
+  app.get("/api/callback", (req, res, next) => {
+    ensureStrategy(req.hostname);
+    passport.authenticate(`replitauth:${req.hostname}`, {
+      failureRedirect: "/api/login",
     })(req, res, (err?: any) => {
-      if (err) {
-        console.error("[mobile/callback] auth error:", err);
-        return res.redirect("expenseroaster://auth/callback?error=auth_error");
+      if (err) return next(err);
+
+      const isMobile = (req.session as any).mobileLogin;
+      console.log(`[callback] isMobile=${isMobile} session keys=${Object.keys(req.session).join(',')}`);
+
+      if (isMobile) {
+        delete (req.session as any).mobileLogin;
+        const user = req.user as any;
+        const userId = user?.claims?.sub;
+        if (!userId) {
+          return res.redirect("expenseroaster://auth/callback?error=no_user");
+        }
+        const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
+        const token = jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
+        console.log("[callback] issuing mobile JWT for user", userId);
+        return res.redirect(`expenseroaster://auth/callback?token=${encodeURIComponent(token)}`);
       }
-      const user = req.user as any;
-      const userId = user?.claims?.sub;
-      if (!userId) {
-        return res.redirect("expenseroaster://auth/callback?error=no_user");
-      }
-      const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
-      const token = jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
-      console.log("[mobile/callback] issuing JWT for user", userId);
-      return res.redirect(`expenseroaster://auth/callback?token=${encodeURIComponent(token)}`);
+
+      // Web login
+      const returnTo = (req.session as any).returnTo || "/";
+      delete (req.session as any).returnTo;
+      return res.redirect(returnTo);
     });
   });
 
