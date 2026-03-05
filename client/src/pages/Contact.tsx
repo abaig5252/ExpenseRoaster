@@ -33,7 +33,7 @@ export default function Contact() {
       form.reset();
     },
     onError: () => {
-      toast({ title: "Something went wrong", description: "Please try again or email us directly at expenseroaster@gmail.com", variant: "destructive" });
+      toast({ title: "Something went wrong", description: "Please try again or email us directly at admin@expenseroaster.com", variant: "destructive" });
     },
   });
 
@@ -175,8 +175,8 @@ export default function Contact() {
 
         <p className="text-center text-white/30 text-xs mt-6">
           Or email us directly at{" "}
-          <a href="mailto:expenseroaster@gmail.com" className="text-[hsl(var(--secondary))] hover:opacity-80">
-            expenseroaster@gmail.com
+          <a href="mailto:admin@expenseroaster.com" className="text-[hsl(var(--secondary))] hover:opacity-80">
+            admin@expenseroaster.com
           </a>
         </p>
 

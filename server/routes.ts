@@ -160,7 +160,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const { getUncachableResendClient } = await import("./resend/resendClient");
     const resend = await getUncachableResendClient();
     await resend.emails.send({
-      from: "Expense Roaster <onboarding@resend.dev>",
+      from: "Expense Roaster <admin@expenseroaster.com>",
       to: user.email,
       subject: "Your Expense Roaster verification code",
       html: `
@@ -942,8 +942,8 @@ All content must directly reference their actual spending data and use ${annualC
       const { getUncachableResendClient } = await import("./resend/resendClient");
       const resend = await getUncachableResendClient();
       await resend.emails.send({
-        from: "Expense Roaster <onboarding@resend.dev>",
-        to: ["expenseroaster@gmail.com"],
+        from: "Expense Roaster <admin@expenseroaster.com>",
+        to: ["admin@expenseroaster.com"],
         replyTo: email,
         subject: `Contact from ${name}`,
         html: `<p><strong>From:</strong> ${name} &lt;${email}&gt;</p><hr><p>${message.replace(/\n/g, "<br>")}</p>`,
