@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import {
   View, Text, TouchableOpacity, Image, ScrollView, StyleSheet,
-  Alert, ActivityIndicator, SafeAreaView,
+  Alert, ActivityIndicator, SafeAreaView, ActionSheetIOS, Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
-import { apiGet, apiUploadFile, API_BASE_URL, getToken } from '../../src/lib/api';
+import { apiGet, API_BASE_URL, getToken } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
 import { colors, spacing, radius, typography } from '../../src/theme';
 
@@ -18,51 +18,105 @@ interface Expense {
   category: string;
   roast: string;
   currency: string;
+  source?: string;
+  createdAt?: string;
 }
 
-interface UploadResult { expense: Expense }
+interface Summary { monthlyTotal: number; recentRoasts: string[] }
+interface UploadResult { expense: Expense; ephemeral?: boolean }
 
 const TONES = [
-  { value: 'savage', label: '🔥 Savage' },
-  { value: 'playful', label: '😄 Playful' },
+  { value: 'savage',     label: '🔥 Savage' },
+  { value: 'playful',    label: '😄 Playful' },
   { value: 'supportive', label: '💛 Supportive' },
 ];
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', GBP: '£', EUR: '€', CAD: 'CA$', AUD: 'A$',
+  JPY: '¥', CHF: 'CHF', INR: '₹', SGD: 'S$', MXN: 'MX$',
+};
+
+function currencySymbol(code: string) {
+  return CURRENCY_SYMBOLS[code] ?? code;
+}
+
+function formatMoney(cents: number, currency: string) {
+  const sym = currencySymbol(currency);
+  return `${sym}${(cents / 100).toFixed(2)}`;
+}
 
 export default function UploadScreen() {
   const { user, refreshUser } = useAuth();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [tone, setTone] = useState('savage');
-  const [result, setResult] = useState<Expense | null>(null);
+  const [ephemeral, setEphemeral] = useState<Expense | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const isPremium = user?.tier === 'premium';
-  const atLimit = !isPremium && (user?.monthlyUploadCount ?? 0) >= 1;
+  const uploadsUsed = user?.monthlyUploadCount ?? 0;
+  const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
+  const atLimit = !isPremium && uploadsRemaining === 0;
 
-  const { data: recentRoasts, refetch } = useQuery<Expense[]>({
+  const currency = user?.currency ?? 'USD';
+  const firstName = user?.firstName ?? user?.email?.split('@')[0] ?? 'friend';
+
+  const { data: summary } = useQuery<Summary>({
+    queryKey: ['/api/expenses/summary'],
+    queryFn: () => apiGet('/api/expenses/summary'),
+  });
+
+  const { data: expenses, refetch } = useQuery<Expense[]>({
     queryKey: ['/api/expenses'],
     queryFn: () => apiGet('/api/expenses'),
     enabled: isPremium,
   });
 
-  async function pickImage(from: 'camera' | 'gallery') {
+  const receiptExpenses = expenses?.filter(e => e.source === 'receipt') ?? [];
+  const monthlyTotal = summary?.monthlyTotal ?? 0;
+
+  function promptImageSource() {
     if (atLimit) {
-      Alert.alert('Limit Reached', 'Free plan allows 1 upload per month. Upgrade to Premium for unlimited uploads.');
+      Alert.alert('Limit Reached', 'Free plan: 1 upload per month. Upgrade to Premium for unlimited.', [
+        { text: 'OK' },
+      ]);
       return;
     }
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          cancelButtonIndex: 0,
+        },
+        (idx) => {
+          if (idx === 1) pickImage('camera');
+          if (idx === 2) pickImage('gallery');
+        },
+      );
+    } else {
+      Alert.alert('Upload Receipt', 'Choose a source', [
+        { text: 'Camera',  onPress: () => pickImage('camera') },
+        { text: 'Photos',  onPress: () => pickImage('gallery') },
+        { text: 'Cancel',  style: 'cancel' },
+      ]);
+    }
+  }
+
+  async function pickImage(from: 'camera' | 'gallery') {
     try {
       let res;
       if (from === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission denied', 'Camera access needed.'); return; }
+        if (!perm.granted) { Alert.alert('Permission Denied', 'Camera access is required.'); return; }
         res = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission denied', 'Photo library access needed.'); return; }
+        if (!perm.granted) { Alert.alert('Permission Denied', 'Photo library access is required.'); return; }
         res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
       }
       if (!res.canceled && res.assets[0]) {
         setImageUri(res.assets[0].uri);
-        setResult(null);
+        setEphemeral(null);
       }
     } catch (e: unknown) {
       Alert.alert('Error', (e as Error).message);
@@ -79,19 +133,25 @@ export default function UploadScreen() {
 
       const token = await getToken();
       const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (token) headers['x-app-token'] = token;
 
       const res = await fetch(`${API_BASE_URL}/api/expenses/upload`, {
         method: 'POST', headers, body: fd,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: 'Upload failed' }));
-        throw new Error((err as { message?: string }).message || 'Upload failed');
+        throw new Error((err as { message?: string }).message ?? 'Upload failed');
       }
       const data = await res.json() as UploadResult;
-      setResult(data.expense);
+      if (data.ephemeral) {
+        setEphemeral(data.expense);
+        setImageUri(null);
+      } else {
+        setEphemeral(null);
+        setImageUri(null);
+        refetch();
+      }
       await refreshUser();
-      refetch();
     } catch (e: unknown) {
       Alert.alert('Upload Failed', (e as Error).message);
     } finally {
@@ -102,198 +162,307 @@ export default function UploadScreen() {
   return (
     <SafeAreaView style={s.root}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <View style={s.header}>
+
+        {/* ── Top Nav Bar ── */}
+        <View style={s.nav}>
           <AppLogo size="xs" />
-          <Text style={s.pageTitle}>Receipt Roaster</Text>
-        </View>
-
-        {!isPremium && (
-          <View style={s.usageBadge}>
-            <Ionicons name="flame" size={14} color={colors.primary} />
-            <Text style={s.usageText}>
-              {user?.monthlyUploadCount ?? 0}/1 free uploads this month
-            </Text>
-          </View>
-        )}
-
-        <View style={s.toneRow}>
-          {TONES.map(t => (
-            <TouchableOpacity
-              key={t.value}
-              style={[s.toneChip, tone === t.value && s.toneChipActive]}
-              onPress={() => setTone(t.value)}
-            >
-              <Text style={[s.toneText, tone === t.value && s.toneTextActive]}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={s.uploadZone}>
-          {imageUri ? (
-            <>
-              <Image source={{ uri: imageUri }} style={s.preview} resizeMode="cover" />
-              <TouchableOpacity style={s.clearBtn} onPress={() => { setImageUri(null); setResult(null); }}>
-                <Ionicons name="close-circle" size={28} color={colors.textMuted} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            <View style={s.placeholder}>
-              <Ionicons name="receipt-outline" size={40} color={colors.textDim} />
-              <Text style={s.placeholderText}>No receipt selected</Text>
+          <View style={s.navRight}>
+            <View style={s.currencyBadge}>
+              <Text style={s.currencyText}>{currency}</Text>
+              <Ionicons name="chevron-down" size={10} color={colors.textMuted} />
             </View>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>{(firstName[0] ?? 'U').toUpperCase()}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Hero ── */}
+        <View style={s.hero}>
+          <Text style={s.heroLabel}>
+            HEY {firstName.toUpperCase()},{'\n'}
+            {isPremium ? "HERE'S YOUR RECEIPT WALL" : "HERE'S YOUR FREE ROAST ZONE"}
+          </Text>
+          {isPremium ? (
+            <Text style={s.heroAmount}>{formatMoney(monthlyTotal, currency)}</Text>
+          ) : (
+            <Text style={s.heroTitle}>Roast My Receipt</Text>
           )}
+          <Text style={s.heroSub}>
+            {isPremium
+              ? 'spent this month on things you definitely needed.'
+              : `${uploadsRemaining}/1 free upload remaining this month.`}
+          </Text>
         </View>
 
-        <View style={s.pickRow}>
-          <TouchableOpacity style={[s.pickBtn, { flex: 1 }]} onPress={() => pickImage('camera')} activeOpacity={0.8}>
-            <Ionicons name="camera" size={20} color={colors.primary} />
-            <Text style={s.pickBtnText}>Camera</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.pickBtn, { flex: 1 }]} onPress={() => pickImage('gallery')} activeOpacity={0.8}>
-            <Ionicons name="images" size={20} color={colors.primary} />
-            <Text style={s.pickBtnText}>Gallery</Text>
-          </TouchableOpacity>
-        </View>
-
-        {imageUri && (
-          <TouchableOpacity
-            style={[s.uploadBtn, (uploading || atLimit) && s.uploadBtnDisabled]}
-            onPress={uploadReceipt}
-            disabled={uploading || atLimit}
-            activeOpacity={0.85}
-          >
-            {uploading ? (
-              <ActivityIndicator color="#0D0D0D" />
-            ) : (
-              <>
-                <Ionicons name="flame" size={20} color="#0D0D0D" />
-                <Text style={s.uploadBtnText}>Roast This Receipt</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
+        {/* ── Upload Button ── */}
+        <TouchableOpacity
+          style={[s.uploadBtn, atLimit && s.uploadBtnDisabled]}
+          onPress={promptImageSource}
+          activeOpacity={0.85}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <ActivityIndicator color="#0D0D0D" />
+          ) : (
+            <>
+              <Ionicons name="add" size={22} color="#0D0D0D" />
+              <Text style={s.uploadBtnText}>Upload Receipt</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         {atLimit && (
-          <View style={s.limitBanner}>
-            <Ionicons name="lock-closed" size={18} color={colors.primary} />
-            <Text style={s.limitText}>
-              You've used your free upload. Upgrade to Premium for unlimited roasts.
-            </Text>
+          <TouchableOpacity style={s.upgradeNudge} activeOpacity={0.7}>
+            <Ionicons name="lock-closed" size={14} color={colors.primary} />
+            <Text style={s.upgradeNudgeText}>Upgrade for unlimited uploads →</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* ── Selected image + tone picker ── */}
+        {imageUri && !uploading && (
+          <View style={s.selectedCard}>
+            <Image source={{ uri: imageUri }} style={s.preview} resizeMode="cover" />
+            <TouchableOpacity style={s.clearBtn} onPress={() => { setImageUri(null); setEphemeral(null); }}>
+              <Ionicons name="close-circle" size={26} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <Text style={s.toneLabel}>Choose your roast style</Text>
+            <View style={s.toneRow}>
+              {TONES.map(t => (
+                <TouchableOpacity
+                  key={t.value}
+                  style={[s.toneChip, tone === t.value && s.toneChipActive]}
+                  onPress={() => setTone(t.value)}
+                >
+                  <Text style={[s.toneText, tone === t.value && s.toneTextActive]}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={s.roastBtn} onPress={uploadReceipt} activeOpacity={0.85}>
+              <Ionicons name="flame" size={18} color="#0D0D0D" />
+              <Text style={s.roastBtnText}>Roast This Receipt</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {result && (
-          <View style={s.roastCard}>
-            <Text style={s.roastLabel}>THE ROAST</Text>
-            <Text style={s.roastText}>"{result.roast}"</Text>
-            <View style={s.roastMeta}>
-              <Text style={s.metaText}>{result.description}</Text>
-              <Text style={s.metaAmount}>
-                {(result.amountCents / 100).toFixed(2)} {result.currency}
-              </Text>
+        {/* ── Ephemeral roast result (free tier) ── */}
+        {ephemeral && (
+          <View style={s.ephemeralCard}>
+            <TouchableOpacity style={s.closeBtnAbs} onPress={() => setEphemeral(null)}>
+              <Ionicons name="close-circle" size={24} color={colors.textMuted} />
+            </TouchableOpacity>
+            <Text style={s.ephLabel}>THE ROAST</Text>
+            <Text style={s.ephAmount}>{formatMoney(ephemeral.amountCents, ephemeral.currency)}</Text>
+            <Text style={s.ephDesc}>{ephemeral.description}</Text>
+            <View style={s.categoryPill}>
+              <Text style={s.categoryPillText}>{ephemeral.category.toUpperCase()}</Text>
             </View>
-            <View style={s.categoryChip}>
-              <Text style={s.categoryText}>{result.category}</Text>
+            <Text style={s.ephRoast}>"{ephemeral.roast}"</Text>
+          </View>
+        )}
+
+        {/* ── Free tier upgrade panel ── */}
+        {!isPremium && !imageUri && !ephemeral && (
+          <View style={s.freePanel}>
+            <Ionicons name="lock-closed" size={18} color={colors.primary} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.freePanelTitle}>You're on the Free plan</Text>
+              <Text style={s.freePanelSub}>Upgrade to Premium for unlimited uploads, spending history, and more.</Text>
             </View>
           </View>
         )}
 
-        {isPremium && recentRoasts && recentRoasts.length > 0 && (
-          <View style={s.history}>
-            <Text style={s.historyTitle}>Recent Roasts</Text>
-            {recentRoasts.slice(0, 5).map(exp => (
-              <View key={exp.id} style={s.historyItem}>
-                <View style={s.historyTop}>
-                  <Text style={s.historyDesc} numberOfLines={1}>{exp.description}</Text>
-                  <Text style={s.historyAmount}>{(exp.amountCents / 100).toFixed(2)} {exp.currency}</Text>
+        {/* ── Receipt Wall (premium) ── */}
+        {isPremium && (
+          <View style={s.wallSection}>
+            <View style={s.wallHeader}>
+              <Ionicons name="camera-outline" size={18} color={colors.textMuted} />
+              <Text style={s.wallTitle}>Receipt Wall</Text>
+              {receiptExpenses.length > 0 && (
+                <View style={s.countBadge}>
+                  <Text style={s.countText}>{receiptExpenses.length}</Text>
                 </View>
-                <Text style={s.historyRoast} numberOfLines={2}>"{exp.roast}"</Text>
+              )}
+            </View>
+
+            {receiptExpenses.length === 0 ? (
+              <View style={s.emptyWall}>
+                <View style={s.emptyIcon}>
+                  <Ionicons name="receipt-outline" size={32} color={colors.textDim} />
+                </View>
+                <Text style={s.emptyTitle}>No receipts yet</Text>
+                <Text style={s.emptySub}>Upload a receipt photo and watch your poor decisions get immortalised on the wall.</Text>
+                <TouchableOpacity style={s.emptyBtn} onPress={promptImageSource} activeOpacity={0.85}>
+                  <Text style={s.emptyBtnText}>Add First Receipt</Text>
+                </TouchableOpacity>
               </View>
-            ))}
+            ) : (
+              receiptExpenses.map((exp) => (
+                <ReceiptCard key={exp.id} expense={exp} currency={currency} />
+              ))
+            )}
           </View>
         )}
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function ReceiptCard({ expense, currency }: { expense: Expense; currency: string }) {
+  const date = expense.createdAt
+    ? new Date(expense.createdAt).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })
+    : '';
+  return (
+    <View style={rc.card}>
+      <View style={rc.top}>
+        <Text style={rc.amount}>{formatMoney(expense.amountCents, expense.currency ?? currency)}</Text>
+        <Text style={rc.date}>{date}</Text>
+      </View>
+      <Text style={rc.desc}>{expense.description}</Text>
+      <View style={rc.pill}>
+        <Text style={rc.pillText}>{expense.category.toUpperCase()}</Text>
+      </View>
+      <Text style={rc.roast} numberOfLines={3}>"{expense.roast}"</Text>
+    </View>
+  );
+}
+
+const rc = StyleSheet.create({
+  card: {
+    backgroundColor: colors.surfaceElevated, borderRadius: radius.xl,
+    padding: spacing.lg, marginBottom: spacing.md,
+    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
+  },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  amount: { ...typography.h3, color: colors.text },
+  date: { ...typography.caption, color: colors.textMuted },
+  desc: { ...typography.body, color: colors.text, fontWeight: '600' },
+  pill: {
+    alignSelf: 'flex-start', backgroundColor: colors.primaryDim,
+    borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 2,
+    borderWidth: 1, borderColor: colors.primaryBorder,
+  },
+  pillText: { ...typography.caption, color: colors.primary, fontWeight: '700', fontSize: 10 },
+  roast: { ...typography.bodyMuted, fontStyle: 'italic', lineHeight: 20, marginTop: spacing.xs },
+});
+
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xs },
-  pageTitle: { ...typography.h2 },
-  usageBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    backgroundColor: colors.primaryDim, borderRadius: radius.full,
-    paddingVertical: spacing.xs, paddingHorizontal: spacing.sm,
-    alignSelf: 'flex-start',
-    borderWidth: 1, borderColor: 'rgba(0,230,118,0.15)',
+  scroll: { padding: spacing.lg, paddingBottom: 100, gap: spacing.lg },
+
+  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  navRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  currencyBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.surface, borderRadius: radius.full,
+    paddingHorizontal: spacing.sm, paddingVertical: 6,
+    borderWidth: 1, borderColor: colors.border,
   },
-  usageText: { ...typography.caption, color: colors.primary },
-  toneRow: { flexDirection: 'row', gap: spacing.sm },
+  currencyText: { ...typography.caption, color: colors.text, fontWeight: '600' },
+  avatar: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { fontSize: 14, fontWeight: '700', color: '#0D0D0D' },
+
+  hero: { gap: spacing.sm, marginBottom: spacing.xs },
+  heroLabel: {
+    fontSize: 11, fontWeight: '700', letterSpacing: 1.5,
+    color: colors.textMuted, textTransform: 'uppercase', lineHeight: 17,
+  },
+  heroAmount: { fontSize: 52, fontWeight: '800', color: colors.text, letterSpacing: -1.5, lineHeight: 60 },
+  heroTitle: { fontSize: 36, fontWeight: '800', color: colors.text, lineHeight: 42 },
+  heroSub: { ...typography.body, color: colors.textMuted, lineHeight: 22 },
+
+  uploadBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.sm, backgroundColor: colors.primary,
+    paddingVertical: 18, borderRadius: radius.xl,
+  },
+  uploadBtnDisabled: { opacity: 0.45 },
+  uploadBtnText: { fontSize: 18, fontWeight: '700', color: '#0D0D0D' },
+
+  upgradeNudge: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+    alignSelf: 'center', marginTop: -spacing.sm,
+  },
+  upgradeNudgeText: { ...typography.caption, color: colors.primary },
+
+  selectedCard: {
+    backgroundColor: colors.surface, borderRadius: radius.xl,
+    borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
+  },
+  preview: { width: '100%', height: 220 },
+  clearBtn: { position: 'absolute', top: spacing.sm, right: spacing.sm },
+  toneLabel: { ...typography.label, color: colors.textMuted, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  toneRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   toneChip: {
     flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center',
   },
   toneChipActive: { backgroundColor: colors.primaryDim, borderColor: colors.primary },
   toneText: { ...typography.caption, color: colors.textMuted },
-  toneTextActive: { color: colors.primary, fontWeight: '600' },
-  uploadZone: {
-    height: 200, borderRadius: radius.lg, overflow: 'hidden',
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  preview: { width: '100%', height: '100%' },
-  clearBtn: { position: 'absolute', top: spacing.sm, right: spacing.sm },
-  placeholder: { alignItems: 'center', gap: spacing.sm },
-  placeholderText: { ...typography.bodyMuted },
-  pickRow: { flexDirection: 'row', gap: spacing.sm },
-  pickBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: spacing.sm, paddingVertical: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  pickBtnText: { ...typography.body, color: colors.primary, fontWeight: '600' },
-  uploadBtn: {
+  toneTextActive: { color: colors.primary, fontWeight: '700' },
+  roastBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: spacing.sm, backgroundColor: colors.primary,
+    margin: spacing.lg, marginTop: spacing.md,
     paddingVertical: spacing.md, borderRadius: radius.lg,
   },
-  uploadBtnDisabled: { opacity: 0.5 },
-  uploadBtnText: { fontSize: 16, fontWeight: '700', color: '#0D0D0D' },
-  limitBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
-    backgroundColor: colors.primaryDim, borderRadius: radius.md,
-    padding: spacing.md, borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
-  },
-  limitText: { ...typography.body, color: colors.text, flex: 1 },
-  roastCard: {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
+  roastBtnText: { fontSize: 15, fontWeight: '700', color: '#0D0D0D' },
+
+  ephemeralCard: {
+    backgroundColor: colors.surfaceElevated, borderRadius: radius.xl,
     padding: spacing.lg, gap: spacing.sm,
-    borderWidth: 1, borderColor: 'rgba(0,230,118,0.25)',
+    borderWidth: 1, borderColor: colors.primaryBorder,
   },
-  roastLabel: { ...typography.label, color: colors.primary },
-  roastText: { ...typography.body, fontStyle: 'italic', lineHeight: 24, fontSize: 16 },
-  roastMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
-  metaText: { ...typography.bodyMuted, flex: 1 },
-  metaAmount: { ...typography.body, fontWeight: '700', color: colors.primary },
-  categoryChip: {
-    backgroundColor: colors.primaryDim, borderRadius: radius.full,
-    paddingVertical: 2, paddingHorizontal: spacing.sm,
-    alignSelf: 'flex-start',
+  closeBtnAbs: { position: 'absolute', top: spacing.md, right: spacing.md },
+  ephLabel: { ...typography.label, color: colors.primary },
+  ephAmount: { fontSize: 32, fontWeight: '800', color: colors.text, letterSpacing: -1 },
+  ephDesc: { ...typography.body, fontWeight: '600', color: colors.text },
+  categoryPill: {
+    alignSelf: 'flex-start', backgroundColor: colors.primaryDim,
+    borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 3,
+    borderWidth: 1, borderColor: colors.primaryBorder,
   },
-  categoryText: { ...typography.caption, color: colors.primary },
-  history: { gap: spacing.sm },
-  historyTitle: { ...typography.h3 },
-  historyItem: {
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    padding: spacing.md, gap: spacing.xs,
-    borderWidth: 1, borderColor: colors.border,
+  categoryPillText: { ...typography.caption, color: colors.primary, fontWeight: '700', fontSize: 10 },
+  ephRoast: { ...typography.body, fontStyle: 'italic', lineHeight: 24, color: colors.primary, marginTop: spacing.xs },
+
+  freePanel: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
+    backgroundColor: colors.primaryDim, borderRadius: radius.xl,
+    padding: spacing.lg, borderWidth: 1, borderColor: colors.primaryBorder,
   },
-  historyTop: { flexDirection: 'row', justifyContent: 'space-between' },
-  historyDesc: { ...typography.body, flex: 1, marginRight: spacing.sm },
-  historyAmount: { ...typography.body, fontWeight: '700', color: colors.primary },
-  historyRoast: { ...typography.bodyMuted, fontStyle: 'italic' },
+  freePanelTitle: { ...typography.body, fontWeight: '700', color: colors.text },
+  freePanelSub: { ...typography.caption, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
+
+  wallSection: { gap: spacing.md },
+  wallHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  wallTitle: { ...typography.h3, fontSize: 20 },
+  countBadge: {
+    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: radius.full,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  countText: { ...typography.caption, color: colors.textMuted, fontWeight: '700' },
+
+  emptyWall: {
+    backgroundColor: colors.surface, borderRadius: radius.xl,
+    padding: spacing.xl, alignItems: 'center', gap: spacing.md,
+    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
+  },
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center',
+  },
+  emptyTitle: { ...typography.h3, textAlign: 'center' },
+  emptySub: { ...typography.bodyMuted, textAlign: 'center', lineHeight: 22 },
+  emptyBtn: {
+    backgroundColor: colors.primary, borderRadius: radius.lg,
+    paddingHorizontal: spacing.xl, paddingVertical: spacing.md, marginTop: spacing.sm,
+  },
+  emptyBtnText: { fontSize: 15, fontWeight: '700', color: '#0D0D0D' },
 });
