@@ -4,6 +4,7 @@ import {
   Alert, ActivityIndicator, SafeAreaView, ActionSheetIOS, Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
@@ -197,19 +198,26 @@ export default function UploadScreen() {
 
         {/* ── Upload Button ── */}
         <TouchableOpacity
-          style={[s.uploadBtn, atLimit && s.uploadBtnDisabled]}
+          style={[s.uploadBtnWrap, atLimit && s.uploadBtnDisabled]}
           onPress={promptImageSource}
           activeOpacity={0.85}
           disabled={uploading}
         >
-          {uploading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <Ionicons name="add" size={22} color="#FFFFFF" />
-              <Text style={s.uploadBtnText}>Upload Receipt</Text>
-            </>
-          )}
+          <LinearGradient
+            colors={['#00E676', '#6BFF9C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={s.uploadBtn}
+          >
+            {uploading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="add" size={22} color="#FFFFFF" />
+                <Text style={s.uploadBtnText}>Upload Receipt</Text>
+              </>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
 
         {atLimit && (
@@ -240,9 +248,16 @@ export default function UploadScreen() {
               ))}
             </View>
 
-            <TouchableOpacity style={s.roastBtn} onPress={uploadReceipt} activeOpacity={0.85}>
-              <Ionicons name="flame" size={18} color="#0D0D0D" />
-              <Text style={s.roastBtnText}>Roast This Receipt</Text>
+            <TouchableOpacity style={s.roastBtnWrap} onPress={uploadReceipt} activeOpacity={0.85}>
+              <LinearGradient
+                colors={['#00E676', '#6BFF9C']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={s.roastBtn}
+              >
+                <Ionicons name="flame" size={18} color="#FFFFFF" />
+                <Text style={s.roastBtnText}>Roast This Receipt</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         )}
@@ -294,8 +309,15 @@ export default function UploadScreen() {
                 </View>
                 <Text style={s.emptyTitle}>No receipts yet</Text>
                 <Text style={s.emptySub}>Upload a receipt photo and watch your poor decisions get immortalised on the wall.</Text>
-                <TouchableOpacity style={s.emptyBtn} onPress={promptImageSource} activeOpacity={0.85}>
-                  <Text style={s.emptyBtnText}>Add First Receipt</Text>
+                <TouchableOpacity style={s.emptyBtnWrap} onPress={promptImageSource} activeOpacity={0.85}>
+                  <LinearGradient
+                    colors={['#00E676', '#6BFF9C']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={s.emptyBtn}
+                  >
+                    <Text style={s.emptyBtnText}>Add First Receipt</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -377,11 +399,11 @@ const s = StyleSheet.create({
   heroTitle: { fontSize: 36, fontWeight: '800', color: colors.text, lineHeight: 42 },
   heroSub: { ...typography.body, color: colors.textMuted, lineHeight: 22 },
 
+  uploadBtnWrap: { alignSelf: 'flex-start', borderRadius: 16, overflow: 'hidden' },
   uploadBtn: {
     flexDirection: 'row', alignItems: 'center',
-    gap: spacing.sm, backgroundColor: colors.primary,
+    gap: spacing.sm,
     paddingVertical: 18, paddingHorizontal: 28,
-    borderRadius: 16, alignSelf: 'flex-start',
   },
   uploadBtnDisabled: { opacity: 0.45 },
   uploadBtnText: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
@@ -408,13 +430,12 @@ const s = StyleSheet.create({
   toneChipActive: { backgroundColor: colors.primaryDim, borderColor: colors.primary },
   toneText: { ...typography.caption, color: colors.textMuted },
   toneTextActive: { color: colors.primary, fontWeight: '700' },
+  roastBtnWrap: { margin: spacing.lg, marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' },
   roastBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: spacing.sm, backgroundColor: colors.primary,
-    margin: spacing.lg, marginTop: spacing.md,
-    paddingVertical: spacing.md, borderRadius: radius.lg,
+    gap: spacing.sm, paddingVertical: spacing.md,
   },
-  roastBtnText: { fontSize: 15, fontWeight: '700', color: '#0D0D0D' },
+  roastBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 
   ephemeralCard: {
     backgroundColor: colors.surfaceElevated, borderRadius: radius.xl,
@@ -461,9 +482,9 @@ const s = StyleSheet.create({
   },
   emptyTitle: { ...typography.h3, textAlign: 'center' },
   emptySub: { ...typography.bodyMuted, textAlign: 'center', lineHeight: 22 },
+  emptyBtnWrap: { borderRadius: radius.lg, overflow: 'hidden', marginTop: spacing.sm },
   emptyBtn: {
-    backgroundColor: colors.primary, borderRadius: radius.lg,
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.md, marginTop: spacing.sm,
+    paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
   },
-  emptyBtnText: { fontSize: 15, fontWeight: '700', color: '#0D0D0D' },
+  emptyBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
