@@ -61,6 +61,15 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  const res = await apiFetch(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: `Error ${res.status}` }));
+    throw new Error((err as { message?: string }).message || `API error ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export async function apiDelete(path: string): Promise<void> {
   const res = await apiFetch(path, { method: 'DELETE' });
   if (!res.ok) throw new Error(`API error ${res.status}`);

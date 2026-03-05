@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
 import { apiGet, API_BASE_URL, getToken } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
+import { CurrencyPickerModal } from '../../src/components/CurrencyPickerModal';
 import { colors, spacing, radius, typography } from '../../src/theme';
 
 interface Expense {
@@ -47,11 +48,12 @@ function formatMoney(cents: number, currency: string) {
 }
 
 export default function UploadScreen() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, updateCurrency } = useAuth();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [tone, setTone] = useState('savage');
   const [ephemeral, setEphemeral] = useState<Expense | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
 
   const isPremium = user?.tier === 'premium';
   const uploadsUsed = user?.monthlyUploadCount ?? 0;
@@ -168,15 +170,26 @@ export default function UploadScreen() {
         <View style={s.nav}>
           <AppLogo size="xs" />
           <View style={s.navRight}>
-            <View style={s.currencyBadge}>
+            <TouchableOpacity
+              style={s.currencyBadge}
+              onPress={() => setCurrencyPickerVisible(true)}
+              activeOpacity={0.7}
+            >
               <Text style={s.currencyText}>{currency}</Text>
               <Ionicons name="chevron-down" size={10} color={colors.textMuted} />
-            </View>
+            </TouchableOpacity>
             <View style={s.avatar}>
               <Text style={s.avatarText}>{(firstName[0] ?? 'U').toUpperCase()}</Text>
             </View>
           </View>
         </View>
+
+        <CurrencyPickerModal
+          visible={currencyPickerVisible}
+          current={currency}
+          onSelect={updateCurrency}
+          onClose={() => setCurrencyPickerVisible(false)}
+        />
 
         {/* ── Hero ── */}
         <View style={s.hero}>

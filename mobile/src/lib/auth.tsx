@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { getToken, setToken, clearToken, apiGet, apiGetWithToken } from './api';
+import { getToken, setToken, clearToken, apiGet, apiGetWithToken, apiPatch } from './api';
 
 export interface MeUser {
   id: string;
@@ -20,6 +20,7 @@ interface AuthContextType {
   signIn: (jwt: string) => Promise<void>;
   signOut: () => void;
   refreshUser: () => Promise<void>;
+  updateCurrency: (code: string) => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextType>({
@@ -28,6 +29,7 @@ const AuthContext = React.createContext<AuthContextType>({
   signIn: async () => {},
   signOut: () => {},
   refreshUser: async () => {},
+  updateCurrency: async () => {},
 });
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -86,9 +88,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me);
   }
 
+  async function updateCurrency(code: string) {
+    // Optimistic update — UI changes immediately
+    setUser(prev => prev ? { ...prev, currency: code } : prev);
+    // Persist to server (fire and forget — don't block UI)
+    apiPatch('/api/me/profile', { currency: code }).catch(() => {
+      // Revert on failure
+      refreshUser().catch(() => {});
+    });
+  }
+
   return React.createElement(
     AuthContext.Provider,
-    { value: { user, isLoading, signIn, signOut, refreshUser } },
+    { value: { user, isLoading, signIn, signOut, refreshUser, updateCurrency } },
     children,
   );
 }
