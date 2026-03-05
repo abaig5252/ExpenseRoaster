@@ -203,10 +203,10 @@ export default function UploadScreen() {
           disabled={uploading}
         >
           {uploading ? (
-            <ActivityIndicator color="#0D0D0D" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Ionicons name="add" size={22} color="#0D0D0D" />
+              <Ionicons name="add" size={22} color="#FFFFFF" />
               <Text style={s.uploadBtnText}>Upload Receipt</Text>
             </>
           )}
@@ -378,12 +378,13 @@ const s = StyleSheet.create({
   heroSub: { ...typography.body, color: colors.textMuted, lineHeight: 22 },
 
   uploadBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', alignItems: 'center',
     gap: spacing.sm, backgroundColor: colors.primary,
-    paddingVertical: 18, borderRadius: radius.xl,
+    paddingVertical: 18, paddingHorizontal: 28,
+    borderRadius: 16, alignSelf: 'flex-start',
   },
   uploadBtnDisabled: { opacity: 0.45 },
-  uploadBtnText: { fontSize: 18, fontWeight: '700', color: '#0D0D0D' },
+  uploadBtnText: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
 
   upgradeNudge: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
