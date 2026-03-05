@@ -20,7 +20,7 @@ export async function clearToken(): Promise<void> {
 async function buildHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
   const token = await getToken();
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...extra };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers['x-app-token'] = token;
   return headers;
 }
 
@@ -38,7 +38,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 // Like apiGet but uses an explicit token — avoids SecureStore timing issues on first login
 export async function apiGetWithToken<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', 'x-app-token': token },
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json() as Promise<T>;
@@ -61,7 +61,7 @@ export async function apiDelete(path: string): Promise<void> {
 export async function apiUploadFile(path: string, formData: FormData): Promise<unknown> {
   const token = await getToken();
   const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers['x-app-token'] = token;
   const res = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', headers, body: formData });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `Error ${res.status}` }));

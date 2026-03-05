@@ -93,13 +93,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
 
   app.use((req: any, _res: Response, next: Function) => {
-    const auth = req.headers.authorization;
+    // Mobile clients send the JWT in x-app-token (Authorization header is stripped by proxy)
+    const token = (req.headers['x-app-token'] as string) || null;
     if (req.path === '/api/me') {
-      console.log(`[jwt] /api/me auth=${auth ? auth.slice(0, 20) + '…' : 'NONE'} isAuth=${req.isAuthenticated?.()}`);
+      console.log(`[jwt] /api/me x-app-token=${token ? token.slice(0, 20) + '…' : 'NONE'} isAuth=${req.isAuthenticated?.()}`);
     }
-    if (auth && auth.startsWith("Bearer ") && !req.isAuthenticated?.()) {
+    if (token && !req.isAuthenticated?.()) {
       try {
-        const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { sub: string; exp?: number };
+        const payload = jwt.verify(token, JWT_SECRET) as { sub: string; exp?: number };
         req.user = {
           claims: { sub: payload.sub },
           expires_at: payload.exp ?? Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
