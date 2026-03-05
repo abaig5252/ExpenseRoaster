@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { getToken, setToken, clearToken, apiGet } from './api';
+import { getToken, setToken, clearToken, apiGet, apiGetWithToken } from './api';
 
 export interface MeUser {
   id: string;
@@ -54,7 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signIn(jwt: string) {
     await setToken(jwt);
-    const me = await apiGet<MeUser>('/api/me');
+    // Pass the JWT directly instead of re-reading from SecureStore — avoids timing issues
+    const me = await apiGetWithToken<MeUser>('/api/me', jwt);
     setUser(me);
   }
 

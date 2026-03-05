@@ -35,6 +35,15 @@ export async function apiGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// Like apiGet but uses an explicit token — avoids SecureStore timing issues on first login
+export async function apiGetWithToken<T>(path: string, token: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const res = await apiFetch(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
   if (!res.ok) {

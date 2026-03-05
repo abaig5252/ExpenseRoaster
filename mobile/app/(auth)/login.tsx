@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/auth';
@@ -26,18 +25,25 @@ export default function LoginScreen() {
       const result = await WebBrowser.openAuthSessionAsync(loginUrl, 'expenseroaster://');
 
       if (result.type === 'success') {
-        const parsed = Linking.parse(result.url);
-        const token = parsed.queryParams?.token as string | undefined;
-        const err = parsed.queryParams?.error as string | undefined;
+        const url = result.url;
+        // Robust query param extraction — avoids Linking.parse edge cases
+        const tokenMatch = url.match(/[?&]token=([^&]+)/);
+        const errMatch = url.match(/[?&]error=([^&]+)/);
+        const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+        const err = errMatch ? decodeURIComponent(errMatch[1]) : null;
 
         if (token) {
           await signIn(token);
           router.replace('/(tabs)/upload');
         } else {
-          setError(err ?? 'Login failed — please try again.');
+          // Show the full URL in dev so we can diagnose parsing failures
+          setError(err ?? `No token in redirect.\nURL: ${url.slice(0, 120)}`);
         }
-      } else if (result.type === 'cancel' || result.type === 'dismiss') {
-        // User closed the browser — do nothing
+      } else {
+        // Capture the result type if it's not success (cancel/dismiss/locked)
+        if ((result as any).type !== 'cancel' && (result as any).type !== 'dismiss') {
+          setError(`Auth session ended: ${(result as any).type}`);
+        }
       }
     } catch (e: any) {
       setError(e?.message ?? 'Something went wrong. Please try again.');
