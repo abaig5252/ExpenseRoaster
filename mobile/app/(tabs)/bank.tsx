@@ -66,6 +66,7 @@ export default function BankScreen() {
   const [parsedRoast, setParsedRoast] = useState<string | null>(null);
   const [catPickerVisible, setCatPickerVisible] = useState(false);
   const [page, setPage] = useState(0);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ['/api/expenses'],
@@ -378,28 +379,33 @@ export default function BankScreen() {
         {loggedExpenses.length > 0 && (
           <View style={s.historySection}>
             <Text style={s.historyTitle}>Logged Expenses ({loggedExpenses.length})</Text>
-            {pageExpenses.map(exp => (
-              <View key={exp.id} style={s.expItem}>
-                <View style={s.expTop}>
-                  <Text style={s.expDesc} numberOfLines={1}>{exp.description}</Text>
-                  <View style={s.expTopRight}>
+            {pageExpenses.map(exp => {
+              const isExpanded = expandedId === exp.id;
+              return (
+                <TouchableOpacity
+                  key={exp.id}
+                  style={s.expItem}
+                  onPress={() => setExpandedId(isExpanded ? null : exp.id)}
+                  activeOpacity={0.75}
+                >
+                  <View style={s.expTop}>
+                    <Text style={[s.expDesc, isExpanded && s.expDescExpanded]} numberOfLines={isExpanded ? undefined : 1}>
+                      {exp.description}
+                    </Text>
                     <Text style={s.expAmount}>{formatMoney(exp.amount, exp.currency ?? currency)}</Text>
-                    <TouchableOpacity onPress={() => deleteExpense(exp.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Ionicons name="trash-outline" size={15} color={colors.textDim} />
-                    </TouchableOpacity>
                   </View>
-                </View>
-                <View style={s.expMeta}>
-                  <View style={s.catPill}>
-                    <Text style={s.catPillText}>{exp.category.toUpperCase()}</Text>
+                  <View style={s.expMeta}>
+                    <View style={s.catPill}>
+                      <Text style={s.catPillText}>{exp.category.toUpperCase()}</Text>
+                    </View>
+                    {exp.createdAt && (
+                      <Text style={s.expDate}>{new Date(exp.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                    )}
                   </View>
-                  {exp.createdAt && (
-                    <Text style={s.expDate}>{new Date(exp.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</Text>
-                  )}
-                </View>
-                {exp.roast && <Text style={s.expRoast} numberOfLines={2}>"{exp.roast}"</Text>}
-              </View>
-            ))}
+                  {exp.roast && <Text style={s.expRoast} numberOfLines={isExpanded ? undefined : 2}>"{exp.roast}"</Text>}
+                </TouchableOpacity>
+              );
+            })}
 
             {/* Pagination */}
             {totalPages > 1 && (
@@ -574,9 +580,9 @@ const s = StyleSheet.create({
   },
   expTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   expDesc: { ...typography.body, fontWeight: '600', flex: 1, marginRight: spacing.sm },
-  expTopRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  expAmount: { ...typography.body, fontWeight: '700', color: colors.primary },
-  expMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 },
+  expDescExpanded: { flexWrap: 'wrap' },
+  expAmount: { ...typography.body, fontWeight: '700', color: colors.primary, flexShrink: 0 },
+  expMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   catPill: {
     backgroundColor: colors.primaryDim, borderRadius: radius.full,
     paddingHorizontal: 8, paddingVertical: 2,
