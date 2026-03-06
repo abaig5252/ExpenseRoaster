@@ -3,46 +3,65 @@ interface AppLogoProps {
   showText?: boolean;
 }
 
-const PX = { xs: 48, sm: 60, md: 80, lg: 104 };
+const PX = { xs: 60, sm: 80, md: 104, lg: 132 };
 
-export function AppLogo({ size = "sm", showText = false }: AppLogoProps) {
+const TEXT = {
+  xs: "text-[12px] tracking-[0.18em]",
+  sm: "text-[15px] tracking-[0.18em]",
+  md: "text-[18px] tracking-[0.18em]",
+  lg: "text-[22px] tracking-[0.18em]",
+};
+
+const GAP = { xs: "gap-0", sm: "gap-0", md: "gap-0.5", lg: "gap-1" };
+
+function FlameSVG({ px }: { px: number }) {
+  return (
+    <svg
+      width={px}
+      height={px}
+      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+      className="flame-svg"
+      aria-hidden="true"
+    >
+      <rect
+        x="5"
+        y="5"
+        width="70"
+        height="70"
+        rx="10"
+        ry="10"
+        fill="none"
+        stroke="#00E676"
+        strokeWidth="3"
+      />
+
+      <g transform="translate(22, 22) scale(0.06)" className="burning-animation">
+        <path
+          d="M216.02,611.195c5.978,3.178,12.284-3.704,8.624-9.4c-19.866-30.919-38.678-82.947-8.706-149.952 c49.982-111.737,80.396-169.609,80.396-169.609s16.177,67.536,60.029,127.585c42.205,57.793,65.306,130.478,28.064,191.029 c-3.495,5.683,2.668,12.388,8.607,9.349c46.1-23.582,97.806-70.885,103.64-165.017c2.151-28.764-1.075-69.034-17.206-119.851 c-20.741-64.406-46.239-94.459-60.992-107.365c-4.413-3.861-11.276-0.439-10.914,5.413c4.299,69.494-21.845,87.129-36.726,47.386 c-5.943-15.874-9.409-43.33-9.409-76.766c0-55.665-16.15-112.967-51.755-159.531c-9.259-12.109-20.093-23.424-32.523-33.073 c-4.5-3.494-11.023,0.018-10.611,5.7c2.734,37.736,0.257,145.885-94.624,275.089c-86.029,119.851-52.693,211.896-40.864,236.826 C153.666,566.767,185.212,594.814,216.02,611.195z"
+          fill="none"
+          stroke="#00E676"
+          strokeWidth="25"
+        />
+      </g>
+    </svg>
+  );
+}
+
+export function AppLogo({ size = "sm", showText = true }: AppLogoProps) {
   const px = PX[size];
 
   return (
-    <div className="flex flex-col items-center select-none" style={{ position: "relative", width: px, height: px }}>
-      {/* Outer layer — border rect + flame outline, pulses opacity */}
-      <div className="logo-outer" style={{ position: "absolute", inset: 0 }}>
-        <svg width={px} height={px} viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-          {/* Rounded square */}
-          <rect
-            x="10" y="10" width="100" height="100" rx="22"
-            fill="#121212" stroke="#00E676" strokeWidth="5"
-          />
-          {/* Flame outline */}
-          <path
-            d="M60 20 L45 45 C40 55 38 62 42 70 C44 74 38 72 36 68 C32 78 38 92 48 96 C44 90 46 84 50 80 C52 88 56 92 60 95 C64 92 68 88 70 80 C74 84 76 90 72 96 C82 92 88 78 84 68 C82 72 76 74 78 70 C82 62 80 55 75 45 L60 20 Z"
-            fill="none"
-            stroke="#00E676"
-            strokeWidth="3"
-            strokeLinejoin="miter"
-          />
-        </svg>
+    <div className={`flex flex-col items-center ${GAP[size]} select-none`}>
+      <div className="brand-container">
+        <div className="logo-box">
+          <FlameSVG px={px} />
+        </div>
       </div>
-
-      {/* Inner layer — solid teardrop, breathes scaleY */}
-      <div className="logo-inner">
-        <svg width={px} height={px} viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M60 50 L52 70 C52 70 50 85 60 85 C70 85 68 70 68 70 L60 50 Z"
-            fill="#00E676"
-          />
-        </svg>
-      </div>
-
       {showText && (
         <span
-          className="font-black uppercase text-white text-center whitespace-nowrap text-[11px] tracking-[0.18em]"
-          style={{ fontFamily: "'DM Sans', sans-serif", marginTop: px + 4 }}
+          className={`font-black uppercase text-white text-center whitespace-nowrap ${TEXT[size]}`}
+          style={{ fontFamily: "'DM Sans', sans-serif", marginTop: "-6px" }}
         >
           EXPENSE ROASTER
         </span>
