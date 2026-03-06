@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, ActionSheetIOS, Platform,
@@ -23,7 +23,18 @@ interface Expense {
   roast: string;
   currency: string;
   source?: string;
+  date?: string;
   createdAt?: string;
+}
+
+function expenseMonth(exp: Expense): string {
+  const d = exp.date ? new Date(exp.date) : exp.createdAt ? new Date(exp.createdAt) : new Date();
+  return d.toISOString().slice(0, 7);
+}
+
+function fmtMonth(ym: string): string {
+  const [y, m] = ym.split('-');
+  return new Date(Number(y), Number(m) - 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
 }
 
 interface Summary { monthlyTotal: number; recentRoasts: string[] }
@@ -109,6 +120,32 @@ export default function UploadScreen() {
 
   const receiptExpenses = expenses?.filter(e => e.source === 'receipt') ?? [];
   const monthlyTotal = summary?.monthlyTotal ?? 0;
+
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+
+  const availableMonths = useMemo(() => {
+    const months = new Set(receiptExpenses.map(expenseMonth));
+    return [...months].sort().reverse();
+  }, [receiptExpenses.length]);
+
+  useEffect(() => {
+    if (selectedMonth === null && availableMonths.length > 0) {
+      const cur = new Date().toISOString().slice(0, 7);
+      setSelectedMonth(availableMonths.includes(cur) ? cur : availableMonths[0]);
+    }
+  }, [availableMonths.length]);
+
+  const filteredReceipts = useMemo(
+    () => selectedMonth ? receiptExpenses.filter(e => expenseMonth(e) === selectedMonth) : receiptExpenses,
+    [receiptExpenses.length, selectedMonth]
+  );
+
+  const { data: monthlyRoastData, isFetching: roastLoading } = useQuery<{ roast: string | null; total: number; count: number }>({
+    queryKey: ['/api/expenses/monthly-roast', selectedMonth],
+    queryFn: () => apiGet(`/api/expenses/monthly-roast?month=${selectedMonth}&source=receipt`),
+    enabled: !!selectedMonth && filteredReceipts.length > 0 && isPremium,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // ── Animation values ──────────────────────────────────────────
   const greetingOpacity = useRef(new Animated.Value(0)).current;
@@ -424,12 +461,58 @@ export default function UploadScreen() {
             <Animated.View style={[s.wallHeader, { opacity: wallOpacity, transform: [{ translateX: wallX }] }]}>
               <Ionicons name="camera-outline" size={18} color={colors.textMuted} />
               <Text style={s.wallTitle}>Receipt Wall</Text>
-              {receiptExpenses.length > 0 && (
+              {filteredReceipts.length > 0 && (
                 <Animated.View style={[s.countBadge, { transform: [{ scale: badgeScale }] }]}>
-                  <Text style={s.countText}>{receiptExpenses.length}</Text>
+                  <Text style={s.countText}>{filteredReceipts.length}</Text>
                 </Animated.View>
               )}
             </Animated.View>
+
+            {/* Month filter pills */}
+            {availableMonths.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={s.monthPillsRow}
+                style={s.monthPillsScroll}
+              >
+                {availableMonths.map(ym => (
+                  <TouchableOpacity
+                    key={ym}
+                    onPress={() => setSelectedMonth(ym)}
+                    style={[s.monthPill, selectedMonth === ym && s.monthPillActive]}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={11}
+                      color={selectedMonth === ym ? '#FFFFFF' : colors.textMuted}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={[s.monthPillText, selectedMonth === ym && s.monthPillTextActive]}>
+                      {fmtMonth(ym)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Monthly verdict roast panel */}
+            {selectedMonth && filteredReceipts.length > 0 && (
+              <View style={s.verdictPanel}>
+                <View style={s.verdictIcon}>
+                  <Ionicons name="flame" size={16} color="#00E676" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.verdictLabel}>{fmtMonth(selectedMonth)} Verdict</Text>
+                  {roastLoading ? (
+                    <Text style={s.verdictLoading}>Generating your monthly roast…</Text>
+                  ) : monthlyRoastData?.roast ? (
+                    <Text style={s.verdictRoast}>"{monthlyRoastData.roast}"</Text>
+                  ) : null}
+                </View>
+              </View>
+            )}
 
             {receiptExpenses.length === 0 ? (
               <View style={s.emptyWall}>
@@ -449,9 +532,14 @@ export default function UploadScreen() {
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
+            ) : filteredReceipts.length === 0 ? (
+              <View style={s.emptyWall}>
+                <Text style={s.emptyTitle}>No receipts in {selectedMonth ? fmtMonth(selectedMonth) : 'this month'}</Text>
+                <Text style={s.emptySub}>Nothing uploaded for this month. Pick another month above.</Text>
+              </View>
             ) : (
               <View style={s.cardGrid}>
-                {receiptExpenses.map((exp, i) => (
+                {filteredReceipts.map((exp, i) => (
                   <ReceiptCard key={exp.id} expense={exp} currency={currency} index={i} />
                 ))}
               </View>
@@ -680,6 +768,39 @@ const s = StyleSheet.create({
 
   wallSection: { gap: spacing.md },
   cardGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+
+  monthPillsScroll: { marginTop: -spacing.xs },
+  monthPillsRow: { flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.xs },
+  monthPill: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: spacing.sm + 2, paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  monthPillActive: {
+    backgroundColor: '#00E676',
+    borderColor: '#00E676',
+    shadowColor: '#00E676', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4, shadowRadius: 8, elevation: 4,
+  },
+  monthPillText: { ...typography.caption, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
+  monthPillTextActive: { color: '#FFFFFF', fontWeight: '800' },
+
+  verdictPanel: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
+    backgroundColor: 'rgba(0,230,118,0.06)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
+    borderRadius: radius.xl, padding: spacing.md,
+  },
+  verdictIcon: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: 'rgba(0,230,118,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  verdictLabel: { fontSize: 10, fontWeight: '800', color: '#00E676', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
+  verdictLoading: { ...typography.caption, color: colors.textMuted, fontStyle: 'italic' },
+  verdictRoast: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontStyle: 'italic', lineHeight: 20 },
   wallHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   wallTitle: { ...typography.h3, fontSize: 20 },
   countBadge: {

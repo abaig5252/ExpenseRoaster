@@ -67,6 +67,28 @@ const OPENER_STYLES = [
   "Start with a statistic or fun fact angle.",
 ];
 
+async function generateMonthlyRoast(
+  monthLabel: string, totalCents: number, count: number, topCategories: string[], currency = "USD"
+): Promise<string> {
+  const total = (totalCents / 100).toFixed(2);
+  const cats = topCategories.join(", ") || "various things";
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    messages: [
+      {
+        role: "system",
+        content: `You are a savage, witty financial roaster. In 2-3 punchy sentences, roast the user's monthly spending. Be specific, harsh, and funny. Use the currency symbol for ${currency}.`,
+      },
+      {
+        role: "user",
+        content: `Month: ${monthLabel}. Total blown: ${total} ${currency} across ${count} receipts. Biggest damage categories: ${cats}. Give me a brutal but hilarious verdict on my month.`,
+      },
+    ],
+    max_completion_tokens: 220,
+  });
+  return response.choices[0]?.message?.content ?? "Your bank account has filed a restraining order.";
+}
+
 async function generateRoast(description: string, amountCents: number, category: string, tone = "savage", _location?: string, currency = "USD"): Promise<string> {
   const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage;
   const openerStyle = OPENER_STYLES[Math.floor(Math.random() * OPENER_STYLES.length)];
@@ -363,6 +385,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!user || user.tier === "free") return res.json([]);
     const series = await storage.getMonthlySeries(userId);
     res.json(series);
+  });
+
+  // ─── Expenses: Monthly summary roast ────────────────────────────
+  app.get("/api/expenses/monthly-roast", isAuthenticated, async (req: any, res) => {
+    const userId = getUserId(req);
+    const user = await storage.getUser(userId);
+    if (!user || user.tier === "free") {
+      return res.status(403).json({ message: "Monthly roast requires Premium" });
+    }
+    const { month, source } = req.query as { month?: string; source?: string };
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ message: "month param must be YYYY-MM" });
+    }
+    let all = await storage.getExpenses(userId);
+    let filtered = all.filter(e => {
+      const d = e.date instanceof Date ? e.date : new Date(String(e.date));
+      return d.toISOString().slice(0, 7) === month;
+    });
+    if (source) filtered = filtered.filter(e => e.source === source);
+    if (filtered.length === 0) return res.json({ roast: null, total: 0, count: 0 });
+    const total = filtered.reduce((sum, e) => sum + e.amount, 0);
+    const currency = user.currency ?? "USD";
+    const catTotals: Record<string, number> = {};
+    for (const e of filtered) catTotals[e.category] = (catTotals[e.category] ?? 0) + e.amount;
+    const topCats = Object.entries(catTotals)
+      .sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([cat, amt]) => `${cat} (${(amt / 100).toFixed(2)} ${currency})`);
+    const [yr, mo] = month.split("-");
+    const monthLabel = new Date(Number(yr), Number(mo) - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+    const roast = await generateMonthlyRoast(monthLabel, total, filtered.length, topCats, currency);
+    res.json({ roast, total, count: filtered.length });
   });
 
   // ─── Expenses: Financial advice (premium) ───────────────────────

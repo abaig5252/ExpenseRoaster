@@ -35,6 +35,20 @@ export function useExpenseSummary() {
   });
 }
 
+export function useMonthlyRoast(month: string | null, source?: string) {
+  return useQuery<{ roast: string | null; total: number; count: number }>({
+    queryKey: ['/api/expenses/monthly-roast', month, source],
+    queryFn: async () => {
+      const params = new URLSearchParams({ month: month! });
+      if (source) params.set('source', source);
+      const res = await apiFetch(`/api/expenses/monthly-roast?${params}`);
+      return res.json();
+    },
+    enabled: !!month,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useMonthlySeries() {
   return useQuery<{ month: string; total: number; count: number }[]>({
     queryKey: [api.expenses.monthlySeries.path],

@@ -1,30 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Plus, Flame, Activity, DollarSign, RefreshCw } from "lucide-react";
-import { useExpenses, useExpenseSummary } from "@/hooks/use-expenses";
+import { Plus, Flame, Activity, DollarSign, RefreshCw, Calendar, Loader2 } from "lucide-react";
+import { useExpenses, useExpenseSummary, useMonthlyRoast } from "@/hooks/use-expenses";
 import { useCurrency } from "@/hooks/use-currency";
 import { ExpenseCard } from "@/components/ExpenseCard";
 import { UploadModal } from "@/components/UploadModal";
+import type { ExpenseResponse } from "@shared/routes";
+
+function expenseMonth(exp: ExpenseResponse): string {
+  const d = exp.date ? new Date(exp.date) : new Date();
+  return d.toISOString().slice(0, 7);
+}
+
+function fmtMonth(ym: string): string {
+  const [y, m] = ym.split("-");
+  return new Date(Number(y), Number(m) - 1).toLocaleString("en-US", { month: "short", year: "numeric" });
+}
 
 export default function Dashboard() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const { formatAmount } = useCurrency();
-  
+
   const { data: expenses, isLoading: expensesLoading, error: expensesError } = useExpenses();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
 
-  const formattedTotal = summary 
+  const receiptExpenses = useMemo(
+    () => expenses?.filter(e => e.source === "receipt") ?? [],
+    [expenses]
+  );
+
+  const availableMonths = useMemo(() => {
+    const months = new Set(receiptExpenses.map(expenseMonth));
+    return [...months].sort().reverse();
+  }, [receiptExpenses]);
+
+  useEffect(() => {
+    if (selectedMonth === null && availableMonths.length > 0) {
+      const cur = new Date().toISOString().slice(0, 7);
+      setSelectedMonth(availableMonths.includes(cur) ? cur : availableMonths[0]);
+    }
+  }, [availableMonths.length]);
+
+  const filteredExpenses = useMemo(
+    () => selectedMonth ? receiptExpenses.filter(e => expenseMonth(e) === selectedMonth) : receiptExpenses,
+    [receiptExpenses, selectedMonth]
+  );
+
+  const filteredTotal = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const { data: monthlyRoastData, isLoading: roastLoading } = useMonthlyRoast(
+    filteredExpenses.length > 0 ? selectedMonth : null,
+    "receipt"
+  );
+
+  const formattedTotal = summary
     ? formatAmount(summary.monthlyTotal)
     : formatAmount(0);
 
   return (
     <div className="min-h-screen pb-24 relative">
       <div className="bg-noise" />
-      
-      {/* Decorative background elements */}
+
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[500px] bg-[hsl(var(--primary))] rounded-full blur-[150px] opacity-10 pointer-events-none" />
 
-      {/* Marquee Banner */}
       {summary?.recentRoasts && summary.recentRoasts.length > 0 && (
         <div className="w-full bg-[hsl(var(--primary))]/20 border-b border-[hsl(var(--primary))]/30 overflow-hidden py-3 relative z-10 backdrop-blur-md">
           <div className="flex w-[200%] animate-marquee whitespace-nowrap">
@@ -36,7 +75,6 @@ export default function Dashboard() {
                 </span>
               ))}
             </div>
-            {/* Duplicate for seamless loop */}
             <div className="flex gap-12 items-center px-6">
               {summary.recentRoasts.map((roast, i) => (
                 <span key={`dup-${i}`} className="text-sm font-medium text-white flex items-center gap-2">
@@ -50,10 +88,9 @@ export default function Dashboard() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 relative z-10">
-        
-        {/* Header Section */}
+
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-16">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -64,7 +101,7 @@ export default function Dashboard() {
                 Monthly Damage Report
               </span>
             </div>
-            
+
             <h1 className="text-6xl md:text-8xl font-amount-hero text-foreground leading-none flex items-center gap-2">
               {summaryLoading ? (
                 <span className="animate-pulse bg-white/10 rounded-2xl w-64 h-24 block"></span>
@@ -90,12 +127,72 @@ export default function Dashboard() {
           </motion.button>
         </header>
 
-        {/* Expenses Grid */}
+        {/* Receipts Grid with month filter */}
         <div>
-          <div className="flex items-center gap-3 mb-8">
-            <DollarSign className="w-6 h-6 text-muted-foreground" />
-            <h2 className="text-2xl font-bold text-foreground">Recent Disasters</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <DollarSign className="w-6 h-6 text-muted-foreground" />
+              <h2 className="text-2xl font-bold text-foreground">Receipt Wall</h2>
+              {!expensesLoading && selectedMonth && (
+                <span className="text-sm text-muted-foreground font-medium">
+                  — {filteredExpenses.length} receipt{filteredExpenses.length !== 1 ? "s" : ""},{" "}
+                  {formatAmount(filteredTotal)}
+                </span>
+              )}
+            </div>
+
+            {availableMonths.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
+                <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                {availableMonths.map(ym => (
+                  <button
+                    key={ym}
+                    data-testid={`month-filter-${ym}`}
+                    onClick={() => setSelectedMonth(ym)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
+                      selectedMonth === ym
+                        ? "bg-[hsl(var(--primary))] text-white shadow-lg shadow-[hsl(var(--primary))]/30"
+                        : "glass-panel text-muted-foreground hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {fmtMonth(ym)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Monthly verdict roast panel */}
+          {selectedMonth && (filteredExpenses.length > 0 || roastLoading) && (
+            <motion.div
+              key={selectedMonth}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mb-8 glass-panel rounded-2xl p-5 border border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/5"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[hsl(var(--primary))]/20 flex items-center justify-center shrink-0">
+                  <Flame className="w-5 h-5 text-[hsl(var(--primary))]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--primary))] mb-1">
+                    {fmtMonth(selectedMonth)} Verdict
+                  </p>
+                  {roastLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating your monthly roast…
+                    </div>
+                  ) : monthlyRoastData?.roast ? (
+                    <p className="text-sm text-white/90 leading-relaxed italic">
+                      "{monthlyRoastData.roast}"
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {expensesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -116,25 +213,29 @@ export default function Dashboard() {
                 Looks like our servers are as broken as your budget. Try refreshing the page.
               </p>
             </div>
-          ) : expenses?.length === 0 ? (
+          ) : filteredExpenses.length === 0 ? (
             <div className="glass-panel border-dashed border-white/20 rounded-3xl p-16 text-center flex flex-col items-center justify-center">
               <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6">
                 <Flame className="w-12 h-12 text-muted-foreground" />
               </div>
-              <h3 className="text-3xl font-bold text-foreground mb-4">Too clean...</h3>
+              <h3 className="text-3xl font-bold text-foreground mb-4">
+                {selectedMonth && receiptExpenses.length > 0 ? `No receipts in ${fmtMonth(selectedMonth)}` : "Too clean..."}
+              </h3>
               <p className="text-xl text-muted-foreground max-w-lg mb-8">
-                You haven't uploaded any receipts yet. Are you actually saving money or just hiding your shame?
+                {selectedMonth && receiptExpenses.length > 0
+                  ? "Nothing uploaded for this month yet. Pick another month or add a new receipt."
+                  : "You haven't uploaded any receipts yet. Are you actually saving money or just hiding your shame?"}
               </p>
               <button
                 onClick={() => setIsUploadOpen(true)}
                 className="px-6 py-3 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white transition-colors"
               >
-                Upload First Receipt
+                Upload Receipt
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {expenses?.map((expense, i) => (
+              {filteredExpenses.map((expense, i) => (
                 <ExpenseCard key={expense.id} expense={expense} index={i} />
               ))}
             </div>
@@ -142,9 +243,9 @@ export default function Dashboard() {
         </div>
       </main>
 
-      <UploadModal 
-        isOpen={isUploadOpen} 
-        onClose={() => setIsUploadOpen(false)} 
+      <UploadModal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
       />
     </div>
   );
