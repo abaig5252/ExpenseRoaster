@@ -16,7 +16,7 @@ import { colors, spacing, radius, typography } from '../../src/theme';
 interface Expense {
   id: number;
   description: string;
-  amountCents: number;
+  amount: number;
   category: string;
   roast: string;
   currency: string;
@@ -282,7 +282,7 @@ export default function UploadScreen() {
               <Ionicons name="close-circle" size={24} color={colors.textMuted} />
             </TouchableOpacity>
             <Text style={s.ephLabel}>THE ROAST</Text>
-            <Text style={s.ephAmount}>{formatMoney(ephemeral.amountCents, ephemeral.currency)}</Text>
+            <Text style={s.ephAmount}>{formatMoney(ephemeral.amount, ephemeral.currency)}</Text>
             <Text style={s.ephDesc}>{ephemeral.description}</Text>
             <View style={s.categoryPill}>
               <Text style={s.categoryPillText}>{ephemeral.category.toUpperCase()}</Text>
@@ -353,7 +353,7 @@ function ReceiptCard({ expense, currency }: { expense: Expense; currency: string
   return (
     <View style={rc.card}>
       <View style={rc.top}>
-        <Text style={rc.amount}>{formatMoney(expense.amountCents, expense.currency ?? currency)}</Text>
+        <Text style={rc.amount}>{formatMoney(expense.amount, expense.currency ?? currency)}</Text>
         <Text style={rc.date}>{date}</Text>
       </View>
       <Text style={rc.desc}>{expense.description}</Text>

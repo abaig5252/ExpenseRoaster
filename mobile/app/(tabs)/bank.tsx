@@ -16,7 +16,7 @@ import { colors, spacing, radius, typography } from '../../src/theme';
 interface Expense {
   id: number;
   description: string;
-  amountCents: number;
+  amount: number;
   category: string;
   roast: string | null;
   currency: string;
@@ -81,13 +81,13 @@ export default function BankScreen() {
     if (!description.trim() || !amount) {
       Alert.alert('Missing fields', 'Please fill in description and amount.'); return;
     }
-    const amountCents = Math.round(parseFloat(amount) * 100);
-    if (isNaN(amountCents)) { Alert.alert('Invalid amount'); return; }
+    const amountInCents = Math.round(parseFloat(amount) * 100);
+    if (isNaN(amountInCents)) { Alert.alert('Invalid amount'); return; }
     setSubmitting(true);
     try {
       await apiPost('/api/expenses/manual', {
         description: description.trim(),
-        amountCents,
+        amount: amountInCents,
         category,
         tone,
         date,
@@ -383,7 +383,7 @@ export default function BankScreen() {
                 <View style={s.expTop}>
                   <Text style={s.expDesc} numberOfLines={1}>{exp.description}</Text>
                   <View style={s.expTopRight}>
-                    <Text style={s.expAmount}>{formatMoney(exp.amountCents, exp.currency ?? currency)}</Text>
+                    <Text style={s.expAmount}>{formatMoney(exp.amount, exp.currency ?? currency)}</Text>
                     <TouchableOpacity onPress={() => deleteExpense(exp.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <Ionicons name="trash-outline" size={15} color={colors.textDim} />
                     </TouchableOpacity>
