@@ -1,0 +1,43 @@
+Great! Now I can do a thorough comparison. Here's a detailed Replit prompt based on all the differences I've identified:
+
+---
+
+**Prompt for Replit:**
+
+> Update the Bank Statement page UI to match the following design specification. Here are all the changes needed:
+>
+> **1. App Header (top bar):**
+> - Remove the plain "Bank & Expenses" text title and the blue settings gear icon
+> - Add a top navigation bar with: a flame logo icon (with green border/outline) on the far left, a "GBP" currency dropdown (dark pill, centered), a green circular avatar with the user's initial ("S") and a logout arrow icon on the far right
+>
+> **2. Page Title & Description (below the nav bar):**
+> - Add a large page title "Bank Statement" with a green wallet/card icon to its left
+> - Add a subtitle below it: *"Log expenses manually or import a bank statement — PDF or photo. Every entry gets roasted."*
+>
+> **3. Tab Switcher:**
+> - Keep "Manual Entry" and "Import Statement" as two equal-width pill buttons side by side (active = green filled, inactive = dark)
+> - These should sit below the title/description, NOT inside a card
+>
+> **4. Roast Tone Selector (move it OUTSIDE the form card):**
+> - Remove the roast tone buttons from inside the "Add Expense" card
+> - Place them between the tab switcher and the "Add Expense" card
+> - Add a small label "ROAST TONE" above the three buttons
+> - Buttons: "Savage 🔥" (selected = green outlined text), "Playful 😀", "Supportive 💛" — all dark background, rounded
+>
+> **5. Add Expense Card — form fields:**
+> - **Description**: keep as-is but update placeholder to *"e.g. Uber Eats delivery"*
+> - **Amount field**: change label to "AMOUNT ($)" and add a "$" prefix icon inside the input field on the left
+> - **Add a DATE field** next to the Amount field (side by side, equal width): label "DATE", show today's date (e.g. 2026-03-06) with a calendar icon inside the input
+> - **Category**: replace the horizontal scrollable pill/chip buttons (Food & Drink, Shopping, Transport, etc.) with a simple text input or dropdown defaulting to "Other"
+>
+> **6. Add & Roast Button:**
+> - Add a "+" icon before the text so it reads: **"+ Add & Roast"**
+> - Keep it bright green, full width, rounded
+>
+> **7. General styling:**
+> - The "Add Expense" card background should be a slightly darker gray (like `#1a1a1a` or `#1c1c1c`) to match the target
+> - Input fields should have a subtle dark background with slight contrast from the card
+
+---
+
+This covers every visual difference between your current and target designs. Paste this directly into Replit Agent and it should get you very close to the target!

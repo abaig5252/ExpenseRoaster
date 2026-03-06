@@ -1,0 +1,27 @@
+
+App Header (top bar):
+- Remove the plain "Bank & Expenses" text title
+- Add a top navigation bar with the flame logo icon
+2. Page Title & Description (below the nav bar):
+- Add a large page title "Bank Statement" with a green wallet/card icon to its left
+- Add a subtitle below it: *"Log expenses manually or import a bank statement — PDF or photo. Every entry gets roasted."*
+3. Tab Switcher:
+- Keep "Manual Entry" and "Import Statement" as two equal-width pill buttons side by side (active = green filled, inactive = dark)
+- These should sit below the title/description, NOT inside a card, design should be same as the web app design
+4. Roast Tone Selector (move it OUTSIDE the form card):
+- Remove the roast tone buttons from inside the "Add Expense" card
+- Place them between the tab switcher and the "Add Expense" card
+- Add a small label "ROAST TONE" above the three buttons
+- Buttons: "Savage 🔥" (selected = green outlined text), "Playful 😀", "Supportive 💛" — all dark background, rounded
+5. Add Expense Card — form fields:
+- Description: keep as-is but update placeholder to *"e.g. Uber Eats delivery"*
+- Amount field: change label to "AMOUNT ($)" and add a "$" prefix icon inside the input field on the left, $ should change based on the user's currency
+- Add a DATE selector field next to the Amount field (side by side, equal width): label "DATE", show today's date selected by default with a calendar icon inside the input field, the date should be in the format of YYYY-MM-DD
+- Category: replace the horizontal scrollable pill/chip buttons (Food & Drink, Shopping, Transport, etc.) with a simple text input or dropdown defaulting to "Other"
+6. Add & Roast Button:
+- Add a "+" icon before the text so it reads: "+ Add & Roast" and with white text
+- Design should be same as the web app design, button should be full width and rounded and gradient design should be same as the web app design
+7. General styling:
+- The "Add Expense" card background should be a slightly darker gray (like `#1a1a1a` or `#1c1c1c`) to match the target(make sure to use the same color as the web app design)
+- Input fields should have a subtle dark background with slight contrast from the card
+8. Your expenses history section should be same as the web app design, it should show the description, amount, category and roast tone for each expense with title  as 'Logged Expenses(number of expenses)', and it should be scrollable and should show 10 expenses per page
