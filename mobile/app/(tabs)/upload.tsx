@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, ActionSheetIOS, Platform,
-  Animated, Easing,
+  Animated, Easing, LayoutAnimation, UIManager,
 } from 'react-native';
+
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +28,10 @@ interface Expense {
 
 interface Summary { monthlyTotal: number; recentRoasts: string[] }
 interface UploadResult { expense: Expense; ephemeral?: boolean }
+
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
 
 const TONES = [
   { value: 'savage',     label: '🔥 Savage' },
@@ -463,6 +468,8 @@ export default function UploadScreen() {
 function ReceiptCard({ expense, currency, index }: { expense: Expense; currency: string; index: number }) {
   const translateY = useRef(new Animated.Value(44)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
+  const chevronRot = useRef(new Animated.Value(0)).current;
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -476,6 +483,22 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
     ]).start();
   }, []);
 
+  function toggleExpand() {
+    LayoutAnimation.configureNext({
+      duration: 320,
+      create: { type: 'easeInEaseOut', property: 'opacity', duration: 200 },
+      update: { type: 'spring', springDamping: 0.72 },
+      delete: { type: 'easeInEaseOut', property: 'opacity', duration: 150 },
+    });
+    Animated.timing(chevronRot, {
+      toValue: expanded ? 0 : 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+    setExpanded(prev => !prev);
+  }
+
   const rotation   = ROTATIONS[index % ROTATIONS.length];
   const dollars    = expense.amount / 100;
   const severity   = dollars < 10 ? 1 : dollars < 50 ? 2 : dollars < 150 ? 3 : dollars < 500 ? 4 : 5;
@@ -485,38 +508,47 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
     ? new Date(expense.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : '';
 
+  const chevronDeg = chevronRot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
+
   return (
-    <Animated.View style={[rc.card, { opacity, transform: [{ translateY }, { rotate: `${rotation}deg` }] }]}>
-      {/* Emoji + amount */}
-      <View style={rc.topBlock}>
-        <Text style={rc.emoji}>{emoji}</Text>
-        <Text style={rc.amount}>{formatMoney(expense.amount, expense.currency ?? currency)}</Text>
-      </View>
+    <Animated.View style={[rc.card, expanded && rc.cardExpanded, { opacity, transform: [{ translateY }, { rotate: `${rotation}deg` }] }]}>
+      <TouchableOpacity onPress={toggleExpand} activeOpacity={0.85} style={rc.cardInner}>
+        {/* Emoji + amount */}
+        <View style={rc.topBlock}>
+          <Text style={rc.emoji}>{emoji}</Text>
+          <Text style={rc.amount}>{formatMoney(expense.amount, expense.currency ?? currency)}</Text>
+        </View>
 
-      {/* Description + meta */}
-      <View style={rc.metaBlock}>
-        <Text style={rc.desc} numberOfLines={1}>{expense.description}</Text>
-        <View style={rc.pillRow}>
-          <View style={[rc.pill, { backgroundColor: pillColor }]}>
-            <Text style={rc.pillText}>{expense.category.toUpperCase()}</Text>
+        {/* Description + meta */}
+        <View style={rc.metaBlock}>
+          <Text style={rc.desc} numberOfLines={expanded ? undefined : 1}>{expense.description}</Text>
+          <View style={rc.pillRow}>
+            <View style={[rc.pill, { backgroundColor: pillColor }]}>
+              <Text style={rc.pillText}>{expense.category.toUpperCase()}</Text>
+            </View>
+            {dateStr ? <Text style={rc.date}>{dateStr}</Text> : null}
           </View>
-          {dateStr ? <Text style={rc.date}>{dateStr}</Text> : null}
         </View>
-      </View>
 
-      {/* Roast quote */}
-      {expense.roast ? (
-        <View style={rc.roastBox}>
-          <Text style={rc.roastText} numberOfLines={4}>"{expense.roast}"</Text>
+        {/* Roast quote */}
+        {expense.roast ? (
+          <View style={rc.roastBox}>
+            <Text style={rc.roastText} numberOfLines={expanded ? undefined : 4}>"{expense.roast}"</Text>
+          </View>
+        ) : null}
+
+        {/* Severity flames + chevron */}
+        <View style={rc.footer}>
+          <View style={rc.flames}>
+            {[1, 2, 3, 4, 5].map(n => (
+              <Text key={n} style={[rc.flame, { opacity: n <= severity ? 1 : 0.15 }]}>🔥</Text>
+            ))}
+          </View>
+          <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
+            <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.35)" />
+          </Animated.View>
         </View>
-      ) : null}
-
-      {/* Severity flames */}
-      <View style={rc.flames}>
-        {[1, 2, 3, 4, 5].map(n => (
-          <Text key={n} style={[rc.flame, { opacity: n <= severity ? 1 : 0.15 }]}>🔥</Text>
-        ))}
-      </View>
+      </TouchableOpacity>
     </Animated.View>
   );
 }
@@ -524,12 +556,18 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
 const rc = StyleSheet.create({
   card: {
     width: '48%', backgroundColor: '#1A1A1A',
-    borderRadius: 18, padding: 16,
+    borderRadius: 18,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
     marginBottom: 14,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+    overflow: 'hidden',
   },
+  cardExpanded: {
+    borderColor: 'rgba(0,230,118,0.22)',
+    shadowOpacity: 0.55, shadowRadius: 16, elevation: 10,
+  },
+  cardInner: { padding: 16 },
   topBlock: { alignItems: 'center', marginBottom: 10 },
   emoji: { fontSize: 30, marginBottom: 6 },
   amount: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1, lineHeight: 30 },
@@ -545,7 +583,8 @@ const rc = StyleSheet.create({
     borderRadius: 10, padding: 10, marginBottom: 10,
   },
   roastText: { fontSize: 11, fontStyle: 'italic', color: '#69FF9C', lineHeight: 17 },
-  flames: { flexDirection: 'row', justifyContent: 'center', gap: 2 },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  flames: { flexDirection: 'row', gap: 2 },
   flame: { fontSize: 11 },
 });
 
