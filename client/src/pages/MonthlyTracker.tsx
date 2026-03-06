@@ -70,7 +70,7 @@ const CATEGORY_COLORS = ["#E85D26", "#C4A832", "#7B6FE8", "#3BB8A0", "#E8526A", 
 
 export default function MonthlyTracker() {
   const { formatAmount: fmtCurrency } = useCurrency();
-  const { data: series, isLoading: seriesLoading } = useMonthlySeries();
+  const { isLoading: seriesLoading } = useMonthlySeries();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
   const { data: expenses } = useExpenses();
 
@@ -98,7 +98,11 @@ export default function MonthlyTracker() {
   }
 
   // ── Derived data ──────────────────────────────────────────────────
-  const allExpenses = expenses ?? [];
+  // Only bank statement imports — receipts live on the Receipt Roast tab
+  const allExpenses = useMemo(
+    () => (expenses ?? []).filter(e => e.source === "bank_statement"),
+    [expenses]
+  );
   const currentYM = new Date().toISOString().slice(0, 7);
 
   // Years that have expense data — for the year dropdown
@@ -164,37 +168,33 @@ export default function MonthlyTracker() {
   const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
   const grandTotal = Object.values(categoryTotals).reduce((s, v) => s + v, 0);
 
-  // Chart: when a year is selected, build Jan–Dec from allExpenses; otherwise use API series (last 12 mo)
+  // Chart: always computed from bank_statement allExpenses for consistency.
+  // When a year is selected → Jan–Dec slots for that year.
+  // Otherwise → last 12 months of bank statement data.
   const chartData = useMemo(() => {
+    const src = selectedCats.size > 0 ? allExpenses.filter(e => selectedCats.has(e.category)) : allExpenses;
+    const byMonth: Record<string, { total: number; count: number }> = {};
+    src.forEach(e => {
+      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      const ym = d.toISOString().slice(0, 7);
+      if (!byMonth[ym]) byMonth[ym] = { total: 0, count: 0 };
+      byMonth[ym].total += e.amount;
+      byMonth[ym].count++;
+    });
     if (selectedYear) {
       const now = new Date();
       const yearNum = parseInt(selectedYear);
       const endMonth = yearNum === now.getFullYear() ? now.getMonth() + 1 : 12;
-      const slots = Array.from({ length: endMonth }, (_, i) => {
+      return Array.from({ length: endMonth }, (_, i) => {
         const m = String(i + 1).padStart(2, '0');
         const ym = `${selectedYear}-${m}`;
-        return { month: ym, total: 0, count: 0, label: fmtMonth(ym) };
+        return { month: ym, label: fmtMonth(ym), total: byMonth[ym]?.total ?? 0, count: byMonth[ym]?.count ?? 0 };
       });
-      const src = selectedCats.size > 0 ? allExpenses.filter(e => selectedCats.has(e.category)) : allExpenses;
-      src.forEach(e => {
-        const d = e.date instanceof Date ? e.date : new Date(e.date);
-        if (String(d.getFullYear()) !== selectedYear) return;
-        const ym = d.toISOString().slice(0, 7);
-        const slot = slots.find(s => s.month === ym);
-        if (slot) { slot.total += e.amount; slot.count++; }
-      });
-      return slots;
     }
-    const base = series?.map(s => ({ ...s, label: fmtMonth(s.month) })) ?? [];
-    if (selectedCats.size === 0) return base;
-    const byMonth: Record<string, number> = {};
-    allExpenses.filter(e => selectedCats.has(e.category)).forEach(e => {
-      const d = e.date instanceof Date ? e.date : new Date(e.date);
-      const ym = d.toISOString().slice(0, 7);
-      byMonth[ym] = (byMonth[ym] || 0) + e.amount;
-    });
-    return base.map(row => ({ ...row, total: byMonth[row.month] ?? 0 }));
-  }, [series, allExpenses, selectedYear, selectedCats]);
+    // Last 12 months (or all available months if fewer), sorted ascending
+    const months = Object.keys(byMonth).sort().slice(-12);
+    return months.map(ym => ({ month: ym, label: fmtMonth(ym), total: byMonth[ym].total, count: byMonth[ym].count }));
+  }, [allExpenses, selectedYear, selectedCats]);
 
   // Advice breakdown — backend already filters by month/year/category so use directly
   const filteredBreakdown = useMemo(() => advice?.breakdown ?? [], [advice]);
@@ -209,9 +209,8 @@ export default function MonthlyTracker() {
 
   const maxBar = Math.max(...(chartData.map(d => d.total) || [1]), 1);
 
-  // Month over month comparison (always from full series)
-  const fullChartData = series?.map(s => ({ ...s, label: fmtMonth(s.month) })) ?? [];
-  const lastTwo = fullChartData.slice(-2);
+  // Month over month comparison — use bank_statement chartData (all months, no year filter)
+  const lastTwo = chartData.slice(-2);
   const [prevMonth, currentMonth] = lastTwo;
   const monthDiff = currentMonth && prevMonth ? currentMonth.total - prevMonth.total : null;
   const monthDiffPct = prevMonth?.total ? Math.round((monthDiff! / prevMonth.total) * 100) : null;
