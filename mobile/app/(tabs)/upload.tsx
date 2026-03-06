@@ -34,6 +34,32 @@ const TONES = [
   { value: 'supportive', label: '💛 Supportive' },
 ];
 
+const CATEGORY_EMOJI: Record<string, string> = {
+  'Food & Drink':  '🍔',
+  'Shopping':      '🛍️',
+  'Transport':     '🚗',
+  'Entertainment': '🎬',
+  'Health':        '💊',
+  'Subscriptions': '📱',
+  'Coffee':        '☕',
+  'Groceries':     '🛒',
+  'Other':         '🧾',
+};
+
+const CATEGORY_COLOR: Record<string, string> = {
+  'Food & Drink':  '#E85D26',
+  'Shopping':      '#C4A832',
+  'Transport':     '#3BB8A0',
+  'Entertainment': '#E8526A',
+  'Health':        '#5BA85E',
+  'Subscriptions': '#7B6FE8',
+  'Coffee':        '#C4A832',
+  'Groceries':     '#C4A832',
+  'Other':         '#4A5060',
+};
+
+const ROTATIONS = [-2, 1, -1.5, 2, -0.5, 1.5, -1, 0.5, -2.5, 0];
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$', GBP: '£', EUR: '€', CAD: 'CA$', AUD: 'A$',
   JPY: '¥', CHF: 'CHF', INR: '₹', SGD: 'S$', MXN: 'MX$',
@@ -419,9 +445,11 @@ export default function UploadScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              receiptExpenses.map((exp, i) => (
-                <ReceiptCard key={exp.id} expense={exp} currency={currency} index={i} />
-              ))
+              <View style={s.cardGrid}>
+                {receiptExpenses.map((exp, i) => (
+                  <ReceiptCard key={exp.id} expense={exp} currency={currency} index={i} />
+                ))}
+              </View>
             )}
           </View>
         )}
@@ -431,65 +459,94 @@ export default function UploadScreen() {
   );
 }
 
-// ── Animated receipt card ────────────────────────────────────────────────────
+// ── Collage-style receipt card — matches web ReceiptCollageCard ──────────────
 function ReceiptCard({ expense, currency, index }: { expense: Expense; currency: string; index: number }) {
-  const translateY = useRef(new Animated.Value(40)).current;
+  const translateY = useRef(new Animated.Value(44)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: 0,
-        duration: 480,
-        delay: index * 90,
-        easing: Easing.out(Easing.back(1.4)),
-        useNativeDriver: true,
+        toValue: 0, duration: 500, delay: index * 90,
+        easing: Easing.out(Easing.back(1.4)), useNativeDriver: true,
       }),
       Animated.timing(opacity, {
-        toValue: 1,
-        duration: 380,
-        delay: index * 90,
-        useNativeDriver: true,
+        toValue: 1, duration: 400, delay: index * 90, useNativeDriver: true,
       }),
     ]).start();
   }, []);
 
-  const date = expense.createdAt
-    ? new Date(expense.createdAt).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })
+  const rotation   = ROTATIONS[index % ROTATIONS.length];
+  const dollars    = expense.amount / 100;
+  const severity   = dollars < 10 ? 1 : dollars < 50 ? 2 : dollars < 150 ? 3 : dollars < 500 ? 4 : 5;
+  const emoji      = CATEGORY_EMOJI[expense.category]  ?? '🧾';
+  const pillColor  = CATEGORY_COLOR[expense.category]  ?? '#4A5060';
+  const dateStr    = expense.createdAt
+    ? new Date(expense.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : '';
 
   return (
-    <Animated.View style={[rc.card, { opacity, transform: [{ translateY }] }]}>
-      <View style={rc.top}>
+    <Animated.View style={[rc.card, { opacity, transform: [{ translateY }, { rotate: `${rotation}deg` }] }]}>
+      {/* Emoji + amount */}
+      <View style={rc.topBlock}>
+        <Text style={rc.emoji}>{emoji}</Text>
         <Text style={rc.amount}>{formatMoney(expense.amount, expense.currency ?? currency)}</Text>
-        <Text style={rc.date}>{date}</Text>
       </View>
-      <Text style={rc.desc}>{expense.description}</Text>
-      <View style={rc.pill}>
-        <Text style={rc.pillText}>{expense.category.toUpperCase()}</Text>
+
+      {/* Description + meta */}
+      <View style={rc.metaBlock}>
+        <Text style={rc.desc} numberOfLines={1}>{expense.description}</Text>
+        <View style={rc.pillRow}>
+          <View style={[rc.pill, { backgroundColor: pillColor }]}>
+            <Text style={rc.pillText}>{expense.category.toUpperCase()}</Text>
+          </View>
+          {dateStr ? <Text style={rc.date}>{dateStr}</Text> : null}
+        </View>
       </View>
-      <Text style={rc.roast} numberOfLines={3}>"{expense.roast}"</Text>
+
+      {/* Roast quote */}
+      {expense.roast ? (
+        <View style={rc.roastBox}>
+          <Text style={rc.roastText} numberOfLines={4}>"{expense.roast}"</Text>
+        </View>
+      ) : null}
+
+      {/* Severity flames */}
+      <View style={rc.flames}>
+        {[1, 2, 3, 4, 5].map(n => (
+          <Text key={n} style={[rc.flame, { opacity: n <= severity ? 1 : 0.15 }]}>🔥</Text>
+        ))}
+      </View>
     </Animated.View>
   );
 }
 
 const rc = StyleSheet.create({
   card: {
-    backgroundColor: colors.surfaceElevated, borderRadius: radius.xl,
-    padding: spacing.lg, marginBottom: spacing.md,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
+    width: '48%', backgroundColor: '#1A1A1A',
+    borderRadius: 18, padding: 16,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    marginBottom: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
   },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  amount: { ...typography.h3, color: colors.text },
-  date: { ...typography.caption, color: colors.textMuted },
-  desc: { ...typography.body, color: colors.text, fontWeight: '600' },
-  pill: {
-    alignSelf: 'flex-start', backgroundColor: colors.primaryDim,
-    borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 2,
-    borderWidth: 1, borderColor: colors.primaryBorder,
+  topBlock: { alignItems: 'center', marginBottom: 10 },
+  emoji: { fontSize: 30, marginBottom: 6 },
+  amount: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1, lineHeight: 30 },
+  metaBlock: { alignItems: 'center', marginBottom: 10 },
+  desc: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', marginBottom: 6 },
+  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
+  pill: { borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
+  pillText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+  date: { fontSize: 10, color: '#4A5060' },
+  roastBox: {
+    backgroundColor: 'rgba(0,230,118,0.06)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.18)',
+    borderRadius: 10, padding: 10, marginBottom: 10,
   },
-  pillText: { ...typography.caption, color: colors.primary, fontWeight: '700', fontSize: 10 },
-  roast: { ...typography.bodyMuted, fontStyle: 'italic', lineHeight: 20, marginTop: spacing.xs },
+  roastText: { fontSize: 11, fontStyle: 'italic', color: '#69FF9C', lineHeight: 17 },
+  flames: { flexDirection: 'row', justifyContent: 'center', gap: 2 },
+  flame: { fontSize: 11 },
 });
 
 const s = StyleSheet.create({
@@ -583,6 +640,7 @@ const s = StyleSheet.create({
   freePanelSub: { ...typography.caption, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
 
   wallSection: { gap: spacing.md },
+  cardGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   wallHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   wallTitle: { ...typography.h3, fontSize: 20 },
   countBadge: {
