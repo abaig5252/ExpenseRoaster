@@ -25,33 +25,31 @@ export default function Dashboard() {
   const { data: expenses, isLoading: expensesLoading, error: expensesError } = useExpenses();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
 
-  const receiptExpenses = useMemo(
-    () => expenses?.filter(e => e.source === "receipt") ?? [],
-    [expenses]
-  );
+  const allExpenses = expenses ?? [];
 
   const availableMonths = useMemo(() => {
-    const months = new Set(receiptExpenses.map(expenseMonth));
+    const months = new Set(allExpenses.map(expenseMonth));
     return [...months].sort().reverse();
-  }, [receiptExpenses]);
+  }, [allExpenses]);
 
+  // Auto-select: current month if it has expenses, else most recent month
   useEffect(() => {
-    if (selectedMonth === null && availableMonths.length > 0) {
-      const cur = new Date().toISOString().slice(0, 7);
-      setSelectedMonth(availableMonths.includes(cur) ? cur : availableMonths[0]);
-    }
-  }, [availableMonths.length]);
+    if (availableMonths.length === 0) return;
+    if (selectedMonth !== null && availableMonths.includes(selectedMonth)) return;
+    const cur = new Date().toISOString().slice(0, 7);
+    setSelectedMonth(availableMonths.includes(cur) ? cur : availableMonths[0]);
+  }, [availableMonths.join(",")]);
 
   const filteredExpenses = useMemo(
-    () => selectedMonth ? receiptExpenses.filter(e => expenseMonth(e) === selectedMonth) : receiptExpenses,
-    [receiptExpenses, selectedMonth]
+    () => selectedMonth ? allExpenses.filter(e => expenseMonth(e) === selectedMonth) : allExpenses,
+    [allExpenses, selectedMonth]
   );
 
   const filteredTotal = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
+  // Monthly roast uses all filtered expenses but server filters to receipt source
   const { data: monthlyRoastData, isLoading: roastLoading } = useMonthlyRoast(
-    filteredExpenses.length > 0 ? selectedMonth : null,
-    "receipt"
+    filteredExpenses.length > 0 ? selectedMonth : null
   );
 
   const formattedTotal = summary
@@ -132,10 +130,10 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
             <div className="flex items-center gap-3">
               <DollarSign className="w-6 h-6 text-muted-foreground" />
-              <h2 className="text-2xl font-bold text-foreground">Receipt Wall</h2>
+              <h2 className="text-2xl font-bold text-foreground">Recent Disasters</h2>
               {!expensesLoading && selectedMonth && (
                 <span className="text-sm text-muted-foreground font-medium">
-                  — {filteredExpenses.length} receipt{filteredExpenses.length !== 1 ? "s" : ""},{" "}
+                  — {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? "s" : ""},{" "}
                   {formatAmount(filteredTotal)}
                 </span>
               )}
