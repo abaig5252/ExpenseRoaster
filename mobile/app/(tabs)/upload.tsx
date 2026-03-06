@@ -552,6 +552,9 @@ export default function UploadScreen() {
   );
 }
 
+// ── Per-flame flicker timings — staggered so no two flames sync ──────────────
+const FLICKER_DURATIONS = [840, 1120, 740, 1000, 1220];
+
 // ── Collage-style receipt card — matches web ReceiptCollageCard ──────────────
 function ReceiptCard({ expense, currency, index }: { expense: Expense; currency: string; index: number }) {
   const translateY = useRef(new Animated.Value(44)).current;
@@ -559,16 +562,99 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
   const chevronRot = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
 
+  // Flame scales/opacities held here so ReceiptCard can trigger flare on press
+  const flameScales    = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.3))).current;
+  const flameOpacities = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0))).current;
+  const flameLoops     = useRef<(Animated.CompositeAnimation | null)[]>([null, null, null, null, null]);
+
+  const rotation = ROTATIONS[index % ROTATIONS.length];
+  const dollars  = expense.amount / 100;
+  const severity = dollars < 10 ? 1 : dollars < 50 ? 2 : dollars < 150 ? 3 : dollars < 500 ? 4 : 5;
+  const emoji    = CATEGORY_EMOJI[expense.category] ?? '🧾';
+  const pillColor = CATEGORY_COLOR[expense.category] ?? '#4A5060';
+  const dateStr  = expense.createdAt
+    ? new Date(expense.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : '';
+  const chevronDeg = chevronRot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
+  const cardDelay = index * 90;
+
+  function startFlicker(i: number) {
+    const dur = FLICKER_DURATIONS[i];
+    const half = Math.round(dur / 2);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(flameScales[i],    { toValue: 1.09, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(flameOpacities[i], { toValue: 0.75, duration: half, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(flameScales[i],    { toValue: 0.94, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(flameOpacities[i], { toValue: 1.0,  duration: half, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    flameLoops.current[i] = loop;
+    loop.start();
+  }
+
+  function stopFlicker(i: number) {
+    flameLoops.current[i]?.stop();
+    flameLoops.current[i] = null;
+  }
+
+  function flareAll() {
+    [0, 1, 2, 3, 4].forEach(stopFlicker);
+    Animated.parallel(
+      [0, 1, 2, 3, 4].map(i =>
+        Animated.sequence([
+          Animated.timing(flameScales[i], {
+            toValue: 1.4, duration: 90,
+            easing: Easing.out(Easing.cubic), useNativeDriver: true,
+          }),
+          Animated.spring(flameScales[i], {
+            toValue: i < severity ? 1.0 : 0.7,
+            friction: 4, tension: 200, useNativeDriver: true,
+          }),
+        ])
+      )
+    ).start(() => {
+      [0, 1, 2, 3, 4].forEach(i => { if (i < severity) startFlicker(i); });
+    });
+  }
+
+  // Card slide-in + flame staggered light-up
   useEffect(() => {
+    // Card entrance
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: 0, duration: 500, delay: index * 90,
+        toValue: 0, duration: 500, delay: cardDelay,
         easing: Easing.out(Easing.back(1.4)), useNativeDriver: true,
       }),
       Animated.timing(opacity, {
-        toValue: 1, duration: 400, delay: index * 90, useNativeDriver: true,
+        toValue: 1, duration: 400, delay: cardDelay, useNativeDriver: true,
       }),
     ]).start();
+
+    // Inactive flames: dim, static
+    [0, 1, 2, 3, 4].forEach(i => {
+      if (i >= severity) {
+        flameScales[i].setValue(0.85);
+        flameOpacities[i].setValue(0.13);
+      }
+    });
+
+    // Active flames: stagger then flicker
+    [0, 1, 2, 3, 4].filter(i => i < severity).forEach((i, pos) => {
+      Animated.sequence([
+        Animated.delay(cardDelay + 300 + pos * 155),
+        Animated.parallel([
+          Animated.spring(flameScales[i], { toValue: 1, friction: 3, tension: 280, useNativeDriver: true }),
+          Animated.timing(flameOpacities[i], { toValue: 1, duration: 180, useNativeDriver: true }),
+        ]),
+      ]).start(() => startFlicker(i));
+    });
+
+    return () => { [0, 1, 2, 3, 4].forEach(stopFlicker); };
   }, []);
 
   function toggleExpand() {
@@ -579,28 +665,20 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
       delete: { type: 'easeInEaseOut', property: 'opacity', duration: 150 },
     });
     Animated.timing(chevronRot, {
-      toValue: expanded ? 0 : 1,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      toValue: expanded ? 0 : 1, duration: 260,
+      easing: Easing.out(Easing.cubic), useNativeDriver: true,
     }).start();
     setExpanded(prev => !prev);
   }
 
-  const rotation   = ROTATIONS[index % ROTATIONS.length];
-  const dollars    = expense.amount / 100;
-  const severity   = dollars < 10 ? 1 : dollars < 50 ? 2 : dollars < 150 ? 3 : dollars < 500 ? 4 : 5;
-  const emoji      = CATEGORY_EMOJI[expense.category]  ?? '🧾';
-  const pillColor  = CATEGORY_COLOR[expense.category]  ?? '#4A5060';
-  const dateStr    = expense.createdAt
-    ? new Date(expense.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    : '';
-
-  const chevronDeg = chevronRot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
-
   return (
     <Animated.View style={[rc.card, expanded && rc.cardExpanded, { opacity, transform: [{ translateY }, { rotate: `${rotation}deg` }] }]}>
-      <TouchableOpacity onPress={toggleExpand} activeOpacity={0.85} style={rc.cardInner}>
+      <TouchableOpacity
+        onPressIn={flareAll}
+        onPress={toggleExpand}
+        activeOpacity={0.85}
+        style={rc.cardInner}
+      >
         {/* Emoji + amount */}
         <View style={rc.topBlock}>
           <Text style={rc.emoji}>{emoji}</Text>
@@ -628,8 +706,13 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
         {/* Severity flames + chevron */}
         <View style={rc.footer}>
           <View style={rc.flames}>
-            {[1, 2, 3, 4, 5].map(n => (
-              <Text key={n} style={[rc.flame, { opacity: n <= severity ? 1 : 0.15 }]}>🔥</Text>
+            {[0, 1, 2, 3, 4].map(i => (
+              <Animated.Text
+                key={i}
+                style={[rc.flame, { opacity: flameOpacities[i], transform: [{ scale: flameScales[i] }] }]}
+              >
+                🔥
+              </Animated.Text>
             ))}
           </View>
           <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
