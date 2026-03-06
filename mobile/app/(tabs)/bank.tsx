@@ -21,6 +21,7 @@ interface Expense {
   roast: string | null;
   currency: string;
   source: string;
+  date?: string;
   createdAt?: string;
 }
 
@@ -398,8 +399,8 @@ export default function BankScreen() {
                     <View style={s.catPill}>
                       <Text style={s.catPillText}>{exp.category.toUpperCase()}</Text>
                     </View>
-                    {exp.createdAt && (
-                      <Text style={s.expDate}>{new Date(exp.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                    {(exp.date ?? exp.createdAt) && (
+                      <Text style={s.expDate}>{new Date(exp.date ?? exp.createdAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                     )}
                   </View>
                   {exp.roast && <Text style={s.expRoast} numberOfLines={isExpanded ? undefined : 2}>"{exp.roast}"</Text>}
