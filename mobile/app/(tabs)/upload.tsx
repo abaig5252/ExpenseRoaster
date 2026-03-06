@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, ActionSheetIOS, Platform,
+  Animated, Easing,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -54,6 +55,7 @@ export default function UploadScreen() {
   const [ephemeral, setEphemeral] = useState<Expense | null>(null);
   const [uploading, setUploading] = useState(false);
   const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
+  const [displayedAmount, setDisplayedAmount] = useState(0);
 
   const isPremium = user?.tier === 'premium';
   const uploadsUsed = user?.monthlyUploadCount ?? 0;
@@ -77,20 +79,102 @@ export default function UploadScreen() {
   const receiptExpenses = expenses?.filter(e => e.source === 'receipt') ?? [];
   const monthlyTotal = summary?.monthlyTotal ?? 0;
 
+  // ── Animation values ──────────────────────────────────────────
+  const greetingOpacity = useRef(new Animated.Value(0)).current;
+  const amountOpacity   = useRef(new Animated.Value(0)).current;
+  const subtitleOpacity = useRef(new Animated.Value(0)).current;
+  const pulseScale      = useRef(new Animated.Value(1)).current;
+  const tapScale        = useRef(new Animated.Value(1)).current;
+  const plusRotate      = useRef(new Animated.Value(0)).current;
+  const wallX           = useRef(new Animated.Value(-30)).current;
+  const wallOpacity     = useRef(new Animated.Value(0)).current;
+  const badgeScale      = useRef(new Animated.Value(0)).current;
+  const pulseAnim       = useRef<Animated.CompositeAnimation | null>(null);
+  const tickerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevTotal       = useRef(0);
+
+  // Mount: hero fade-ins + button pulse
+  useEffect(() => {
+    Animated.timing(greetingOpacity, { toValue: 1, duration: 700, useNativeDriver: true }).start();
+    Animated.timing(amountOpacity,   { toValue: 1, duration: 500, delay: 150, useNativeDriver: true }).start();
+    Animated.timing(subtitleOpacity, { toValue: 1, duration: 600, delay: 900, useNativeDriver: true }).start();
+
+    // Wall header slide-in
+    Animated.parallel([
+      Animated.timing(wallX,       { toValue: 0, duration: 550, delay: 500, easing: Easing.out(Easing.exp), useNativeDriver: true }),
+      Animated.timing(wallOpacity, { toValue: 1, duration: 450, delay: 500, useNativeDriver: true }),
+    ]).start();
+
+    // Upload button gentle pulse loop
+    pulseAnim.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseScale, { toValue: 1.03, duration: 950, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseScale, { toValue: 1.00, duration: 950, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    pulseAnim.current.start();
+
+    return () => {
+      pulseAnim.current?.stop();
+      if (tickerRef.current) clearInterval(tickerRef.current);
+    };
+  }, []);
+
+  // Amount ticker: count up whenever monthlyTotal changes
+  useEffect(() => {
+    if (monthlyTotal === prevTotal.current) return;
+    const from   = prevTotal.current;
+    const to     = monthlyTotal;
+    prevTotal.current = to;
+
+    if (tickerRef.current) clearInterval(tickerRef.current);
+    const STEPS    = 60;
+    const INTERVAL = 1400 / STEPS;
+    let step = 0;
+    tickerRef.current = setInterval(() => {
+      step++;
+      const t = step / STEPS;
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setDisplayedAmount(Math.round(from + (to - from) * eased));
+      if (step >= STEPS) {
+        clearInterval(tickerRef.current!);
+        setDisplayedAmount(to);
+      }
+    }, INTERVAL);
+  }, [monthlyTotal]);
+
+  // Badge pop when receipt count changes
+  useEffect(() => {
+    if (receiptExpenses.length === 0) return;
+    badgeScale.setValue(0);
+    Animated.spring(badgeScale, { toValue: 1, tension: 120, friction: 5, useNativeDriver: true }).start();
+  }, [receiptExpenses.length]);
+
+  // Upload button tap handler with bounce + icon spin
+  const handleUploadPress = useCallback(() => {
+    // Bounce
+    Animated.sequence([
+      Animated.timing(tapScale, { toValue: 0.93, duration: 90, useNativeDriver: true }),
+      Animated.spring(tapScale, { toValue: 1, friction: 4, tension: 150, useNativeDriver: true }),
+    ]).start();
+    // Plus spin 360°
+    plusRotate.setValue(0);
+    Animated.timing(plusRotate, {
+      toValue: 1, duration: 380,
+      easing: Easing.out(Easing.back(1.5)),
+      useNativeDriver: true,
+    }).start();
+    promptImageSource();
+  }, [atLimit]);
+
   function promptImageSource() {
     if (atLimit) {
-      Alert.alert('Limit Reached', 'Free plan: 1 upload per month. Upgrade to Premium for unlimited.', [
-        { text: 'OK' },
-      ]);
+      Alert.alert('Limit Reached', 'Free plan: 1 upload per month. Upgrade to Premium for unlimited.', [{ text: 'OK' }]);
       return;
     }
-
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Take Photo', 'Choose from Library'],
-          cancelButtonIndex: 0,
-        },
+        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
         (idx) => {
           if (idx === 1) pickImage('camera');
           if (idx === 2) pickImage('gallery');
@@ -133,14 +217,10 @@ export default function UploadScreen() {
       const fd = new FormData();
       fd.append('receipt', { uri: imageUri, type: 'image/jpeg', name: 'receipt.jpg' } as never);
       fd.append('tone', tone);
-
       const token = await getToken();
       const headers: Record<string, string> = {};
       if (token) headers['x-app-token'] = token;
-
-      const res = await fetch(`${API_BASE_URL}/api/expenses/upload`, {
-        method: 'POST', headers, body: fd,
-      });
+      const res = await fetch(`${API_BASE_URL}/api/expenses/upload`, { method: 'POST', headers, body: fd });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: 'Upload failed' }));
         throw new Error((err as { message?: string }).message ?? 'Upload failed');
@@ -161,6 +241,8 @@ export default function UploadScreen() {
       setUploading(false);
     }
   }
+
+  const plusSpin = plusRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
     <SafeAreaView style={s.root}>
@@ -193,45 +275,50 @@ export default function UploadScreen() {
 
         {/* ── Hero ── */}
         <View style={s.hero}>
-          <Text style={s.heroLabel}>
+          <Animated.Text style={[s.heroLabel, { opacity: greetingOpacity }]}>
             HEY {firstName.toUpperCase()},{'\n'}
             {isPremium ? "HERE'S YOUR RECEIPT WALL" : "HERE'S YOUR FREE ROAST ZONE"}
-          </Text>
+          </Animated.Text>
+
           {isPremium ? (
-            <Text style={s.heroAmount}>{formatMoney(monthlyTotal, currency)}</Text>
+            <Animated.Text style={[s.heroAmount, { opacity: amountOpacity }]}>
+              {formatMoney(displayedAmount, currency)}
+            </Animated.Text>
           ) : (
-            <Text style={s.heroTitle}>Roast My Receipt</Text>
+            <Animated.Text style={[s.heroTitle, { opacity: amountOpacity }]}>
+              Roast My Receipt
+            </Animated.Text>
           )}
-          <Text style={s.heroSub}>
+
+          <Animated.Text style={[s.heroSub, { opacity: subtitleOpacity }]}>
             {isPremium
               ? 'spent this month on things you definitely needed.'
               : `${uploadsRemaining}/1 free upload remaining this month.`}
-          </Text>
+          </Animated.Text>
         </View>
 
         {/* ── Upload Button ── */}
-        <TouchableOpacity
-          style={[s.uploadBtnWrap, atLimit && s.uploadBtnDisabled]}
-          onPress={promptImageSource}
-          activeOpacity={0.85}
-          disabled={uploading}
-        >
-          <LinearGradient
-            colors={['#00E676', '#6BFF9C']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={s.uploadBtn}
-          >
-            {uploading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="add" size={22} color="#FFFFFF" />
-                <Text style={s.uploadBtnText}>Upload Receipt</Text>
-              </>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+        <Animated.View style={[s.uploadBtnWrap, { transform: [{ scale: Animated.multiply(pulseScale, tapScale) }] }, atLimit && s.uploadBtnDisabled]}>
+          <TouchableOpacity onPress={handleUploadPress} activeOpacity={1} disabled={uploading}>
+            <LinearGradient
+              colors={['#00E676', '#6BFF9C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.uploadBtn}
+            >
+              {uploading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Animated.View style={{ transform: [{ rotate: plusSpin }] }}>
+                    <Ionicons name="add" size={22} color="#FFFFFF" />
+                  </Animated.View>
+                  <Text style={s.uploadBtnText}>Upload Receipt</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
 
         {atLimit && (
           <TouchableOpacity style={s.upgradeNudge} activeOpacity={0.7}>
@@ -247,7 +334,6 @@ export default function UploadScreen() {
             <TouchableOpacity style={s.clearBtn} onPress={() => { setImageUri(null); setEphemeral(null); }}>
               <Ionicons name="close-circle" size={26} color={colors.textMuted} />
             </TouchableOpacity>
-
             <Text style={s.toneLabel}>Choose your roast style</Text>
             <View style={s.toneRow}>
               {TONES.map(t => (
@@ -260,7 +346,6 @@ export default function UploadScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-
             <TouchableOpacity style={s.roastBtnWrap} onPress={uploadReceipt} activeOpacity={0.85}>
               <LinearGradient
                 colors={['#00E676', '#6BFF9C']}
@@ -305,15 +390,15 @@ export default function UploadScreen() {
         {/* ── Receipt Wall (premium) ── */}
         {isPremium && (
           <View style={s.wallSection}>
-            <View style={s.wallHeader}>
+            <Animated.View style={[s.wallHeader, { opacity: wallOpacity, transform: [{ translateX: wallX }] }]}>
               <Ionicons name="camera-outline" size={18} color={colors.textMuted} />
               <Text style={s.wallTitle}>Receipt Wall</Text>
               {receiptExpenses.length > 0 && (
-                <View style={s.countBadge}>
+                <Animated.View style={[s.countBadge, { transform: [{ scale: badgeScale }] }]}>
                   <Text style={s.countText}>{receiptExpenses.length}</Text>
-                </View>
+                </Animated.View>
               )}
-            </View>
+            </Animated.View>
 
             {receiptExpenses.length === 0 ? (
               <View style={s.emptyWall}>
@@ -334,8 +419,8 @@ export default function UploadScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              receiptExpenses.map((exp) => (
-                <ReceiptCard key={exp.id} expense={exp} currency={currency} />
+              receiptExpenses.map((exp, i) => (
+                <ReceiptCard key={exp.id} expense={exp} currency={currency} index={i} />
               ))
             )}
           </View>
@@ -346,12 +431,35 @@ export default function UploadScreen() {
   );
 }
 
-function ReceiptCard({ expense, currency }: { expense: Expense; currency: string }) {
+// ── Animated receipt card ────────────────────────────────────────────────────
+function ReceiptCard({ expense, currency, index }: { expense: Expense; currency: string; index: number }) {
+  const translateY = useRef(new Animated.Value(40)).current;
+  const opacity    = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 480,
+        delay: index * 90,
+        easing: Easing.out(Easing.back(1.4)),
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 380,
+        delay: index * 90,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const date = expense.createdAt
     ? new Date(expense.createdAt).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })
     : '';
+
   return (
-    <View style={rc.card}>
+    <Animated.View style={[rc.card, { opacity, transform: [{ translateY }] }]}>
       <View style={rc.top}>
         <Text style={rc.amount}>{formatMoney(expense.amount, expense.currency ?? currency)}</Text>
         <Text style={rc.date}>{date}</Text>
@@ -361,7 +469,7 @@ function ReceiptCard({ expense, currency }: { expense: Expense; currency: string
         <Text style={rc.pillText}>{expense.category.toUpperCase()}</Text>
       </View>
       <Text style={rc.roast} numberOfLines={3}>"{expense.roast}"</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -415,8 +523,7 @@ const s = StyleSheet.create({
   uploadBtnWrap: { alignSelf: 'flex-start', borderRadius: 16, overflow: 'hidden' },
   uploadBtn: {
     flexDirection: 'row', alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 18, paddingHorizontal: 28,
+    gap: spacing.sm, paddingVertical: 18, paddingHorizontal: 28,
   },
   uploadBtnDisabled: { opacity: 0.45 },
   uploadBtnText: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
@@ -496,8 +603,6 @@ const s = StyleSheet.create({
   emptyTitle: { ...typography.h3, textAlign: 'center' },
   emptySub: { ...typography.bodyMuted, textAlign: 'center', lineHeight: 22 },
   emptyBtnWrap: { borderRadius: radius.lg, overflow: 'hidden', marginTop: spacing.sm },
-  emptyBtn: {
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
-  },
+  emptyBtn: { paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
   emptyBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
