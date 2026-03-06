@@ -623,7 +623,23 @@ Extract expense data from this receipt image and deliver a roast. The user's pre
           {
             role: "user",
             content: [
-              { type: "text", text: `Extract the expense details and roast me. Respond ONLY with JSON: { "amount": <number in cents, in ${userCurrency}>, "description": "<short name>", "date": "<ISO date>", "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>", "location": "<city and country from the receipt, or null if not visible>", "roast": "<your roast — reference the merchant name and amount, do NOT mention any city or address>" }` },
+              { type: "text", text: `Carefully read this receipt and extract the expense details. Follow these rules in order:
+
+AMOUNT EXTRACTION (most important):
+1. Find the printed TOTAL, GRAND TOTAL, AMOUNT DUE, AMOUNT PAID, or BALANCE DUE line — this is the single final number the customer paid.
+2. Also identify each line item and its price, plus any tax/tip lines.
+3. Reconciliation: sum all line items + tax + tip. If your sum is within $0.05 of the printed total, use the PRINTED TOTAL as the amount (it is ground truth). If they differ by more than $0.05, re-read the receipt more carefully — you likely misread a digit. Always prefer the printed total over your own calculation.
+4. Convert the total to ${userCurrency} cents (multiply dollars by 100, round to nearest integer).
+
+Respond ONLY with this JSON (no markdown, no extra keys):
+{
+  "amount": <grand total in ${userCurrency} cents, integer>,
+  "description": "<merchant name — short, e.g. 'Walmart', 'Starbucks'>",
+  "date": "<ISO date from receipt, e.g. 2024-03-15>",
+  "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>",
+  "location": "<city and country from receipt, or null>",
+  "roast": "<one sharp sentence roasting the merchant name and amount — do NOT mention any address, street, or neighbourhood>"
+}` },
               { type: "image_url", image_url: { url: input.image } },
             ],
           },
