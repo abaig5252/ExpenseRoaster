@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { getToken, setToken, clearToken, apiGet, apiGetWithToken, apiPatch } from './api';
 
 export interface MeUser {
@@ -32,6 +33,62 @@ const AuthContext = React.createContext<AuthContextType>({
   updateCurrency: async () => {},
 });
 
+const SUPPORTED_CURRENCIES = new Set([
+  'USD','GBP','EUR','CAD','AUD','JPY','CHF','INR','SGD','NZD','HKD','MXN','BRL','SEK','NOK','DKK',
+]);
+
+const REGION_TO_CURRENCY: Record<string, string> = {
+  US: 'USD',
+  GB: 'GBP',
+  AU: 'AUD',
+  CA: 'CAD',
+  NZ: 'NZD',
+  HK: 'HKD',
+  SG: 'SGD',
+  JP: 'JPY',
+  CH: 'CHF',
+  LI: 'CHF',
+  MX: 'MXN',
+  BR: 'BRL',
+  SE: 'SEK',
+  NO: 'NOK',
+  DK: 'DKK',
+  IN: 'INR',
+  DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR',
+  BE: 'EUR', PT: 'EUR', AT: 'EUR', FI: 'EUR', IE: 'EUR',
+  GR: 'EUR', SK: 'EUR', SI: 'EUR', EE: 'EUR', LV: 'EUR',
+  LT: 'EUR', LU: 'EUR', MT: 'EUR', CY: 'EUR',
+};
+
+function detectDeviceCurrency(): string {
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+    const parts = locale.split(/[-_]/);
+    const region = parts.length >= 2 ? parts[parts.length - 1].toUpperCase() : '';
+    const detected = REGION_TO_CURRENCY[region] ?? 'USD';
+    return SUPPORTED_CURRENCIES.has(detected) ? detected : 'USD';
+  } catch {
+    return 'USD';
+  }
+}
+
+const CURRENCY_FLAG_KEY = '@expense_roaster_currency_synced';
+
+async function isCurrencySynced(): Promise<boolean> {
+  try {
+    const val = await SecureStore.getItemAsync(CURRENCY_FLAG_KEY);
+    return val === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function markCurrencySynced(): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(CURRENCY_FLAG_KEY, '1');
+  } catch {}
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
@@ -49,17 +106,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     bootstrap();
   }, []);
 
+  async function syncCurrencyOnce(me: MeUser): Promise<MeUser> {
+    const alreadySynced = await isCurrencySynced();
+    if (alreadySynced) return me;
+
+    const detected = detectDeviceCurrency();
+    await markCurrencySynced();
+
+    if (detected !== me.currency) {
+      try {
+        await apiPatch('/api/me/profile', { currency: detected });
+        return { ...me, currency: detected };
+      } catch {
+        return me;
+      }
+    }
+    return me;
+  }
+
   async function bootstrap() {
     try {
       const stored = await withTimeout(getToken(), 3_000);
       if (stored) {
-        // Show the app immediately with the stored token, verify in background
         setIsLoading(false);
         try {
           const me = await withTimeout(apiGet<MeUser>('/api/me'), 8_000);
-          setUser(me);
+          const synced = await syncCurrencyOnce(me);
+          setUser(synced);
         } catch {
-          // Server unreachable or token invalid — sign out
           clearToken().catch(() => {});
           setUser(null);
         }
@@ -75,7 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signIn(jwt: string) {
     await setToken(jwt);
     const me = await apiGetWithToken<MeUser>('/api/me', jwt);
-    setUser(me);
+    const synced = await syncCurrencyOnce(me);
+    setUser(synced);
   }
 
   function signOut() {
@@ -89,11 +164,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function updateCurrency(code: string) {
-    // Optimistic update — UI changes immediately
     setUser(prev => prev ? { ...prev, currency: code } : prev);
-    // Persist to server (fire and forget — don't block UI)
     apiPatch('/api/me/profile', { currency: code }).catch(() => {
-      // Revert on failure
       refreshUser().catch(() => {});
     });
   }
