@@ -41,6 +41,99 @@ function fmtMonth(ym: string): string {
 interface Summary { monthlyTotal: number; recentRoasts: string[] }
 interface UploadResult { expense: Expense; ephemeral?: boolean }
 
+// ── Verdict text parser ───────────────────────────────────────────
+type VSegment =
+  | { type: 'text';     text: string }
+  | { type: 'bold';     text: string }
+  | { type: 'italic';   text: string }
+  | { type: 'currency'; text: string }
+  | { type: 'count';    text: string }
+  | { type: 'category'; text: string; color: string };
+
+const VERDICT_CAT_COLORS: Record<string, string> = {
+  'food & drink':  '#E85D26',
+  'shopping':      '#C4A832',
+  'transport':     '#3BB8A0',
+  'entertainment': '#E8526A',
+  'health':        '#5BA85E',
+  'subscriptions': '#7B6FE8',
+  'coffee':        '#C4A832',
+  'groceries':     '#C4A832',
+  'other':         '#4A5060',
+};
+
+const VERDICT_CAT_NAMES = ['Food & Drink','Subscriptions','Entertainment','Transport','Shopping','Groceries','Coffee','Health','Other'];
+const V_CURRENCY_RE = /^(?:S\$|CA\$|A\$|NZ\$|HK\$|MX\$|US\$|AU\$|C\$|[$£€¥₹])\s*[\d,]+(?:\.\d{1,2})?(?:\s*(?:SGD|USD|GBP|EUR|CAD|AUD|JPY|INR|CHF|MXN|HKD|NZD))?$/i;
+const V_COUNT_RE   = /^(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:receipts?|transactions?|items?)$|^\d+%$/i;
+const V_CAT_RE     = new RegExp(`^(${VERDICT_CAT_NAMES.join('|')})$`, 'i');
+
+function classifyBold(inner: string): VSegment {
+  const t = inner.trim();
+  if (V_CURRENCY_RE.test(t)) return { type: 'currency', text: inner };
+  if (V_COUNT_RE.test(t))    return { type: 'count',    text: inner };
+  const c = V_CAT_RE.exec(t);
+  if (c) return { type: 'category', text: inner, color: VERDICT_CAT_COLORS[c[1].toLowerCase()] ?? '#4A5060' };
+  return { type: 'bold', text: inner };
+}
+
+function splitByCategories(text: string): VSegment[] {
+  const re = new RegExp(`\\b(${VERDICT_CAT_NAMES.join('|')})\\b`, 'gi');
+  const segs: VSegment[] = [];
+  let last = 0; let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) segs.push({ type: 'text', text: text.slice(last, m.index) });
+    segs.push({ type: 'category', text: m[1], color: VERDICT_CAT_COLORS[m[1].toLowerCase()] ?? '#4A5060' });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) segs.push({ type: 'text', text: text.slice(last) });
+  return segs;
+}
+
+function parseVerdict(raw: string): VSegment[] {
+  const text = raw.replace(/—/g, ' - ').replace(/\s{2,}/g, ' ').trim();
+  const result: VSegment[] = [];
+  const parts = text.split(/(\*\*[^*]+?\*\*|\*[^*]+?\*)/);
+  for (const part of parts) {
+    if (part.startsWith('**') && part.endsWith('**')) result.push(classifyBold(part.slice(2, -2)));
+    else if (part.startsWith('*') && part.endsWith('*')) result.push({ type: 'italic', text: part.slice(1, -1) });
+    else result.push(...splitByCategories(part));
+  }
+  return result;
+}
+
+function VerdictText({ roast }: { roast: string }) {
+  const segs = parseVerdict(roast);
+  return (
+    <Text style={vc.base}>
+      {segs.map((seg, i) => {
+        switch (seg.type) {
+          case 'currency':
+            return <Text key={i} style={vc.currency}>{seg.text}</Text>;
+          case 'count':
+            return <Text key={i} style={vc.count}>{seg.text}</Text>;
+          case 'category':
+            return <Text key={i} style={[vc.category, { color: seg.color }]}>{seg.text.toUpperCase()}</Text>;
+          case 'bold':
+            return <Text key={i} style={vc.bold}>{seg.text}</Text>;
+          case 'italic':
+            return <Text key={i} style={vc.italic}>{seg.text}</Text>;
+          default:
+            return <Text key={i}>{seg.text}</Text>;
+        }
+      })}
+    </Text>
+  );
+}
+
+const vc = StyleSheet.create({
+  base:     { fontSize: 13, color: 'rgba(255,255,255,0.88)', lineHeight: 21 },
+  currency: { color: '#00E676', fontWeight: '800', letterSpacing: -0.3 },
+  count:    { fontWeight: '800', color: '#FFFFFF' },
+  category: { fontWeight: '800', fontSize: 10, letterSpacing: 0.5 },
+  bold:     { fontWeight: '700', color: '#FFFFFF' },
+  italic:   { fontStyle: 'italic', color: 'rgba(255,255,255,0.7)' },
+});
+
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
 }
@@ -663,7 +756,7 @@ export default function UploadScreen() {
                     {roastLoading ? (
                       <Text style={s.verdictLoading}>Generating your monthly roast…</Text>
                     ) : monthlyRoastData?.roast ? (
-                      <Text style={s.verdictRoast}>"{monthlyRoastData.roast}"</Text>
+                      <VerdictText roast={monthlyRoastData.roast} />
                     ) : null}
                   </View>
                 </View>

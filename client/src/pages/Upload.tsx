@@ -6,6 +6,7 @@ import { ReceiptCollageCard } from "@/components/ReceiptCollageCard";
 import { UploadModal } from "@/components/UploadModal";
 import { AppNav } from "@/components/AppNav";
 import { RoastCard } from "@/components/RoastCard";
+import { VerdictText } from "@/components/VerdictText";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
 import { useCurrency } from "@/hooks/use-currency";
@@ -353,9 +354,7 @@ export default function Upload() {
                         Generating your monthly roast…
                       </div>
                     ) : monthlyRoastData?.roast ? (
-                      <p className="text-sm text-white/90 leading-relaxed italic">
-                        "{monthlyRoastData.roast}"
-                      </p>
+                      <VerdictText roast={monthlyRoastData.roast} />
                     ) : null}
                   </div>
                 </div>
