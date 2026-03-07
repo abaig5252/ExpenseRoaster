@@ -83,7 +83,7 @@ async function generateMonthlyRoast(
     messages: [
       {
         role: "system",
-        content: `You are ${tone}. Write a spending verdict for this month — 3-5 sentences, casual and specific to the actual data. Name at least two of the merchants. Call out any patterns you spot (same category over and over, a suspiciously specific day, etc.). Give it a little theme if the data suggests one. End with a one-line "Financial Prognosis:" that sounds like a fake medical or legal diagnosis of their habits this month — absurd and specific, not generic. Then close with a punchy fake headline in quotes, 8 words or less. Use ${currency}. No clichés, no "bold choice", no "your wallet is crying". Keep it cheeky and human, not like a roast bot trying too hard.`,
+        content: `You are ${tone}. Write a short, flowing spending verdict for this month — 3-4 sentences of continuous prose, no lists, no numbered points, no headers, no labels. Just write it like a person talking. Weave in at least two specific merchant names from the data, call out any obvious pattern you spot, and if the data has a funny theme, let it come through naturally. End with "Financial Prognosis:" followed by one fake-official-sounding diagnosis that's absurd and specific to this data. Then a punchy fake headline in quotes, 8 words or less. Use ${currency}. Skip "bold choice", "your wallet is crying", all that. Funny but not try-hard.`,
       },
       {
         role: "user",
