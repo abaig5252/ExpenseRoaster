@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Flame, Activity, Camera, RefreshCw, ChevronDown, Loader2, Trash2, X } from "lucide-react";
+import { Plus, Flame, Activity, Camera, RefreshCw, Loader2, Trash2, X } from "lucide-react";
 import { useExpenses, useExpenseSummary, useMonthlyRoast, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
 import { useCurrency } from "@/hooks/use-currency";
 import { ExpenseCard } from "@/components/ExpenseCard";
@@ -210,73 +210,53 @@ export default function Dashboard() {
             )}
 
             {/* Select mode controls */}
-            {selectMode ? (
-              <div className="ml-auto flex items-center gap-3">
-                <button
-                  data-testid="button-select-all"
-                  onClick={toggleSelectAll}
-                  className="text-sm font-semibold text-[hsl(var(--primary))] hover:opacity-80 transition-opacity"
-                >
-                  {allSelected ? "Deselect All" : "Select All"}
-                </button>
-                <button
-                  data-testid="button-cancel-select"
-                  onClick={exitSelectMode}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-white/60 hover:text-white transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="ml-auto flex items-center gap-3">
-                {/* Select Mode button — shown when there are receipts */}
-                {filteredExpenses.length > 0 && (
+            <div className="ml-auto flex items-center gap-3">
+              {selectMode ? (
+                <>
                   <button
-                    data-testid="button-enter-select-mode"
-                    onClick={enterSelectMode}
-                    className="text-sm font-semibold text-white/50 hover:text-white/90 transition-colors"
+                    data-testid="button-select-all"
+                    onClick={toggleSelectAll}
+                    className="text-sm font-semibold text-[hsl(var(--primary))] hover:opacity-80 transition-opacity"
                   >
-                    Select Mode
+                    {allSelected ? "Deselect All" : "Select All"}
                   </button>
-                )}
-                {/* Month dropdown */}
-                {availableMonths.length > 0 && (
-                  <div className="relative">
-                    <select
-                      data-testid="select-month-filter"
-                      value={selectedMonth ?? ""}
-                      onChange={e => setSelectedMonth(e.target.value)}
-                      className="appearance-none pl-3 pr-8 py-2 rounded-xl text-sm font-semibold bg-white/[0.08] border border-white/15 text-white cursor-pointer hover:bg-white/15 transition-colors focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
-                    >
-                      {availableMonths.map(ym => (
-                        <option key={ym} value={ym} className="bg-[#1a1a1a] text-white">
-                          {fmtMonth(ym)}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                )}
-              </div>
-            )}
+                  <button
+                    data-testid="button-cancel-select"
+                    onClick={exitSelectMode}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-white/60 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </button>
+                </>
+              ) : receiptExpenses.length > 0 ? (
+                <button
+                  data-testid="button-enter-select-mode"
+                  onClick={enterSelectMode}
+                  className="text-sm font-semibold text-white/50 hover:text-white/90 transition-colors"
+                >
+                  Select Mode
+                </button>
+              ) : null}
+            </div>
           </div>
 
-          {/* Month filter pills — hidden in select mode */}
-          {!selectMode && availableMonths.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-1 mb-6 no-scrollbar">
+          {/* Month filter pills — always shown when there is at least 1 receipt */}
+          {receiptExpenses.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: "none" }}>
               {availableMonths.map(ym => (
                 <button
                   key={ym}
                   data-testid={`month-pill-${ym}`}
                   onClick={() => setSelectedMonth(ym)}
-                  className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 ${
+                  className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200"
+                  style={
                     selectedMonth === ym
-                      ? "text-white shadow-lg shadow-[#00E676]/30"
-                      : "border border-white/10 text-white/60 hover:text-white hover:bg-white/10"
-                  }`}
-                  style={selectedMonth === ym ? { backgroundColor: "#00E676" } : { backgroundColor: "#2a2a2a" }}
+                      ? { backgroundColor: "#00E676", color: "#000000", boxShadow: "0 4px 16px rgba(0,230,118,0.35)" }
+                      : { backgroundColor: "#2a2a2a", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.08)" }
+                  }
                 >
+                  <span>📅</span>
                   {fmtMonth(ym)}
                 </button>
               ))}
