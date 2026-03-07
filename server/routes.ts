@@ -25,81 +25,151 @@ const openai = new OpenAI({
 const FREE_UPLOAD_LIMIT = 1;
 
 const ROAST_PROMPTS: Record<string, string> = {
-  savage: `You are a brutally savage, hilariously judgmental financial roaster. Be genuinely funny and merciless — channel a mix of disappointed parent, stand-up comedian, and horrified accountant. Reference the specific item and amount.
+  savage: `You are a merciless, razor-sharp financial roaster. You've seen the receipt. You have OPINIONS.
 
-STRICT RULES:
-- NEVER start with "You really paid", "You spent", "Spending", "Oh wow", "Wow", or any variation of those.
-- NEVER begin two roasts the same way.
-- Vary your sentence structure wildly. Open with: a biting observation, a rhetorical question, a pop culture comparison, a math reality check, a hypothetical, a gasp, a backhanded compliment, a metaphor, or a callback to a relatable struggle.
-- One sentence only. Make every word count. Make it sting.`,
+BANNED PHRASES (auto-fail): "nothing says...", "classic choice", "bold move", "treating yourself", "self-care", "living your best life", "no shame", "we've all been there", "interesting decision", "bold choice", "your wallet is crying", "financial strategy"
 
-  playful: `You are a playfully cheeky financial roaster — like a best friend who can't believe what you just bought, but laughs about it with you. Light, funny, never cruel. Reference the specific item and amount.
+PERSONA: Rotate randomly between — a disappointed parent who has given up trying to explain money, a shocked financial advisor on their third coffee, a sarcastic best friend who is already texting this to the group chat.
 
-STRICT RULES:
-- NEVER start with "You really paid", "You spent", "Spending", or any boring variation.
-- Never open two roasts the same way.
-- Mix up your openers: a surprised exclamation, a silly hypothetical, a pop reference, a gentle tease, a "did you know" twist, or a funny comparison.
-- One sentence only. Keep it breezy and fun.`,
+RULES:
+- Name the specific merchant sarcastically — make it the villain or the punchline
+- Reference the exact amount using one unexpected comparison (not rent, not groceries — something funnier and more specific)
+- Include one vivid, original metaphor — not "burning money", not "throwing money away"
+- 1-2 sentences maximum. No padding. No warm-up.
+- NEVER start with: "You", "Oh", "Wow", "Look", "Ah", "Hmm", or the merchant name as the first word`,
 
-  supportive: `You are a warm but honest financial advisor who gently calls out questionable spending with empathy and a soft reality check. Encouraging but real. Reference the specific item and amount.
+  playful: `You are a gleefully chaotic best friend who just got the Venmo notification and cannot let this go.
 
-STRICT RULES:
-- NEVER start with "You really paid", "You spent", "Spending", or any bland opener.
-- Vary your openers: a gentle observation, a "hey, we've all been there" acknowledgment, a soft redirect, a cost comparison, or a future-you perspective.
-- One sentence only. Caring but grounding.`,
+BANNED PHRASES (auto-fail): "nothing says...", "bold choice", "treating yourself", "we've all been there", "classic you", "living your best life", "self-care", "your wallet is crying"
+
+PERSONA: Genuinely delighted and slightly unhinged — not mean, but absolutely screenshotting this for later.
+
+RULES:
+- Name the merchant specifically like it's a character in a story you're telling everyone later
+- Tie the exact amount to something hilariously relatable or absurd
+- One specific funny comparison, hypothetical, or image — make it surprising
+- 1-2 sentences. High energy, not meandering.
+- NEVER start with: "You", "Oh wow", "So", "Well", or "OMG"`,
+
+  supportive: `You are a wise, deeply patient financial therapist who has seen it all and still believes in people — just barely.
+
+BANNED PHRASES (auto-fail): "nothing says...", "bold choice", "it's okay", "no judgment", "we've all been there", "that's okay", "self-care", "treating yourself", "your wallet is crying"
+
+PERSONA: Genuinely warm but quietly horrified — a doctor delivering mild bad news with a kind face and a slowly dying hope for you.
+
+RULES:
+- Name the merchant gently but specifically — acknowledge what this purchase says about the person
+- Reference the exact amount with grounding context (time worked, equivalent necessities)
+- One calm, specific observation — practical but delivered with resigned compassion
+- 1-2 sentences. Measured. Slightly devastating.
+- NEVER start with: "You", "It's okay", "Hey", or "Look"`,
 };
 
 function getUserId(req: any): string {
   return req.user?.claims?.sub;
 }
 
-const OPENER_STYLES = [
-  "Start with a rhetorical question.",
-  "Start with a pop culture or movie reference.",
-  "Start with a math or opportunity-cost comparison.",
-  "Start with a hypothetical (e.g. 'With that money you could have...').",
-  "Start with a biting observation about the category.",
-  "Start with a backhanded compliment.",
-  "Start with a short gasp or dramatic reaction word (not 'Wow').",
-  "Start with a metaphor or simile.",
-  "Start with a future-self perspective.",
-  "Start with a callback to a universal financial struggle.",
-  "Start with a sarcastic congratulation.",
-  "Start with a statistic or fun fact angle.",
+const VERDICT_TONES = [
+  "a disappointed parent who has seen the bank statement and is choosing their words very carefully",
+  "a shocked financial advisor on their third coffee of the morning, barely keeping it professional",
+  "a sarcastic best friend reading your expenses out loud to everyone at a dinner party",
+  "a nature documentary narrator describing a financially reckless creature in its natural habitat",
+  "a lawyer methodically reading formal charges, each receipt a new count in the indictment",
 ];
 
+interface ExpenseForRoast {
+  description: string;
+  amountCents: number;
+  category: string;
+  date: Date | string;
+}
+
+function ordinalSuffix(n: number): string {
+  const s = ["th","st","nd","rd"], v = n % 100;
+  return n + (s[(v-20)%10] ?? s[v] ?? s[0]);
+}
+
 async function generateMonthlyRoast(
-  monthLabel: string, totalCents: number, count: number, topCategories: string[], currency = "USD"
+  monthLabel: string,
+  totalCents: number,
+  expenses: ExpenseForRoast[],
+  currency = "USD"
 ): Promise<string> {
   const total = (totalCents / 100).toFixed(2);
-  const cats = topCategories.join(", ") || "various things";
+  const tone = VERDICT_TONES[Math.floor(Math.random() * VERDICT_TONES.length)];
+
+  const expenseLines = expenses.map(e => {
+    const d = new Date(e.date);
+    const day = isNaN(d.getTime()) ? "" : `, ${d.toLocaleString('en-US', { weekday: 'long' })} the ${ordinalSuffix(d.getDate())}`;
+    return `- ${e.description}: ${(e.amountCents / 100).toFixed(2)} ${currency} (${e.category}${day})`;
+  }).join('\n');
+
+  const catCounts: Record<string, number> = {};
+  for (const e of expenses) catCounts[e.category] = (catCounts[e.category] ?? 0) + 1;
+  const dominantCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0];
+  const patternNote = dominantCat && dominantCat[1] > 1
+    ? `Pattern: ${dominantCat[1]} out of ${expenses.length} receipts are ${dominantCat[0]}.`
+    : '';
+
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
       {
         role: "system",
-        content: `You are a savage, witty financial roaster. In 2-3 punchy sentences, roast the user's monthly spending. Be specific, harsh, and funny. Use the currency symbol for ${currency}.`,
+        content: `You are ${tone}.
+
+Your job: deliver a monthly spending verdict that feels written specifically for THIS month's exact data — not a template, not a formula.
+
+BANNED PHRASES (auto-fail if used): "nothing says...", "bold choice", "classic", "wild spender", "budget didn't survive", "your wallet is crying", "living your best life", "the good news is", "self-care", "treating yourself", "financial footprint", "at the end of the day", "at least", "interesting", "congrats"
+
+REQUIRED STRUCTURE (in this order, labeled):
+1. A unique "theme" or "diagnosis" for this specific month — name it based on the actual pattern (e.g. "The Great Tuesday Collapse" or "Operation Single-Category Meltdown") — weave this naturally into the opening
+2. Reference AT LEAST 2 specific merchant names from the data — make them characters or evidence
+3. Call out any timing pattern or category pattern found in the data
+4. "Financial Prognosis:" — one fake medical/legal/scientific diagnosis of their spending behavior this month. Make it sound official and absurd. Be specific to this data, not generic.
+5. End with a punchy fake headline in quotes — 10 words max, captures this month like a newspaper front page
+
+STRICT RULES:
+- Maximum 5 sentences before the prognosis and headline
+- No two sentences can begin the same way
+- At least one unexpected, original metaphor — not "burning money", not "throwing it away", something vivid and specific to the actual purchases
+- Use ${currency} symbol throughout
+- Do NOT mention city names, addresses, or neighbourhoods
+- Every verdict must feel structurally and tonally different from a generic template`,
       },
       {
         role: "user",
-        content: `Month: ${monthLabel}. Total blown: ${total} ${currency} across ${count} receipts. Biggest damage categories: ${cats}. Give me a brutal but hilarious verdict on my month.`,
+        content: `Month: ${monthLabel}
+Total: ${total} ${currency} across ${expenses.length} receipt${expenses.length !== 1 ? 's' : ''}
+${patternNote}
+
+Receipts:
+${expenseLines}
+
+Deliver the verdict.`,
       },
     ],
-    max_completion_tokens: 220,
+    max_completion_tokens: 380,
   });
   return response.choices[0]?.message?.content ?? "Your bank account has filed a restraining order.";
 }
 
-async function generateRoast(description: string, amountCents: number, category: string, tone = "savage", _location?: string, currency = "USD"): Promise<string> {
+async function generateRoast(description: string, amountCents: number, category: string, tone = "savage", _location?: string, currency = "USD", date?: Date | string): Promise<string> {
   const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage;
-  const openerStyle = OPENER_STYLES[Math.floor(Math.random() * OPENER_STYLES.length)];
+  let timeNote = "";
+  if (date) {
+    const d = new Date(date);
+    if (!isNaN(d.getTime())) {
+      timeNote = ` on ${d.toLocaleString('en-US', { weekday: 'long' })} the ${ordinalSuffix(d.getDate())}`;
+    }
+  }
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
-      { role: "system", content: `${prompt} The user's currency is ${currency}. Use the local currency symbol and make any cost comparisons relevant to that currency region's price levels. IMPORTANT: Do NOT mention city names, street addresses, neighbourhoods, or any geographic location in your roast unless that location appears in the expense description itself.` },
-      { role: "user", content: `Expense: ${description}, ${(amountCents / 100).toFixed(2)} ${currency}, category: ${category}. ${openerStyle} Roast me in ONE sharp, specific sentence.` },
+      { role: "system", content: `${prompt} Currency: ${currency}. Use the local currency symbol. Make any comparisons specific to real things that cost similar amounts in the ${currency} region. NEVER mention city names, street addresses, or neighbourhoods.` },
+      { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}. Roast this. 1-2 sentences, no filler.` },
     ],
-    max_completion_tokens: 120,
+    max_completion_tokens: 150,
   });
   return response.choices[0]?.message?.content || "Your accountant has left the chat.";
 }
@@ -408,14 +478,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (filtered.length === 0) return res.json({ roast: null, total: 0, count: 0 });
     const total = filtered.reduce((sum, e) => sum + e.amount, 0);
     const currency = user.currency ?? "USD";
-    const catTotals: Record<string, number> = {};
-    for (const e of filtered) catTotals[e.category] = (catTotals[e.category] ?? 0) + e.amount;
-    const topCats = Object.entries(catTotals)
-      .sort((a, b) => b[1] - a[1]).slice(0, 3)
-      .map(([cat, amt]) => `${cat} (${(amt / 100).toFixed(2)} ${currency})`);
     const [yr, mo] = month.split("-");
     const monthLabel = new Date(Number(yr), Number(mo) - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
-    const roast = await generateMonthlyRoast(monthLabel, total, filtered.length, topCats, currency);
+    const expensesForRoast: ExpenseForRoast[] = filtered.map(e => ({
+      description: e.description,
+      amountCents: e.amount,
+      category: e.category,
+      date: e.date instanceof Date ? e.date : new Date(String(e.date)),
+    }));
+    const roast = await generateMonthlyRoast(monthLabel, total, expensesForRoast, currency);
     res.json({ roast, total, count: filtered.length });
   });
 
@@ -642,7 +713,7 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
       const userCurrency = user.currency || "USD";
       const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
-Extract expense data from this receipt image and deliver a roast. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert the amount to ${userCurrency} for the JSON output. IMPORTANT: Do NOT mention city names, street addresses, neighbourhoods, or any geographic location in your roast — roast the merchant name, the category of spending, and the amount instead.`;
+Extract expense data from this receipt image and deliver a roast. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert the amount to ${userCurrency} for the JSON output. For the roast field: be hyper-specific to this exact merchant and amount — not generic financial advice. Use an original metaphor, name the merchant as the culprit, and reference the exact dollar figure with a funny comparison. NEVER mention city names, street addresses, neighbourhoods, or any geographic location.`;
 
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -668,7 +739,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
   "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>",
   "location": "<city and country from receipt, or null>",
-  "roast": "<one sharp sentence roasting the merchant name and amount — do NOT mention any address, street, or neighbourhood>"
+  "roast": "<1-2 sharp sentences roasting this specific merchant and exact amount — use an unexpected metaphor, name the merchant as the villain, compare the amount to something specific and funny. BANNED: 'nothing says...', 'bold choice', 'treating yourself', 'your wallet is crying'. NEVER start with 'You'. Do NOT mention any address, street, or neighbourhood.>"
 }` },
               { type: "image_url", image_url: { url: imageUrl } },
             ],
@@ -736,7 +807,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
 
       const input = api.expenses.addManual.input.parse(req.body);
       const tone = (req.body.tone as string) || "savage";
-      const roast = await generateRoast(input.description, input.amount, input.category, tone, undefined, user.currency || "USD");
+      const roast = await generateRoast(input.description, input.amount, input.category, tone, undefined, user.currency || "USD", new Date(input.date));
 
       const expense = await storage.createExpense({
         userId,
@@ -779,7 +850,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         max_completion_tokens: 10,
       });
       const category = aiCat.choices[0]?.message?.content?.trim() || "Other";
-      const roast = await generateRoast(tx.description, Math.round(tx.amount * 100), category, tone, location, currency);
+      const roast = await generateRoast(tx.description, Math.round(tx.amount * 100), category, tone, location, currency, date);
       const expense = await storage.createExpense({
         userId,
         amount: Math.round(tx.amount * 100),
