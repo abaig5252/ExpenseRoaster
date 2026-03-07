@@ -36,24 +36,11 @@ function getUserId(req: any): string {
   return req.user?.claims?.sub;
 }
 
-const VERDICT_TONES = [
-  "a disappointed parent who has seen the bank statement and is choosing their words very carefully",
-  "a shocked financial advisor on their third coffee of the morning, barely keeping it professional",
-  "a sarcastic best friend reading your expenses out loud to everyone at a dinner party",
-  "a nature documentary narrator describing a financially reckless creature in its natural habitat",
-  "a lawyer methodically reading formal charges, each receipt a new count in the indictment",
-];
-
 interface ExpenseForRoast {
   description: string;
   amountCents: number;
   category: string;
   date: Date | string;
-}
-
-function ordinalSuffix(n: number): string {
-  const s = ["th","st","nd","rd"], v = n % 100;
-  return n + (s[(v-20)%10] ?? s[v] ?? s[0]);
 }
 
 async function generateMonthlyRoast(
@@ -63,41 +50,23 @@ async function generateMonthlyRoast(
   currency = "USD"
 ): Promise<string> {
   const total = (totalCents / 100).toFixed(2);
-  const tone = VERDICT_TONES[Math.floor(Math.random() * VERDICT_TONES.length)];
-
-  const expenseLines = expenses.map(e => {
-    const d = new Date(e.date);
-    const day = isNaN(d.getTime()) ? "" : `, ${d.toLocaleString('en-US', { weekday: 'long' })} the ${ordinalSuffix(d.getDate())}`;
-    return `- ${e.description}: ${(e.amountCents / 100).toFixed(2)} ${currency} (${e.category}${day})`;
-  }).join('\n');
-
-  const catCounts: Record<string, number> = {};
-  for (const e of expenses) catCounts[e.category] = (catCounts[e.category] ?? 0) + 1;
-  const dominantCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0];
-  const patternNote = dominantCat && dominantCat[1] > 1
-    ? `Pattern: ${dominantCat[1]} out of ${expenses.length} receipts are ${dominantCat[0]}.`
-    : '';
+  const lines = expenses.map(e =>
+    `${e.description} — ${(e.amountCents / 100).toFixed(2)} ${currency} (${e.category})`
+  ).join('\n');
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
       {
         role: "system",
-        content: `You are ${tone}. Write a short, flowing spending verdict for this month — 3-4 sentences of continuous prose, no lists, no numbered points, no headers, no labels. Just write it like a person talking. Weave in at least two specific merchant names from the data, call out any obvious pattern you spot, and if the data has a funny theme, let it come through naturally. End with "Financial Prognosis:" followed by one fake-official-sounding diagnosis that's absurd and specific to this data. Then a punchy fake headline in quotes, 8 words or less. Use ${currency}. Skip "bold choice", "your wallet is crying", all that. Funny but not try-hard.`,
+        content: `You write short, funny spending summaries. 2-3 sentences, casual and cheeky, like a friend who's seen your bank statement. Reference the specific merchants and amounts. No lists, no headers, no structure — just flowing sentences. Use ${currency}.`,
       },
       {
         role: "user",
-        content: `Month: ${monthLabel}
-Total: ${total} ${currency} across ${expenses.length} receipt${expenses.length !== 1 ? 's' : ''}
-${patternNote}
-
-Receipts:
-${expenseLines}
-
-Write this as one flowing paragraph of prose — no numbered lists, no bullet points, no headers. Just sentences.`,
+        content: `${monthLabel}: ${total} ${currency} across ${expenses.length} receipt${expenses.length !== 1 ? 's' : ''}.\n\n${lines}`,
       },
     ],
-    max_completion_tokens: 380,
+    max_completion_tokens: 200,
   });
   return response.choices[0]?.message?.content ?? "Your bank account has filed a restraining order.";
 }
