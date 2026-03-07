@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flame, Plus, Receipt, RefreshCw, Lock, Camera } from "lucide-react";
 import { useExpenses, useExpenseSummary, useDeleteExpense } from "@/hooks/use-expenses";
@@ -9,12 +9,25 @@ import { RoastCard } from "@/components/RoastCard";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
 import { useCurrency } from "@/hooks/use-currency";
+import { parseReceiptDate } from "@/lib/dates";
 import { Link } from "wouter";
+import type { ExpenseResponse } from "@shared/routes";
+
+function expenseMonth(exp: ExpenseResponse): string {
+  const d = exp.date ? parseReceiptDate(exp.date) : new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function fmtMonth(ym: string): string {
+  const [y, m] = ym.split("-");
+  return new Date(Number(y), Number(m) - 1).toLocaleString("en-US", { month: "short", year: "numeric" });
+}
 
 export default function Upload() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [ephemeralRoast, setEphemeralRoast] = useState<any>(null);
   const [showRoastCard, setShowRoastCard] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const { user } = useAuth();
   const { data: me } = useMe();
   const { data: expenses, isLoading, error } = useExpenses();
@@ -26,14 +39,39 @@ export default function Upload() {
   const uploadsUsed = me?.monthlyUploadCount || 0;
   const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
 
-  const formattedTotal = summary
-    ? formatAmount(summary.monthlyTotal)
-    : formatAmount(0);
-
   const firstName = user?.firstName || user?.email?.split("@")[0] || "friend";
 
   // Only show receipt uploads — bank statements live on their own tab
-  const receiptExpenses = expenses?.filter(e => e.source === "receipt") ?? [];
+  const receiptExpenses = useMemo(
+    () => (expenses ?? []).filter(e => e.source === "receipt"),
+    [expenses]
+  );
+
+  // Extract unique months sorted most recent first
+  const availableMonths = useMemo(() => {
+    const months = new Set(receiptExpenses.map(expenseMonth));
+    return [...months].sort().reverse();
+  }, [receiptExpenses]);
+
+  // Auto-select most recent month when data loads
+  useEffect(() => {
+    if (availableMonths.length === 0) return;
+    if (selectedMonth !== null && availableMonths.includes(selectedMonth)) return;
+    setSelectedMonth(availableMonths[0]);
+  }, [availableMonths.join(",")]);
+
+  // Filter receipts by selected month
+  const filteredReceipts = useMemo(
+    () => selectedMonth ? receiptExpenses.filter(e => expenseMonth(e) === selectedMonth) : receiptExpenses,
+    [receiptExpenses, selectedMonth]
+  );
+
+  // Compute filtered total from expense data
+  const filteredTotal = filteredReceipts.reduce((sum, e) => sum + e.amount, 0);
+
+  const formattedTotal = !isFree
+    ? (isLoading ? null : formatAmount(filteredTotal))
+    : null;
 
   const handleUploadSuccess = (data: any) => {
     if (data.ephemeral) {
@@ -72,7 +110,9 @@ export default function Upload() {
             {!isFree && (
               <div className="flex items-end gap-3">
                 <h1 className="text-6xl md:text-8xl font-amount-hero text-white leading-none">
-                  {formattedTotal}
+                  {isLoading ? (
+                    <span className="animate-pulse bg-white/10 rounded-2xl w-48 h-20 block" />
+                  ) : formattedTotal}
                 </h1>
               </div>
             )}
@@ -84,7 +124,9 @@ export default function Upload() {
             <p className="text-muted-foreground mt-3 text-lg">
               {isFree
                 ? `${uploadsRemaining}/1 free upload remaining this month.`
-                : `spent this month on things you definitely needed.`}
+                : selectedMonth
+                  ? `spent on receipts in ${fmtMonth(selectedMonth)}.`
+                  : `spent this month on things you definitely needed.`}
             </p>
           </motion.div>
 
@@ -162,15 +204,43 @@ export default function Upload() {
         {/* Receipt collage (premium only) */}
         {!isFree && (
           <div>
-            <div className="flex items-center gap-3 mb-6">
+            {/* Receipt Wall heading row */}
+            <div className="flex items-center gap-3 mb-4">
               <Camera className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-2xl font-bold text-white">Receipt Wall</h2>
-              {receiptExpenses.length > 0 && (
-                <span className="px-2.5 py-0.5 bg-white/10 rounded-full text-xs font-bold text-muted-foreground">
-                  {receiptExpenses.length}
+              {!isLoading && filteredReceipts.length > 0 && (
+                <span
+                  data-testid="badge-receipt-count"
+                  className="px-2.5 py-0.5 bg-white/10 rounded-full text-xs font-bold text-muted-foreground"
+                >
+                  {filteredReceipts.length}
                 </span>
               )}
             </div>
+
+            {/* Month filter pills — always shown when there is at least 1 receipt */}
+            {receiptExpenses.length > 0 && (
+              <div
+                data-testid="month-pills-row"
+                style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 24, scrollbarWidth: "none" }}
+              >
+                {availableMonths.map(ym => (
+                  <button
+                    key={ym}
+                    data-testid={`month-pill-${ym}`}
+                    onClick={() => setSelectedMonth(ym)}
+                    style={
+                      selectedMonth === ym
+                        ? { flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9999, fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", backgroundColor: "#00E676", color: "#000000", boxShadow: "0 4px 16px rgba(0,230,118,0.35)", border: "none", cursor: "pointer" }
+                        : { flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9999, fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", backgroundColor: "#2a2a2a", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }
+                    }
+                  >
+                    <span>📅</span>
+                    {fmtMonth(ym)}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {isLoading ? (
               <div className="columns-2 md:columns-3 gap-4">
@@ -209,10 +279,20 @@ export default function Upload() {
                   Add First Receipt
                 </button>
               </motion.div>
+            ) : filteredReceipts.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-panel border-dashed border-white/10 rounded-3xl p-12 text-center flex flex-col items-center"
+              >
+                <p className="text-lg text-muted-foreground">
+                  No receipts in {selectedMonth ? fmtMonth(selectedMonth) : "this month"}.
+                </p>
+              </motion.div>
             ) : (
               /* Collage grid using CSS columns for natural masonry stagger */
               <div className="columns-2 md:columns-3 lg:columns-4" style={{ gap: 16 }}>
-                {receiptExpenses.map((expense, i) => (
+                {filteredReceipts.map((expense, i) => (
                   <ReceiptCollageCard
                     key={expense.id}
                     expense={expense}

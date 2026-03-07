@@ -241,19 +241,21 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Month filter pills — always shown when there is at least 1 receipt */}
+          {/* Month filter pills */}
           {receiptExpenses.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: "none" }}>
+            <div
+              data-testid="month-pills-row"
+              style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 24, scrollbarWidth: "none" }}
+            >
               {availableMonths.map(ym => (
                 <button
                   key={ym}
                   data-testid={`month-pill-${ym}`}
                   onClick={() => setSelectedMonth(ym)}
-                  className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200"
                   style={
                     selectedMonth === ym
-                      ? { backgroundColor: "#00E676", color: "#000000", boxShadow: "0 4px 16px rgba(0,230,118,0.35)" }
-                      : { backgroundColor: "#2a2a2a", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.08)" }
+                      ? { flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9999, fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", backgroundColor: "#00E676", color: "#000000", boxShadow: "0 4px 16px rgba(0,230,118,0.35)", border: "none", cursor: "pointer" }
+                      : { flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9999, fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", backgroundColor: "#2a2a2a", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }
                   }
                 >
                   <span>📅</span>
