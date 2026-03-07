@@ -75,9 +75,9 @@ export default function Dashboard() {
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [exitingIds, setExitingIds] = useState<Set<number>>(new Set());
 
-  const enterSelectMode = useCallback((id: number) => {
+  const enterSelectMode = useCallback(() => {
     setSelectMode(true);
-    setSelectedIds(new Set([id]));
+    setSelectedIds(new Set());
   }, []);
 
   const toggleSelect = useCallback((id: number) => {
@@ -229,24 +229,36 @@ export default function Dashboard() {
                 </button>
               </div>
             ) : (
-              /* Month dropdown — always visible when there are any receipt months */
-              availableMonths.length > 0 && (
-                <div className="relative ml-auto">
-                  <select
-                    data-testid="select-month-filter"
-                    value={selectedMonth ?? ""}
-                    onChange={e => setSelectedMonth(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-2 rounded-xl text-sm font-semibold bg-white/[0.08] border border-white/15 text-white cursor-pointer hover:bg-white/15 transition-colors focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
+              <div className="ml-auto flex items-center gap-3">
+                {/* Select Mode button — shown when there are receipts */}
+                {filteredExpenses.length > 0 && (
+                  <button
+                    data-testid="button-enter-select-mode"
+                    onClick={enterSelectMode}
+                    className="text-sm font-semibold text-white/50 hover:text-white/90 transition-colors"
                   >
-                    {availableMonths.map(ym => (
-                      <option key={ym} value={ym} className="bg-[#1a1a1a] text-white">
-                        {fmtMonth(ym)}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              )
+                    Select Mode
+                  </button>
+                )}
+                {/* Month dropdown */}
+                {availableMonths.length > 0 && (
+                  <div className="relative">
+                    <select
+                      data-testid="select-month-filter"
+                      value={selectedMonth ?? ""}
+                      onChange={e => setSelectedMonth(e.target.value)}
+                      className="appearance-none pl-3 pr-8 py-2 rounded-xl text-sm font-semibold bg-white/[0.08] border border-white/15 text-white cursor-pointer hover:bg-white/15 transition-colors focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
+                    >
+                      {availableMonths.map(ym => (
+                        <option key={ym} value={ym} className="bg-[#1a1a1a] text-white">
+                          {fmtMonth(ym)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -355,7 +367,6 @@ export default function Dashboard() {
                   isSelectMode={selectMode}
                   isSelected={selectedIds.has(expense.id)}
                   onSelect={() => toggleSelect(expense.id)}
-                  onLongPress={() => enterSelectMode(expense.id)}
                   isExiting={exitingIds.has(expense.id)}
                 />
               ))}

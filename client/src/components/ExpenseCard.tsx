@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Trash2, AlertTriangle, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { useCurrency } from "@/hooks/use-currency";
@@ -13,7 +13,6 @@ interface ExpenseCardProps {
   isSelectMode?: boolean;
   isSelected?: boolean;
   onSelect?: () => void;
-  onLongPress?: () => void;
   isExiting?: boolean;
 }
 
@@ -47,11 +46,9 @@ const sourceLabels: Record<string, string> = {
   "manual":         "Manual",
 };
 
-export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false, isSelectMode = false, isSelected = false, onSelect, onLongPress, isExiting = false }: ExpenseCardProps) {
+export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false, isSelectMode = false, isSelected = false, onSelect, isExiting = false }: ExpenseCardProps) {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const { formatAmount } = useCurrency();
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didLongPress = useRef(false);
 
   const amountDollars = expense.amount / 100;
   const formattedAmount = formatAmount(expense.amount);
@@ -64,28 +61,8 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
   const baseSeverity = amountDollars < 10 ? 1 : amountDollars < 50 ? 2 : amountDollars < 150 ? 3 : amountDollars < 500 ? 4 : 5;
   const severity = isDisgrace ? 5 : baseSeverity;
 
-  const accentColor = isDisgrace ? "#FF5252" : isSelected ? "#00E676" : "#00E676";
-
-  const startLongPress = useCallback(() => {
-    didLongPress.current = false;
-    longPressTimer.current = setTimeout(() => {
-      didLongPress.current = true;
-      onLongPress?.();
-    }, 500);
-  }, [onLongPress]);
-
-  const cancelLongPress = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }, []);
-
   const handleCardClick = useCallback(() => {
-    if (didLongPress.current) return;
-    if (isSelectMode) {
-      onSelect?.();
-    }
+    if (isSelectMode) onSelect?.();
   }, [isSelectMode, onSelect]);
 
   function handleTrashClick() {
@@ -108,12 +85,6 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
     <div
       data-testid={`card-expense-${expense.id}`}
       className="group relative overflow-hidden"
-      onMouseDown={startLongPress}
-      onMouseUp={cancelLongPress}
-      onMouseLeave={cancelLongPress}
-      onTouchStart={startLongPress}
-      onTouchEnd={cancelLongPress}
-      onTouchCancel={cancelLongPress}
       onClick={handleCardClick}
       style={{
         background: "#1A1A1A",
@@ -135,8 +106,8 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
         boxShadow: isSelected ? "0 0 0 1px #00E676, 0 4px 24px rgba(0,230,118,0.15)" : undefined,
       }}
     >
-      {/* Select mode checkbox — shown when in select mode */}
-      {isSelectMode ? (
+      {/* Select mode checkbox */}
+      {isSelectMode && (
         <div
           onClick={e => { e.stopPropagation(); onSelect?.(); }}
           data-testid={`checkbox-select-${expense.id}`}
@@ -153,25 +124,6 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
         >
           {isSelected && <Check style={{ width: 13, height: 13, color: "#000", strokeWidth: 3 }} />}
         </div>
-      ) : (
-        /* Hover-to-select button — visible on mouse hover when NOT in select mode (desktop) */
-        onLongPress && (
-          <button
-            onClick={e => { e.stopPropagation(); onLongPress(); }}
-            data-testid={`button-enter-select-${expense.id}`}
-            className="absolute top-2.5 left-2.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-            title="Select"
-            style={{
-              width: 22, height: 22, borderRadius: "50%",
-              border: "2px solid rgba(255,255,255,0.25)",
-              background: "rgba(0,0,0,0.55)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <Check style={{ width: 11, height: 11, color: "rgba(255,255,255,0.5)", strokeWidth: 3 }} />
-          </button>
-        )
       )}
 
       {/* Monthly Disgrace badge */}
