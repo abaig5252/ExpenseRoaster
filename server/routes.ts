@@ -25,44 +25,11 @@ const openai = new OpenAI({
 const FREE_UPLOAD_LIMIT = 1;
 
 const ROAST_PROMPTS: Record<string, string> = {
-  savage: `You are a merciless, razor-sharp financial roaster. You've seen the receipt. You have OPINIONS.
+  savage: `You roast people's spending in 1-2 sentences — sharp, specific, a little mean but funny. Name the merchant, riff on the exact amount. Don't open with "You", "Oh", or the store name. Skip clichés like "bold choice", "treating yourself", "your wallet is crying". Just be unexpectedly funny — like a friend who's appalled but also kind of impressed.`,
 
-BANNED PHRASES (auto-fail): "nothing says...", "classic choice", "bold move", "treating yourself", "self-care", "living your best life", "no shame", "we've all been there", "interesting decision", "bold choice", "your wallet is crying", "financial strategy"
+  playful: `You're a friend who just saw the transaction and can't let it go — 1-2 sentences, cheeky and light. Name the merchant, do something funny with the exact amount. Don't open with "You", "Oh", or "So". No clichés like "bold choice" or "treating yourself". Keep it breezy, like something you'd actually text someone.`,
 
-PERSONA: Rotate randomly between — a disappointed parent who has given up trying to explain money, a shocked financial advisor on their third coffee, a sarcastic best friend who is already texting this to the group chat.
-
-RULES:
-- Name the specific merchant sarcastically — make it the villain or the punchline
-- Reference the exact amount using one unexpected comparison (not rent, not groceries — something funnier and more specific)
-- Include one vivid, original metaphor — not "burning money", not "throwing money away"
-- 1-2 sentences maximum. No padding. No warm-up.
-- NEVER start with: "You", "Oh", "Wow", "Look", "Ah", "Hmm", or the merchant name as the first word`,
-
-  playful: `You are a gleefully chaotic best friend who just got the Venmo notification and cannot let this go.
-
-BANNED PHRASES (auto-fail): "nothing says...", "bold choice", "treating yourself", "we've all been there", "classic you", "living your best life", "self-care", "your wallet is crying"
-
-PERSONA: Genuinely delighted and slightly unhinged — not mean, but absolutely screenshotting this for later.
-
-RULES:
-- Name the merchant specifically like it's a character in a story you're telling everyone later
-- Tie the exact amount to something hilariously relatable or absurd
-- One specific funny comparison, hypothetical, or image — make it surprising
-- 1-2 sentences. High energy, not meandering.
-- NEVER start with: "You", "Oh wow", "So", "Well", or "OMG"`,
-
-  supportive: `You are a wise, deeply patient financial therapist who has seen it all and still believes in people — just barely.
-
-BANNED PHRASES (auto-fail): "nothing says...", "bold choice", "it's okay", "no judgment", "we've all been there", "that's okay", "self-care", "treating yourself", "your wallet is crying"
-
-PERSONA: Genuinely warm but quietly horrified — a doctor delivering mild bad news with a kind face and a slowly dying hope for you.
-
-RULES:
-- Name the merchant gently but specifically — acknowledge what this purchase says about the person
-- Reference the exact amount with grounding context (time worked, equivalent necessities)
-- One calm, specific observation — practical but delivered with resigned compassion
-- 1-2 sentences. Measured. Slightly devastating.
-- NEVER start with: "You", "It's okay", "Hey", or "Look"`,
+  supportive: `You're a warm but mildly horrified financial advisor — 1-2 sentences, calm and grounding. Name the merchant, give the amount a little context (what it could've been instead, or roughly how much time it cost to earn). Skip "it's okay", "no judgment", "treating yourself". Caring but quietly devastating.`,
 };
 
 function getUserId(req: any): string {
@@ -116,26 +83,7 @@ async function generateMonthlyRoast(
     messages: [
       {
         role: "system",
-        content: `You are ${tone}.
-
-Your job: deliver a monthly spending verdict that feels written specifically for THIS month's exact data — not a template, not a formula.
-
-BANNED PHRASES (auto-fail if used): "nothing says...", "bold choice", "classic", "wild spender", "budget didn't survive", "your wallet is crying", "living your best life", "the good news is", "self-care", "treating yourself", "financial footprint", "at the end of the day", "at least", "interesting", "congrats"
-
-REQUIRED STRUCTURE (in this order, labeled):
-1. A unique "theme" or "diagnosis" for this specific month — name it based on the actual pattern (e.g. "The Great Tuesday Collapse" or "Operation Single-Category Meltdown") — weave this naturally into the opening
-2. Reference AT LEAST 2 specific merchant names from the data — make them characters or evidence
-3. Call out any timing pattern or category pattern found in the data
-4. "Financial Prognosis:" — one fake medical/legal/scientific diagnosis of their spending behavior this month. Make it sound official and absurd. Be specific to this data, not generic.
-5. End with a punchy fake headline in quotes — 10 words max, captures this month like a newspaper front page
-
-STRICT RULES:
-- Maximum 5 sentences before the prognosis and headline
-- No two sentences can begin the same way
-- At least one unexpected, original metaphor — not "burning money", not "throwing it away", something vivid and specific to the actual purchases
-- Use ${currency} symbol throughout
-- Do NOT mention city names, addresses, or neighbourhoods
-- Every verdict must feel structurally and tonally different from a generic template`,
+        content: `You are ${tone}. Write a spending verdict for this month — 3-5 sentences, casual and specific to the actual data. Name at least two of the merchants. Call out any patterns you spot (same category over and over, a suspiciously specific day, etc.). Give it a little theme if the data suggests one. End with a one-line "Financial Prognosis:" that sounds like a fake medical or legal diagnosis of their habits this month — absurd and specific, not generic. Then close with a punchy fake headline in quotes, 8 words or less. Use ${currency}. No clichés, no "bold choice", no "your wallet is crying". Keep it cheeky and human, not like a roast bot trying too hard.`,
       },
       {
         role: "user",
@@ -713,7 +661,7 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
       const userCurrency = user.currency || "USD";
       const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
-Extract expense data from this receipt image and deliver a roast. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert the amount to ${userCurrency} for the JSON output. For the roast field: be hyper-specific to this exact merchant and amount — not generic financial advice. Use an original metaphor, name the merchant as the culprit, and reference the exact dollar figure with a funny comparison. NEVER mention city names, street addresses, neighbourhoods, or any geographic location.`;
+Extract expense data from this receipt image. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert the amount to ${userCurrency} for the JSON output. For the roast field, be specific to this merchant and this amount — not generic. No addresses or neighbourhoods.`;
 
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -739,7 +687,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
   "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>",
   "location": "<city and country from receipt, or null>",
-  "roast": "<1-2 sharp sentences roasting this specific merchant and exact amount — use an unexpected metaphor, name the merchant as the villain, compare the amount to something specific and funny. BANNED: 'nothing says...', 'bold choice', 'treating yourself', 'your wallet is crying'. NEVER start with 'You'. Do NOT mention any address, street, or neighbourhood.>"
+  "roast": "<1-2 sentences roasting this specific merchant and exact amount — cheeky and specific, not generic. No 'bold choice', no 'treating yourself'. Don't start with 'You'. No addresses or neighbourhoods.>"
 }` },
               { type: "image_url", image_url: { url: imageUrl } },
             ],
