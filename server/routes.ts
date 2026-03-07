@@ -651,17 +651,27 @@ Extract expense data from this receipt image and deliver a roast. The user's pre
           {
             role: "user",
             content: [
-              { type: "text", text: `Carefully read this receipt and extract the expense details. Follow these rules in order:
+              { type: "text", text: `Carefully read this receipt and extract the expense details. Follow these rules exactly:
 
-AMOUNT EXTRACTION (most important):
-1. Find the printed TOTAL, GRAND TOTAL, AMOUNT DUE, AMOUNT PAID, or BALANCE DUE line — this is the single final number the customer paid.
-2. Also identify each line item and its price, plus any tax/tip lines.
-3. Reconciliation: sum all line items + tax + tip. If your sum is within $0.05 of the printed total, use the PRINTED TOTAL as the amount (it is ground truth). If they differ by more than $0.05, re-read the receipt more carefully — you likely misread a digit. Always prefer the printed total over your own calculation.
-4. Convert the total to ${userCurrency} cents (multiply dollars by 100, round to nearest integer).
+STEP 1 — READ LINE ITEMS:
+List every individual item price and every tax/service charge line visible on the receipt.
+
+STEP 2 — FIND THE PRINTED TOTAL:
+Locate the final total line (labeled "Total", "Grand Total", "Amount Due", "Amount Paid", "Balance Due", or similar). Read each digit one at a time. Digits commonly misread on thermal receipts: 3↔8, 5↔6, 9↔4. Be extra careful.
+
+STEP 3 — VERIFY WITH ARITHMETIC:
+Sum all item prices + all taxes + tips. Convert everything to cents (integers) to avoid rounding errors.
+- If your arithmetic sum is within 2 cents of the printed total: use the printed total (ground truth).
+- If your arithmetic sum differs by more than 2 cents from the printed total: your arithmetic is the correct amount — the printed total was misread. Use the arithmetic result.
+
+STEP 4 — OUTPUT:
+Convert the verified total to ${userCurrency} cents (integer).
 
 Respond ONLY with this JSON (no markdown, no extra keys):
 {
-  "amount": <grand total in ${userCurrency} cents, integer>,
+  "amount": <verified grand total in ${userCurrency} cents, integer>,
+  "subtotal_cents": <sum of all item prices in cents, integer>,
+  "tax_cents": <total tax + fees in cents, integer>,
   "description": "<merchant name — short, e.g. 'Walmart', 'Starbucks'>",
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
   "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>",
@@ -679,6 +689,20 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       if (!resultText) throw new Error("No AI response");
 
       const extracted = JSON.parse(resultText);
+
+      // Server-side arithmetic correction: if the model gave us subtotal_cents + tax_cents,
+      // verify they add up to amount. If they disagree by more than 2 cents, trust the math.
+      const subtotal = typeof extracted.subtotal_cents === "number" ? extracted.subtotal_cents : null;
+      const taxCents = typeof extracted.tax_cents === "number" ? extracted.tax_cents : null;
+      if (subtotal !== null && taxCents !== null) {
+        const arithmetic = subtotal + taxCents;
+        const reported = Math.round(extracted.amount);
+        if (Math.abs(arithmetic - reported) > 2) {
+          console.log(`[amount-correction] model said ${reported}¢ but arithmetic gives ${arithmetic}¢ — using arithmetic`);
+          extracted.amount = arithmetic;
+        }
+      }
+
       const parsedDate = new Date(extracted.date);
       const dateToUse = isNaN(parsedDate.getTime()) || parsedDate.getFullYear() < 1990 ? new Date() : parsedDate;
 
