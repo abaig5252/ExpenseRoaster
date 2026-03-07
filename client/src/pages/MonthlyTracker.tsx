@@ -9,6 +9,7 @@ import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, t
 import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/hooks/use-currency";
+import { parseReceiptDate } from "@/lib/dates";
 
 function fmtMonth(ym: string) {
   const [year, month] = ym.split("-");
@@ -108,7 +109,7 @@ export default function MonthlyTracker() {
   // Years that have expense data — for the year dropdown
   const availableYears = useMemo(() => {
     const years = new Set(allExpenses.map(e => {
-      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      const d = parseReceiptDate(e.date);
       return String(d.getFullYear());
     }));
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
@@ -118,13 +119,13 @@ export default function MonthlyTracker() {
   const monthFilteredExpenses = useMemo(() => {
     if (selectedMonth) {
       return allExpenses.filter(e => {
-        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        const d = parseReceiptDate(e.date);
         return d.toISOString().slice(0, 7) === selectedMonth;
       });
     }
     if (selectedYear) {
       return allExpenses.filter(e => {
-        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        const d = parseReceiptDate(e.date);
         return String(d.getFullYear()) === selectedYear;
       });
     }
@@ -133,7 +134,7 @@ export default function MonthlyTracker() {
     cutoff.setDate(1);
     const cutoffYM = cutoff.toISOString().slice(0, 7);
     return allExpenses.filter(e => {
-      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      const d = parseReceiptDate(e.date);
       return d.toISOString().slice(0, 7) >= cutoffYM;
     });
   }, [allExpenses, selectedMonth, selectedYear]);
@@ -150,7 +151,7 @@ export default function MonthlyTracker() {
     if (selectedCats.size > 0) {
       return allExpenses
         .filter(e => {
-          const d = e.date instanceof Date ? e.date : new Date(e.date);
+          const d = parseReceiptDate(e.date);
           return d.toISOString().slice(0, 7) === currentYM && selectedCats.has(e.category);
         })
         .reduce((sum, e) => sum + e.amount, 0);
@@ -175,7 +176,7 @@ export default function MonthlyTracker() {
     const src = selectedCats.size > 0 ? allExpenses.filter(e => selectedCats.has(e.category)) : allExpenses;
     const byMonth: Record<string, { total: number; count: number }> = {};
     src.forEach(e => {
-      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      const d = parseReceiptDate(e.date);
       const ym = d.toISOString().slice(0, 7);
       if (!byMonth[ym]) byMonth[ym] = { total: 0, count: 0 };
       byMonth[ym].total += e.amount;

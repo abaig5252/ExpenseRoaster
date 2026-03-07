@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { useCurrency } from "@/hooks/use-currency";
+import { parseReceiptDate } from "@/lib/dates";
 
 interface Props {
   expense: ExpenseResponse;
@@ -44,7 +45,7 @@ export function ReceiptCollageCard({ expense, index, onDelete, isDeleting }: Pro
   const rotation = ROTATIONS[index % ROTATIONS.length];
   const amountDollars = expense.amount / 100;
   const formattedAmount = formatAmount(expense.amount);
-  const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(expense.date));
+  const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(parseReceiptDate(expense.date));
   const emoji = categoryEmoji[expense.category] || "🧾";
   const pillColor = categoryPillColors[expense.category] || "#4A5060";
   const severity = amountDollars < 10 ? 1 : amountDollars < 50 ? 2 : amountDollars < 150 ? 3 : amountDollars < 500 ? 4 : 5;

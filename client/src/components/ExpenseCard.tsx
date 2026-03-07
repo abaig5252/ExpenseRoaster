@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Trash2, AlertTriangle, X } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { useCurrency } from "@/hooks/use-currency";
+import { parseReceiptDate } from "@/lib/dates";
 
 interface ExpenseCardProps {
   expense: ExpenseResponse;
@@ -47,7 +48,7 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
 
   const amountDollars = expense.amount / 100;
   const formattedAmount = formatAmount(expense.amount);
-  const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(expense.date));
+  const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(parseReceiptDate(expense.date));
 
   const emoji = categoryEmoji[expense.category] || "🧾";
   const pillColor = isDisgrace ? "#FF5252" : (categoryPillColors[expense.category] || "#4A5060");

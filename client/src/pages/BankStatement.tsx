@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { parseReceiptDate } from "@/lib/dates";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
 import { Wallet, UploadCloud, Plus, Flame, Trash2, Calendar, DollarSign, AlertCircle, Loader2, FileText, Lock, Image } from "lucide-react";
@@ -378,7 +379,7 @@ export default function BankStatement() {
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-muted-foreground">{exp.category}</span>
                       <span className="text-muted-foreground/30">·</span>
-                      <span className="text-xs text-muted-foreground">{new Date(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                      <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                     </div>
                     <p className="text-xs italic text-muted-foreground mt-2 line-clamp-2">"{exp.roast}"</p>
                   </div>

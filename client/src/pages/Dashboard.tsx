@@ -6,10 +6,11 @@ import { useCurrency } from "@/hooks/use-currency";
 import { ExpenseCard } from "@/components/ExpenseCard";
 import { UploadModal } from "@/components/UploadModal";
 import type { ExpenseResponse } from "@shared/routes";
+import { parseReceiptDate } from "@/lib/dates";
 
 function expenseMonth(exp: ExpenseResponse): string {
-  const d = exp.date ? new Date(exp.date) : new Date();
-  return d.toISOString().slice(0, 7);
+  const d = exp.date ? parseReceiptDate(exp.date) : new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function fmtMonth(ym: string): string {
