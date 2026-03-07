@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { UploadCloud, X, Loader2, Flame, AlertCircle, Camera, ChevronDown } from "lucide-react";
+import { UploadCloud, X, Flame, AlertCircle, Camera } from "lucide-react";
 import { useUploadExpense } from "@/hooks/use-expenses";
 import { useMe } from "@/hooks/use-subscription";
 import { useCurrency } from "@/hooks/use-currency";
@@ -42,43 +42,18 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
   const isPremium = me?.tier === "premium";
 
-  const [converting, setConverting] = useState(false);
-
   const [dropError, setDropError] = useState<string | null>(null);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     setDropError(null);
-    try {
-      let file = acceptedFiles[0];
-      if (!file) return;
-
-      const isHeic = file.type === "image/heic" || file.type === "image/heif" ||
-        file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
-
-      if (isHeic) {
-        setConverting(true);
-        try {
-          const heic2any = (await import("heic2any")).default;
-          const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
-          const blob = Array.isArray(converted) ? converted[0] : converted;
-          file = new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
-        } catch (err) {
-          const msg = (err as any)?.message || "Failed to convert HEIC image. Try saving as JPG first.";
-          setDropError(msg);
-          return;
-        } finally {
-          setConverting(false);
-        }
-      }
-
-      setPreview(URL.createObjectURL(file));
-      const reader = new FileReader();
-      reader.onload = () => setBase64Image(reader.result as string);
-      reader.readAsDataURL(file);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load image. Please try another file.";
-      setDropError(msg);
-    }
+    const file = acceptedFiles[0];
+    if (!file) return;
+    // HEIC/HEIF files are sent as-is; server converts them to JPEG using sharp
+    setPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = () => setBase64Image(reader.result as string);
+    reader.onerror = () => setDropError("Failed to read image file. Please try another.");
+    reader.readAsDataURL(file);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -153,16 +128,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
             {/* Content */}
             <div className="p-6 overflow-y-auto">
-              {converting ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-6">
-                  <div className="relative">
-                    <div className="w-20 h-20 rounded-full border-4 border-[hsl(var(--secondary))]/20 border-t-[hsl(var(--secondary))] animate-spin" />
-                    <Camera className="w-8 h-8 text-[hsl(var(--secondary))] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                  </div>
-                  <p className="text-lg font-semibold text-white text-center animate-pulse">Converting iPhone photo...</p>
-                  <p className="text-sm text-muted-foreground text-center">Just a moment, preparing your image.</p>
-                </div>
-              ) : uploadMutation.isPending ? (
+              {uploadMutation.isPending ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-6">
                   <div className="relative">
                     <div className="w-20 h-20 rounded-full border-4 border-[hsl(var(--primary))]/20 border-t-[hsl(var(--primary))] animate-spin" />

@@ -5,6 +5,7 @@ import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
+import sharp from "sharp";
 import { isAuthenticated } from "./replit_integrations/auth/replitAuth";
 import { registerAuthRoutes } from "./replit_integrations/auth/routes";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripe/stripeClient";
@@ -630,8 +631,14 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
       }
 
       const input = api.expenses.upload.input.parse(req.body);
-      // Normalize HEIC/HEIF data URLs to JPEG so OpenAI Vision accepts them
-      const imageUrl = input.image.replace(/^data:image\/(heic|heif);base64,/i, 'data:image/jpeg;base64,');
+      // Convert HEIC/HEIF to JPEG server-side using sharp (browser heic2any is unreliable)
+      let imageUrl = input.image;
+      if (/^data:image\/(heic|heif)/i.test(imageUrl)) {
+        const base64Data = imageUrl.replace(/^data:[^;]+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        const jpegBuffer = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer();
+        imageUrl = `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
+      }
       const userCurrency = user.currency || "USD";
       const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
