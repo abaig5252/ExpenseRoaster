@@ -9,9 +9,9 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
-import { apiGet, API_BASE_URL, getToken } from '../../src/lib/api';
+import { apiGet, apiFetch, API_BASE_URL, getToken } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
 import { CurrencyPickerModal } from '../../src/components/CurrencyPickerModal';
 import { colors, spacing, radius, typography } from '../../src/theme';
@@ -93,6 +93,8 @@ function formatMoney(cents: number, currency: string) {
 
 export default function UploadScreen() {
   const { user, refreshUser, updateCurrency } = useAuth();
+  const queryClient = useQueryClient();
+
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageMime, setImageMime] = useState<string>('image/jpeg');
@@ -101,6 +103,12 @@ export default function UploadScreen() {
   const [uploading, setUploading] = useState(false);
   const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const [displayedAmount, setDisplayedAmount] = useState(0);
+
+  // ── Select Mode State ─────────────────────────────────────────────
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const isPremium = user?.tier === 'premium';
   const uploadsUsed = user?.monthlyUploadCount ?? 0;
@@ -150,7 +158,103 @@ export default function UploadScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // ── Animation values ──────────────────────────────────────────
+  // ── Select Mode Callbacks ─────────────────────────────────────────
+  const enterSelectMode = useCallback(() => {
+    setSelectMode(true);
+    setSelectedIds(new Set());
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const allSelected = filteredReceipts.length > 0 && filteredReceipts.every(e => selectedIds.has(e.id));
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredReceipts.map(e => e.id)));
+    }
+  }, [allSelected, filteredReceipts]);
+
+  const handleBulkDelete = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    Alert.alert(
+      `Delete ${ids.length} receipt${ids.length !== 1 ? 's' : ''}?`,
+      'This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setBulkDeleting(true);
+            setDeletingIds(new Set(ids));
+            try {
+              const res = await apiFetch('/api/expenses/bulk', {
+                method: 'DELETE',
+                body: JSON.stringify({ ids }),
+              });
+              if (!res.ok) throw new Error('Delete failed');
+              await refetch();
+              queryClient.invalidateQueries({ queryKey: ['/api/expenses/summary'] });
+              setSelectMode(false);
+              setSelectedIds(new Set());
+            } catch {
+              Alert.alert('Error', 'Failed to delete receipts. Please try again.');
+            } finally {
+              setBulkDeleting(false);
+              setDeletingIds(new Set());
+            }
+          },
+        },
+      ]
+    );
+  }, [selectedIds, refetch, queryClient]);
+
+  const handleSingleDelete = useCallback((id: number) => {
+    Alert.alert(
+      'Delete receipt?',
+      'This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingIds(prev => new Set([...prev, id]));
+            try {
+              const res = await apiFetch(`/api/expenses/${id}`, { method: 'DELETE' });
+              if (!res.ok) throw new Error('Delete failed');
+              await refetch();
+              queryClient.invalidateQueries({ queryKey: ['/api/expenses/summary'] });
+            } catch {
+              Alert.alert('Error', 'Failed to delete receipt. Please try again.');
+            } finally {
+              setDeletingIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+              });
+            }
+          },
+        },
+      ]
+    );
+  }, [refetch, queryClient]);
+
+  // ── Animation values ───────────────────────────────────────────
   const greetingOpacity = useRef(new Animated.Value(0)).current;
   const amountOpacity   = useRef(new Animated.Value(0)).current;
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
@@ -160,6 +264,7 @@ export default function UploadScreen() {
   const wallX           = useRef(new Animated.Value(-30)).current;
   const wallOpacity     = useRef(new Animated.Value(0)).current;
   const badgeScale      = useRef(new Animated.Value(0)).current;
+  const deleteBarY      = useRef(new Animated.Value(100)).current;
   const pulseAnim       = useRef<Animated.CompositeAnimation | null>(null);
   const tickerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTotal       = useRef(0);
@@ -170,13 +275,11 @@ export default function UploadScreen() {
     Animated.timing(amountOpacity,   { toValue: 1, duration: 500, delay: 150, useNativeDriver: true }).start();
     Animated.timing(subtitleOpacity, { toValue: 1, duration: 600, delay: 900, useNativeDriver: true }).start();
 
-    // Wall header slide-in
     Animated.parallel([
       Animated.timing(wallX,       { toValue: 0, duration: 550, delay: 500, easing: Easing.out(Easing.exp), useNativeDriver: true }),
       Animated.timing(wallOpacity, { toValue: 1, duration: 450, delay: 500, useNativeDriver: true }),
     ]).start();
 
-    // Upload button gentle pulse loop
     pulseAnim.current = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseScale, { toValue: 1.03, duration: 950, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -191,21 +294,28 @@ export default function UploadScreen() {
     };
   }, []);
 
-  // Amount ticker: count up whenever monthlyTotal changes
+  // Delete bar slide animation
+  useEffect(() => {
+    Animated.spring(deleteBarY, {
+      toValue: selectMode ? 0 : 100,
+      friction: 8, tension: 150, useNativeDriver: true,
+    }).start();
+  }, [selectMode]);
+
+  // Amount ticker
   useEffect(() => {
     if (monthlyTotal === prevTotal.current) return;
-    const from   = prevTotal.current;
-    const to     = monthlyTotal;
+    const from = prevTotal.current;
+    const to = monthlyTotal;
     prevTotal.current = to;
-
     if (tickerRef.current) clearInterval(tickerRef.current);
-    const STEPS    = 60;
+    const STEPS = 60;
     const INTERVAL = 1400 / STEPS;
     let step = 0;
     tickerRef.current = setInterval(() => {
       step++;
       const t = step / STEPS;
-      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const eased = 1 - Math.pow(1 - t, 3);
       setDisplayedAmount(Math.round(from + (to - from) * eased));
       if (step >= STEPS) {
         clearInterval(tickerRef.current!);
@@ -214,21 +324,19 @@ export default function UploadScreen() {
     }, INTERVAL);
   }, [monthlyTotal]);
 
-  // Badge pop when receipt count changes
+  // Badge pop
   useEffect(() => {
     if (receiptExpenses.length === 0) return;
     badgeScale.setValue(0);
     Animated.spring(badgeScale, { toValue: 1, tension: 120, friction: 5, useNativeDriver: true }).start();
   }, [receiptExpenses.length]);
 
-  // Upload button tap handler with bounce + icon spin
+  // Upload button tap handler
   const handleUploadPress = useCallback(() => {
-    // Bounce
     Animated.sequence([
       Animated.timing(tapScale, { toValue: 0.93, duration: 90, useNativeDriver: true }),
       Animated.spring(tapScale, { toValue: 1, friction: 4, tension: 150, useNativeDriver: true }),
     ]).start();
-    // Plus spin 360°
     plusRotate.setValue(0);
     Animated.timing(plusRotate, {
       toValue: 1, duration: 380,
@@ -281,7 +389,6 @@ export default function UploadScreen() {
         const asset = res.assets[0];
         setImageUri(asset.uri);
         setImageBase64(asset.base64 ?? null);
-        // expo-image-picker with quality<1 converts HEIC/HEIF to JPEG on iOS
         const mime = asset.mimeType ?? 'image/jpeg';
         setImageMime(mime.startsWith('image/') ? mime : 'image/jpeg');
         setEphemeral(null);
@@ -296,22 +403,16 @@ export default function UploadScreen() {
     setUploading(true);
     try {
       let base64Data = imageBase64;
-
-      // If base64 wasn't returned by the picker, read the file directly
       if (!base64Data) {
         base64Data = await FileSystem.readAsStringAsync(imageUri, {
           encoding: FileSystem.EncodingType.Base64,
         });
       }
-
-      // Build the data URL — expo-image-picker with quality<1 converts HEIC/HEIF to JPEG
       const effectiveMime = (imageMime === 'image/heic' || imageMime === 'image/heif') ? 'image/jpeg' : imageMime;
       const imageDataUrl = `data:${effectiveMime};base64,${base64Data}`;
-
       const token = await getToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['x-app-token'] = token;
-
       const res = await fetch(`${API_BASE_URL}/api/expenses/upload`, {
         method: 'POST',
         headers,
@@ -343,256 +444,330 @@ export default function UploadScreen() {
   const plusSpin = plusRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
-    <SafeAreaView style={s.root}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={s.root}>
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* ── Top Nav Bar ── */}
-        <View style={s.nav}>
-          <AppLogo size="xs" />
-          <View style={s.navRight}>
-            <TouchableOpacity
-              style={s.currencyBadge}
-              onPress={() => setCurrencyPickerVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={s.currencyText}>{currency}</Text>
-              <Ionicons name="chevron-down" size={10} color={colors.textMuted} />
-            </TouchableOpacity>
-            <View style={s.avatar}>
-              <Text style={s.avatarText}>{(firstName[0] ?? 'U').toUpperCase()}</Text>
+          {/* ── Top Nav Bar ── */}
+          <View style={s.nav}>
+            <AppLogo size="xs" />
+            <View style={s.navRight}>
+              <TouchableOpacity
+                style={s.currencyBadge}
+                onPress={() => setCurrencyPickerVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={s.currencyText}>{currency}</Text>
+                <Ionicons name="chevron-down" size={10} color={colors.textMuted} />
+              </TouchableOpacity>
+              <View style={s.avatar}>
+                <Text style={s.avatarText}>{(firstName[0] ?? 'U').toUpperCase()}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <CurrencyPickerModal
-          visible={currencyPickerVisible}
-          current={currency}
-          onSelect={updateCurrency}
-          onClose={() => setCurrencyPickerVisible(false)}
-        />
+          <CurrencyPickerModal
+            visible={currencyPickerVisible}
+            current={currency}
+            onSelect={updateCurrency}
+            onClose={() => setCurrencyPickerVisible(false)}
+          />
 
-        {/* ── Hero ── */}
-        <View style={s.hero}>
-          <Animated.Text style={[s.heroLabel, { opacity: greetingOpacity }]}>
-            HEY {firstName.toUpperCase()},{'\n'}
-            {isPremium ? "HERE'S YOUR RECEIPT WALL" : "HERE'S YOUR FREE ROAST ZONE"}
-          </Animated.Text>
-
-          {isPremium ? (
-            <Animated.Text style={[s.heroAmount, { opacity: amountOpacity }]}>
-              {formatMoney(displayedAmount, currency)}
+          {/* ── Hero ── */}
+          <View style={s.hero}>
+            <Animated.Text style={[s.heroLabel, { opacity: greetingOpacity }]}>
+              HEY {firstName.toUpperCase()},{'\n'}
+              {isPremium ? "HERE'S YOUR RECEIPT WALL" : "HERE'S YOUR FREE ROAST ZONE"}
             </Animated.Text>
-          ) : (
-            <Animated.Text style={[s.heroTitle, { opacity: amountOpacity }]}>
-              Roast My Receipt
+
+            {isPremium ? (
+              <Animated.Text style={[s.heroAmount, { opacity: amountOpacity }]}>
+                {formatMoney(displayedAmount, currency)}
+              </Animated.Text>
+            ) : (
+              <Animated.Text style={[s.heroTitle, { opacity: amountOpacity }]}>
+                Roast My Receipt
+              </Animated.Text>
+            )}
+
+            <Animated.Text style={[s.heroSub, { opacity: subtitleOpacity }]}>
+              {isPremium
+                ? (selectedMonth && filteredReceipts.length > 0
+                    ? `spent on receipts in ${fmtMonth(selectedMonth)}.`
+                    : 'spent this month on things you definitely needed.')
+                : `${uploadsRemaining}/1 free upload remaining this month.`}
             </Animated.Text>
+          </View>
+
+          {/* ── Upload Button (hidden in select mode) ── */}
+          {!selectMode && (
+            <Animated.View style={[s.uploadBtnWrap, { transform: [{ scale: Animated.multiply(pulseScale, tapScale) }] }, atLimit && s.uploadBtnDisabled]}>
+              <TouchableOpacity onPress={handleUploadPress} activeOpacity={1} disabled={uploading}>
+                <LinearGradient
+                  colors={['#00E676', '#6BFF9C']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={s.uploadBtn}
+                >
+                  {uploading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Animated.View style={{ transform: [{ rotate: plusSpin }] }}>
+                        <Ionicons name="add" size={22} color="#FFFFFF" />
+                      </Animated.View>
+                      <Text style={s.uploadBtnText}>Upload Receipt</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
           )}
 
-          <Animated.Text style={[s.heroSub, { opacity: subtitleOpacity }]}>
-            {isPremium
-              ? 'spent this month on things you definitely needed.'
-              : `${uploadsRemaining}/1 free upload remaining this month.`}
-          </Animated.Text>
-        </View>
+          {atLimit && !selectMode && (
+            <TouchableOpacity style={s.upgradeNudge} activeOpacity={0.7}>
+              <Ionicons name="lock-closed" size={14} color={colors.primary} />
+              <Text style={s.upgradeNudgeText}>Upgrade for unlimited uploads →</Text>
+            </TouchableOpacity>
+          )}
 
-        {/* ── Upload Button ── */}
-        <Animated.View style={[s.uploadBtnWrap, { transform: [{ scale: Animated.multiply(pulseScale, tapScale) }] }, atLimit && s.uploadBtnDisabled]}>
-          <TouchableOpacity onPress={handleUploadPress} activeOpacity={1} disabled={uploading}>
-            <LinearGradient
-              colors={['#00E676', '#6BFF9C']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={s.uploadBtn}
-            >
-              {uploading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Animated.View style={{ transform: [{ rotate: plusSpin }] }}>
-                    <Ionicons name="add" size={22} color="#FFFFFF" />
+          {/* ── Selected image + tone picker ── */}
+          {imageUri && !uploading && !selectMode && (
+            <View style={s.selectedCard}>
+              <Image source={{ uri: imageUri }} style={s.preview} resizeMode="cover" />
+              <TouchableOpacity style={s.clearBtn} onPress={() => { setImageUri(null); setImageBase64(null); setEphemeral(null); }}>
+                <Ionicons name="close-circle" size={26} color={colors.textMuted} />
+              </TouchableOpacity>
+              <Text style={s.toneLabel}>Choose your roast style</Text>
+              <View style={s.toneRow}>
+                {TONES.map(t => (
+                  <TouchableOpacity
+                    key={t.value}
+                    style={[s.toneChip, tone === t.value && s.toneChipActive]}
+                    onPress={() => setTone(t.value)}
+                  >
+                    <Text style={[s.toneText, tone === t.value && s.toneTextActive]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity style={s.roastBtnWrap} onPress={uploadReceipt} activeOpacity={0.85}>
+                <LinearGradient
+                  colors={['#00E676', '#6BFF9C']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={s.roastBtn}
+                >
+                  <Ionicons name="flame" size={18} color="#FFFFFF" />
+                  <Text style={s.roastBtnText}>Roast This Receipt</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ── Ephemeral roast result (free tier) ── */}
+          {ephemeral && (
+            <View style={s.ephemeralCard}>
+              <TouchableOpacity style={s.closeBtnAbs} onPress={() => setEphemeral(null)}>
+                <Ionicons name="close-circle" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+              <Text style={s.ephLabel}>THE ROAST</Text>
+              <Text style={s.ephAmount}>{formatMoney(ephemeral.amount, ephemeral.currency)}</Text>
+              <Text style={s.ephDesc}>{ephemeral.description}</Text>
+              <View style={s.categoryPill}>
+                <Text style={s.categoryPillText}>{ephemeral.category.toUpperCase()}</Text>
+              </View>
+              <Text style={s.ephRoast}>"{ephemeral.roast}"</Text>
+            </View>
+          )}
+
+          {/* ── Free tier upgrade panel ── */}
+          {!isPremium && !imageUri && !ephemeral && (
+            <View style={s.freePanel}>
+              <Ionicons name="lock-closed" size={18} color={colors.primary} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.freePanelTitle}>You're on the Free plan</Text>
+                <Text style={s.freePanelSub}>Upgrade to Premium for unlimited uploads, spending history, and more.</Text>
+              </View>
+            </View>
+          )}
+
+          {/* ── Receipt Wall (premium) ── */}
+          {isPremium && (
+            <View style={s.wallSection}>
+              {/* Wall header */}
+              <Animated.View style={[s.wallHeader, { opacity: wallOpacity, transform: [{ translateX: wallX }] }]}>
+                <Ionicons name="camera-outline" size={18} color={colors.textMuted} />
+                <Text style={s.wallTitle}>Receipt Wall</Text>
+                {filteredReceipts.length > 0 && (
+                  <Animated.View style={[s.countBadge, { transform: [{ scale: badgeScale }] }]}>
+                    <Text style={s.countText}>{filteredReceipts.length}</Text>
                   </Animated.View>
-                  <Text style={s.uploadBtnText}>Upload Receipt</Text>
-                </>
+                )}
+                {/* Select mode controls */}
+                <View style={s.selectControls}>
+                  {selectMode ? (
+                    <>
+                      <TouchableOpacity onPress={toggleSelectAll} activeOpacity={0.7} style={s.selectBtn}>
+                        <Text style={s.selectBtnText}>{allSelected ? 'Deselect All' : 'Select All'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={exitSelectMode} activeOpacity={0.7} style={s.cancelBtn}>
+                        <Ionicons name="close" size={14} color="rgba(255,255,255,0.5)" />
+                        <Text style={s.cancelBtnText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : receiptExpenses.length > 0 ? (
+                    <TouchableOpacity onPress={enterSelectMode} activeOpacity={0.7}>
+                      <Text style={s.selectModeText}>Select</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </Animated.View>
+
+              {/* Month filter pills */}
+              {availableMonths.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.monthPillsRow}
+                  style={s.monthPillsScroll}
+                >
+                  {availableMonths.map(ym => (
+                    <TouchableOpacity
+                      key={ym}
+                      onPress={() => setSelectedMonth(ym)}
+                      style={[s.monthPill, selectedMonth === ym && s.monthPillActive]}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={11}
+                        color={selectedMonth === ym ? '#FFFFFF' : colors.textMuted}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text style={[s.monthPillText, selectedMonth === ym && s.monthPillTextActive]}>
+                        {fmtMonth(ym)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               )}
-            </LinearGradient>
+
+              {/* Monthly verdict roast panel */}
+              {!selectMode && selectedMonth && filteredReceipts.length > 0 && (
+                <View style={s.verdictPanel}>
+                  <View style={s.verdictIcon}>
+                    <Ionicons name="flame" size={16} color="#00E676" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.verdictLabel}>{fmtMonth(selectedMonth)} Verdict</Text>
+                    {roastLoading ? (
+                      <Text style={s.verdictLoading}>Generating your monthly roast…</Text>
+                    ) : monthlyRoastData?.roast ? (
+                      <Text style={s.verdictRoast}>"{monthlyRoastData.roast}"</Text>
+                    ) : null}
+                  </View>
+                </View>
+              )}
+
+              {receiptExpenses.length === 0 ? (
+                <View style={s.emptyWall}>
+                  <View style={s.emptyIcon}>
+                    <Ionicons name="receipt-outline" size={32} color={colors.textDim} />
+                  </View>
+                  <Text style={s.emptyTitle}>No receipts yet</Text>
+                  <Text style={s.emptySub}>Upload a receipt photo and watch your poor decisions get immortalised on the wall.</Text>
+                  <TouchableOpacity style={s.emptyBtnWrap} onPress={promptImageSource} activeOpacity={0.85}>
+                    <LinearGradient
+                      colors={['#00E676', '#6BFF9C']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={s.emptyBtn}
+                    >
+                      <Text style={s.emptyBtnText}>Add First Receipt</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              ) : filteredReceipts.length === 0 ? (
+                <View style={s.emptyWall}>
+                  <Text style={s.emptyTitle}>No receipts in {selectedMonth ? fmtMonth(selectedMonth) : 'this month'}</Text>
+                  <Text style={s.emptySub}>Nothing uploaded for this month. Pick another month above.</Text>
+                </View>
+              ) : (
+                <View style={s.cardGrid}>
+                  {filteredReceipts.map((exp, i) => (
+                    <ReceiptCard
+                      key={exp.id}
+                      expense={exp}
+                      currency={currency}
+                      index={i}
+                      isSelectMode={selectMode}
+                      isSelected={selectedIds.has(exp.id)}
+                      isExiting={deletingIds.has(exp.id)}
+                      onSelect={() => toggleSelect(exp.id)}
+                      onDelete={() => handleSingleDelete(exp.id)}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+        </ScrollView>
+
+        {/* ── Sticky Bulk Delete Bar ── */}
+        <Animated.View
+          style={[s.deleteBar, { transform: [{ translateY: deleteBarY }] }]}
+          pointerEvents={selectMode ? 'auto' : 'none'}
+        >
+          <TouchableOpacity
+            onPress={handleBulkDelete}
+            disabled={selectedIds.size === 0 || bulkDeleting}
+            activeOpacity={0.85}
+            style={[
+              s.deleteBarBtn,
+              selectedIds.size === 0 && s.deleteBarBtnDisabled,
+            ]}
+          >
+            {bulkDeleting ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Ionicons name="trash-outline" size={18} color={selectedIds.size === 0 ? 'rgba(255,82,82,0.4)' : '#FFFFFF'} />
+            )}
+            <Text style={[s.deleteBarText, selectedIds.size === 0 && s.deleteBarTextDisabled]}>
+              {selectedIds.size === 0
+                ? 'Select receipts to delete'
+                : `Delete (${selectedIds.size} selected)`}
+            </Text>
           </TouchableOpacity>
         </Animated.View>
 
-        {atLimit && (
-          <TouchableOpacity style={s.upgradeNudge} activeOpacity={0.7}>
-            <Ionicons name="lock-closed" size={14} color={colors.primary} />
-            <Text style={s.upgradeNudgeText}>Upgrade for unlimited uploads →</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* ── Selected image + tone picker ── */}
-        {imageUri && !uploading && (
-          <View style={s.selectedCard}>
-            <Image source={{ uri: imageUri }} style={s.preview} resizeMode="cover" />
-            <TouchableOpacity style={s.clearBtn} onPress={() => { setImageUri(null); setImageBase64(null); setEphemeral(null); }}>
-              <Ionicons name="close-circle" size={26} color={colors.textMuted} />
-            </TouchableOpacity>
-            <Text style={s.toneLabel}>Choose your roast style</Text>
-            <View style={s.toneRow}>
-              {TONES.map(t => (
-                <TouchableOpacity
-                  key={t.value}
-                  style={[s.toneChip, tone === t.value && s.toneChipActive]}
-                  onPress={() => setTone(t.value)}
-                >
-                  <Text style={[s.toneText, tone === t.value && s.toneTextActive]}>{t.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity style={s.roastBtnWrap} onPress={uploadReceipt} activeOpacity={0.85}>
-              <LinearGradient
-                colors={['#00E676', '#6BFF9C']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={s.roastBtn}
-              >
-                <Ionicons name="flame" size={18} color="#FFFFFF" />
-                <Text style={s.roastBtnText}>Roast This Receipt</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Ephemeral roast result (free tier) ── */}
-        {ephemeral && (
-          <View style={s.ephemeralCard}>
-            <TouchableOpacity style={s.closeBtnAbs} onPress={() => setEphemeral(null)}>
-              <Ionicons name="close-circle" size={24} color={colors.textMuted} />
-            </TouchableOpacity>
-            <Text style={s.ephLabel}>THE ROAST</Text>
-            <Text style={s.ephAmount}>{formatMoney(ephemeral.amount, ephemeral.currency)}</Text>
-            <Text style={s.ephDesc}>{ephemeral.description}</Text>
-            <View style={s.categoryPill}>
-              <Text style={s.categoryPillText}>{ephemeral.category.toUpperCase()}</Text>
-            </View>
-            <Text style={s.ephRoast}>"{ephemeral.roast}"</Text>
-          </View>
-        )}
-
-        {/* ── Free tier upgrade panel ── */}
-        {!isPremium && !imageUri && !ephemeral && (
-          <View style={s.freePanel}>
-            <Ionicons name="lock-closed" size={18} color={colors.primary} style={{ marginTop: 2 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.freePanelTitle}>You're on the Free plan</Text>
-              <Text style={s.freePanelSub}>Upgrade to Premium for unlimited uploads, spending history, and more.</Text>
-            </View>
-          </View>
-        )}
-
-        {/* ── Receipt Wall (premium) ── */}
-        {isPremium && (
-          <View style={s.wallSection}>
-            <Animated.View style={[s.wallHeader, { opacity: wallOpacity, transform: [{ translateX: wallX }] }]}>
-              <Ionicons name="camera-outline" size={18} color={colors.textMuted} />
-              <Text style={s.wallTitle}>Receipt Wall</Text>
-              {filteredReceipts.length > 0 && (
-                <Animated.View style={[s.countBadge, { transform: [{ scale: badgeScale }] }]}>
-                  <Text style={s.countText}>{filteredReceipts.length}</Text>
-                </Animated.View>
-              )}
-            </Animated.View>
-
-            {/* Month filter pills */}
-            {availableMonths.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.monthPillsRow}
-                style={s.monthPillsScroll}
-              >
-                {availableMonths.map(ym => (
-                  <TouchableOpacity
-                    key={ym}
-                    onPress={() => setSelectedMonth(ym)}
-                    style={[s.monthPill, selectedMonth === ym && s.monthPillActive]}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={11}
-                      color={selectedMonth === ym ? '#FFFFFF' : colors.textMuted}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text style={[s.monthPillText, selectedMonth === ym && s.monthPillTextActive]}>
-                      {fmtMonth(ym)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-
-            {/* Monthly verdict roast panel */}
-            {selectedMonth && filteredReceipts.length > 0 && (
-              <View style={s.verdictPanel}>
-                <View style={s.verdictIcon}>
-                  <Ionicons name="flame" size={16} color="#00E676" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.verdictLabel}>{fmtMonth(selectedMonth)} Verdict</Text>
-                  {roastLoading ? (
-                    <Text style={s.verdictLoading}>Generating your monthly roast…</Text>
-                  ) : monthlyRoastData?.roast ? (
-                    <Text style={s.verdictRoast}>"{monthlyRoastData.roast}"</Text>
-                  ) : null}
-                </View>
-              </View>
-            )}
-
-            {receiptExpenses.length === 0 ? (
-              <View style={s.emptyWall}>
-                <View style={s.emptyIcon}>
-                  <Ionicons name="receipt-outline" size={32} color={colors.textDim} />
-                </View>
-                <Text style={s.emptyTitle}>No receipts yet</Text>
-                <Text style={s.emptySub}>Upload a receipt photo and watch your poor decisions get immortalised on the wall.</Text>
-                <TouchableOpacity style={s.emptyBtnWrap} onPress={promptImageSource} activeOpacity={0.85}>
-                  <LinearGradient
-                    colors={['#00E676', '#6BFF9C']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={s.emptyBtn}
-                  >
-                    <Text style={s.emptyBtnText}>Add First Receipt</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            ) : filteredReceipts.length === 0 ? (
-              <View style={s.emptyWall}>
-                <Text style={s.emptyTitle}>No receipts in {selectedMonth ? fmtMonth(selectedMonth) : 'this month'}</Text>
-                <Text style={s.emptySub}>Nothing uploaded for this month. Pick another month above.</Text>
-              </View>
-            ) : (
-              <View style={s.cardGrid}>
-                {filteredReceipts.map((exp, i) => (
-                  <ReceiptCard key={exp.id} expense={exp} currency={currency} index={i} />
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-      </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-// ── Per-flame flicker timings — staggered so no two flames sync ──────────────
+// ── Per-flame flicker timings ────────────────────────────────────────
 const FLICKER_DURATIONS = [840, 1120, 740, 1000, 1220];
 
-// ── Collage-style receipt card — matches web ReceiptCollageCard ──────────────
-function ReceiptCard({ expense, currency, index }: { expense: Expense; currency: string; index: number }) {
+// ── Receipt card ─────────────────────────────────────────────────────
+interface ReceiptCardProps {
+  expense: Expense;
+  currency: string;
+  index: number;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  isExiting?: boolean;
+  onSelect?: () => void;
+  onDelete?: () => void;
+}
+
+function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelected = false, isExiting = false, onSelect, onDelete }: ReceiptCardProps) {
   const translateY = useRef(new Animated.Value(44)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
+  const exitScale  = useRef(new Animated.Value(1)).current;
   const chevronRot = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
 
-  // Flame scales/opacities held here so ReceiptCard can trigger flare on press
   const flameScales    = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.3))).current;
   const flameOpacities = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0))).current;
   const flameLoops     = useRef<(Animated.CompositeAnimation | null)[]>([null, null, null, null, null]);
@@ -607,6 +782,16 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
     : '';
   const chevronDeg = chevronRot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const cardDelay = index * 90;
+
+  // Exit animation when being deleted
+  useEffect(() => {
+    if (isExiting) {
+      Animated.parallel([
+        Animated.timing(exitScale,  { toValue: 0.85, duration: 280, useNativeDriver: true }),
+        Animated.timing(opacity,    { toValue: 0,    duration: 280, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [isExiting]);
 
   function startFlicker(i: number) {
     const dur = FLICKER_DURATIONS[i];
@@ -652,9 +837,7 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
     });
   }
 
-  // Card slide-in + flame staggered light-up
   useEffect(() => {
-    // Card entrance
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: 0, duration: 500, delay: cardDelay,
@@ -665,7 +848,6 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
       }),
     ]).start();
 
-    // Inactive flames: dim, static
     [0, 1, 2, 3, 4].forEach(i => {
       if (i >= severity) {
         flameScales[i].setValue(0.85);
@@ -673,7 +855,6 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
       }
     });
 
-    // Active flames: stagger then flicker
     [0, 1, 2, 3, 4].filter(i => i < severity).forEach((i, pos) => {
       Animated.sequence([
         Animated.delay(cardDelay + 300 + pos * 155),
@@ -688,6 +869,7 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
   }, []);
 
   function toggleExpand() {
+    if (isSelectMode) { onSelect?.(); return; }
     LayoutAnimation.configureNext({
       duration: 320,
       create: { type: 'easeInEaseOut', property: 'opacity', duration: 200 },
@@ -702,9 +884,36 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
   }
 
   return (
-    <Animated.View style={[rc.card, expanded && rc.cardExpanded, { opacity, transform: [{ translateY }, { rotate: `${rotation}deg` }] }]}>
+    <Animated.View
+      style={[
+        rc.card,
+        expanded && !isSelectMode && rc.cardExpanded,
+        isSelected && rc.cardSelected,
+        {
+          opacity,
+          transform: [
+            { translateY },
+            { scale: exitScale },
+            { rotate: isSelectMode ? '0deg' : `${rotation}deg` },
+          ],
+        },
+      ]}
+    >
+      {/* Checkbox — shown in select mode */}
+      {isSelectMode && (
+        <TouchableOpacity
+          onPress={() => onSelect?.()}
+          style={[rc.checkbox, isSelected && rc.checkboxSelected]}
+          activeOpacity={0.7}
+        >
+          {isSelected && (
+            <Ionicons name="checkmark" size={13} color="#000000" />
+          )}
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity
-        onPressIn={flareAll}
+        onPressIn={isSelectMode ? undefined : flareAll}
         onPress={toggleExpand}
         activeOpacity={0.85}
         style={rc.cardInner}
@@ -734,21 +943,35 @@ function ReceiptCard({ expense, currency, index }: { expense: Expense; currency:
         ) : null}
 
         {/* Severity flames + chevron */}
-        <View style={rc.footer}>
-          <View style={rc.flames}>
-            {[0, 1, 2, 3, 4].map(i => (
-              <Animated.Text
-                key={i}
-                style={[rc.flame, { opacity: flameOpacities[i], transform: [{ scale: flameScales[i] }] }]}
-              >
-                🔥
-              </Animated.Text>
-            ))}
+        {!isSelectMode && (
+          <View style={rc.footer}>
+            <View style={rc.flames}>
+              {[0, 1, 2, 3, 4].map(i => (
+                <Animated.Text
+                  key={i}
+                  style={[rc.flame, { opacity: flameOpacities[i], transform: [{ scale: flameScales[i] }] }]}
+                >
+                  🔥
+                </Animated.Text>
+              ))}
+            </View>
+            <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
+              <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.35)" />
+            </Animated.View>
           </View>
-          <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
-            <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.35)" />
-          </Animated.View>
-        </View>
+        )}
+
+        {/* Delete button — shown when expanded and not in select mode */}
+        {expanded && !isSelectMode && (
+          <TouchableOpacity
+            onPress={onDelete}
+            style={rc.deleteRow}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trash-outline" size={14} color="#FF5252" />
+            <Text style={rc.deleteText}>Delete receipt</Text>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -767,6 +990,11 @@ const rc = StyleSheet.create({
   cardExpanded: {
     borderColor: 'rgba(0,230,118,0.22)',
     shadowOpacity: 0.55, shadowRadius: 16, elevation: 10,
+  },
+  cardSelected: {
+    borderColor: '#00E676',
+    borderWidth: 2,
+    shadowColor: '#00E676', shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
   },
   cardInner: { padding: 16 },
   topBlock: { alignItems: 'center', marginBottom: 10 },
@@ -787,11 +1015,29 @@ const rc = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   flames: { flexDirection: 'row', gap: 2 },
   flame: { fontSize: 11 },
+  checkbox: {
+    position: 'absolute', top: 10, left: 10, zIndex: 10,
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#00E676',
+    borderColor: '#00E676',
+  },
+  deleteRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    justifyContent: 'center', marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,82,82,0.15)',
+  },
+  deleteText: { fontSize: 12, color: '#FF5252', fontWeight: '600' },
 });
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: spacing.lg, paddingBottom: 100, gap: spacing.lg },
+  root: { flex: 1 },
+  scroll: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
 
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   navRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -882,6 +1128,21 @@ const s = StyleSheet.create({
   wallSection: { gap: spacing.md },
   cardGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 
+  wallHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  wallTitle: { ...typography.h3, fontSize: 20 },
+  countBadge: {
+    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: radius.full,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  countText: { ...typography.caption, color: colors.textMuted, fontWeight: '700' },
+
+  selectControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginLeft: 'auto' },
+  selectModeText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.45)' },
+  selectBtn: { paddingVertical: 4, paddingHorizontal: 2 },
+  selectBtnText: { fontSize: 12, fontWeight: '700', color: '#00E676' },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4 },
+  cancelBtnText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.45)' },
+
   monthPillsScroll: { marginTop: -spacing.xs },
   monthPillsRow: { flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.xs },
   monthPill: {
@@ -914,13 +1175,6 @@ const s = StyleSheet.create({
   verdictLabel: { fontSize: 10, fontWeight: '800', color: '#00E676', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
   verdictLoading: { ...typography.caption, color: colors.textMuted, fontStyle: 'italic' },
   verdictRoast: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontStyle: 'italic', lineHeight: 20 },
-  wallHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  wallTitle: { ...typography.h3, fontSize: 20 },
-  countBadge: {
-    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: radius.full,
-    paddingHorizontal: 8, paddingVertical: 2,
-  },
-  countText: { ...typography.caption, color: colors.textMuted, fontWeight: '700' },
 
   emptyWall: {
     backgroundColor: colors.surface, borderRadius: radius.xl,
@@ -936,4 +1190,21 @@ const s = StyleSheet.create({
   emptyBtnWrap: { borderRadius: radius.lg, overflow: 'hidden', marginTop: spacing.sm },
   emptyBtn: { paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
   emptyBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+
+  deleteBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, paddingTop: spacing.sm,
+    backgroundColor: 'rgba(10,10,10,0.97)',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  deleteBarBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    paddingVertical: 16, borderRadius: 16,
+    backgroundColor: '#FF5252',
+  },
+  deleteBarBtnDisabled: {
+    backgroundColor: 'rgba(255,82,82,0.12)',
+  },
+  deleteBarText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  deleteBarTextDisabled: { color: 'rgba(255,82,82,0.4)' },
 });
