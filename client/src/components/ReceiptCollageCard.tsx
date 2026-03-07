@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, X, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { useCurrency } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
@@ -9,6 +9,10 @@ interface Props {
   index: number;
   onDelete?: () => void;
   isDeleting?: boolean;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  isExiting?: boolean;
 }
 
 const categoryEmoji: Record<string, string> = {
@@ -37,7 +41,10 @@ const categoryPillColors: Record<string, string> = {
 
 const ROTATIONS = [-2, 1, -1.5, 2, -0.5, 1.5, -1, 0.5, -2.5, 0];
 
-export function ReceiptCollageCard({ expense, index, onDelete, isDeleting }: Props) {
+export function ReceiptCollageCard({
+  expense, index, onDelete, isDeleting,
+  isSelectMode = false, isSelected = false, onSelect, isExiting = false,
+}: Props) {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [hovered, setHovered] = useState(false);
   const { formatAmount } = useCurrency();
@@ -50,31 +57,67 @@ export function ReceiptCollageCard({ expense, index, onDelete, isDeleting }: Pro
   const pillColor = categoryPillColors[expense.category] || "#4A5060";
   const severity = amountDollars < 10 ? 1 : amountDollars < 50 ? 2 : amountDollars < 150 ? 3 : amountDollars < 500 ? 4 : 5;
 
+  const handleCardClick = () => {
+    if (isSelectMode) onSelect?.();
+  };
+
   return (
     <div
       data-testid={`card-receipt-${expense.id}`}
+      onClick={handleCardClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         background: "#1A1A1A",
-        border: "1px solid rgba(255,255,255,0.07)",
+        border: isSelected
+          ? "2px solid #00E676"
+          : "1px solid rgba(255,255,255,0.07)",
         borderRadius: 18,
         padding: "18px 16px 14px",
         position: "relative",
         breakInside: "avoid",
         marginBottom: 16,
-        transform: hovered && deleteStep === 0
-          ? "rotate(0deg) scale(1.025)"
-          : `rotate(${rotation}deg)`,
-        transition: "transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s",
-        boxShadow: hovered
-          ? "0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,230,118,0.12)"
-          : "0 4px 16px rgba(0,0,0,0.3)",
-        cursor: "default",
+        transform: isExiting
+          ? "scale(0.88)"
+          : isSelectMode
+            ? "rotate(0deg)"
+            : hovered && deleteStep === 0
+              ? "rotate(0deg) scale(1.025)"
+              : `rotate(${rotation}deg)`,
+        opacity: isExiting ? 0 : 1,
+        transition: isExiting
+          ? "transform 0.3s ease, opacity 0.3s ease"
+          : "transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s, border-color 0.15s",
+        boxShadow: isSelected
+          ? "0 0 0 1px #00E676, 0 4px 24px rgba(0,230,118,0.15)"
+          : hovered
+            ? "0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,230,118,0.12)"
+            : "0 4px 16px rgba(0,0,0,0.3)",
+        cursor: isSelectMode ? "pointer" : "default",
       }}
     >
-      {/* ✕ delete button — always visible */}
-      {deleteStep === 0 && onDelete && (
+      {/* Checkbox overlay — shown in select mode */}
+      {isSelectMode && (
+        <div
+          onClick={e => { e.stopPropagation(); onSelect?.(); }}
+          data-testid={`checkbox-select-${expense.id}`}
+          style={{
+            position: "absolute", top: 10, left: 10, zIndex: 10,
+            width: 22, height: 22, borderRadius: "50%",
+            border: isSelected ? "none" : "2px solid rgba(255,255,255,0.3)",
+            background: isSelected ? "#00E676" : "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+            transition: "background 0.15s, border 0.15s",
+            boxShadow: isSelected ? "0 0 8px rgba(0,230,118,0.5)" : undefined,
+          }}
+        >
+          {isSelected && <Check style={{ width: 13, height: 13, color: "#000", strokeWidth: 3 }} />}
+        </div>
+      )}
+
+      {/* ✕ delete button — hidden in select mode */}
+      {!isSelectMode && deleteStep === 0 && onDelete && (
         <button
           onClick={() => setDeleteStep(1)}
           data-testid={`button-delete-receipt-${expense.id}`}
@@ -159,7 +202,7 @@ export function ReceiptCollageCard({ expense, index, onDelete, isDeleting }: Pro
       </div>
 
       {/* ── Step 1: First confirm overlay ── */}
-      {deleteStep === 1 && (
+      {!isSelectMode && deleteStep === 1 && (
         <div style={{
           position: "absolute", inset: 0, borderRadius: 18,
           background: "rgba(18,18,18,0.96)", backdropFilter: "blur(4px)",
@@ -209,7 +252,7 @@ export function ReceiptCollageCard({ expense, index, onDelete, isDeleting }: Pro
       )}
 
       {/* ── Step 2: Final confirm overlay ── */}
-      {deleteStep === 2 && (
+      {!isSelectMode && deleteStep === 2 && (
         <div style={{
           position: "absolute", inset: 0, borderRadius: 18,
           background: "rgba(18,18,18,0.97)", backdropFilter: "blur(4px)",
