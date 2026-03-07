@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import { Plus, Flame, Activity, Camera, RefreshCw, ChevronDown, Loader2 } from "lucide-react";
-import { useExpenses, useExpenseSummary, useMonthlyRoast } from "@/hooks/use-expenses";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Flame, Activity, Camera, RefreshCw, ChevronDown, Loader2, Trash2, X } from "lucide-react";
+import { useExpenses, useExpenseSummary, useMonthlyRoast, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
 import { useCurrency } from "@/hooks/use-currency";
 import { ExpenseCard } from "@/components/ExpenseCard";
 import { UploadModal } from "@/components/UploadModal";
 import type { ExpenseResponse } from "@shared/routes";
 import { parseReceiptDate } from "@/lib/dates";
+import { useToast } from "@/hooks/use-toast";
 
 function expenseMonth(exp: ExpenseResponse): string {
   const d = exp.date ? parseReceiptDate(exp.date) : new Date();
@@ -22,9 +23,12 @@ export default function Dashboard() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const { formatAmount } = useCurrency();
+  const { toast } = useToast();
 
   const { data: expenses, isLoading: expensesLoading, error: expensesError } = useExpenses();
   const { data: summary } = useExpenseSummary();
+  const deleteSingle = useDeleteExpense();
+  const bulkDeleteMutation = useBulkDeleteExpenses();
 
   const receiptExpenses = useMemo(
     () => (expenses ?? []).filter(e => e.source === "receipt"),
@@ -64,6 +68,59 @@ export default function Dashboard() {
   const displaySubtitle = selectedMonth && filteredExpenses.length > 0
     ? `spent on receipts in ${fmtMonth(selectedMonth)}.`
     : "upload receipts to track your spending.";
+
+  // ─── Select Mode State ───────────────────────────────────────────
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [exitingIds, setExitingIds] = useState<Set<number>>(new Set());
+
+  const enterSelectMode = useCallback((id: number) => {
+    setSelectMode(true);
+    setSelectedIds(new Set([id]));
+  }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const allSelected = filteredExpenses.length > 0 && filteredExpenses.every(e => selectedIds.has(e.id));
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredExpenses.map(e => e.id)));
+    }
+  }, [allSelected, filteredExpenses]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    setShowBulkConfirm(false);
+    setExitingIds(new Set(ids));
+    setTimeout(async () => {
+      try {
+        await bulkDeleteMutation.mutateAsync(ids);
+        toast({
+          description: `${ids.length} receipt${ids.length !== 1 ? "s" : ""} deleted`,
+        });
+      } catch {
+        toast({ description: "Failed to delete receipts", variant: "destructive" });
+      }
+      setExitingIds(new Set());
+      setSelectMode(false);
+      setSelectedIds(new Set());
+    }, 320);
+  }, [selectedIds, bulkDeleteMutation, toast]);
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -121,23 +178,25 @@ export default function Dashboard() {
             </p>
           </motion.div>
 
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            onClick={() => setIsUploadOpen(true)}
-            data-testid="button-upload-receipt"
-            className="group relative px-8 py-5 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] rounded-3xl font-display font-bold text-xl text-white shadow-2xl shadow-[hsl(var(--primary))]/30 hover:shadow-[hsl(var(--primary))]/50 hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-            <Plus className="w-6 h-6 relative z-10" />
-            <span className="relative z-10">Upload Receipt</span>
-          </motion.button>
+          {!selectMode && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              onClick={() => setIsUploadOpen(true)}
+              data-testid="button-upload-receipt"
+              className="group relative px-8 py-5 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] rounded-3xl font-display font-bold text-xl text-white shadow-2xl shadow-[hsl(var(--primary))]/30 hover:shadow-[hsl(var(--primary))]/50 hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+              <Plus className="w-6 h-6 relative z-10" />
+              <span className="relative z-10">Upload Receipt</span>
+            </motion.button>
+          )}
         </header>
 
         {/* Receipt Wall */}
         <div>
-          {/* Section header row: icon + title + count badge + month dropdown */}
+          {/* Section header row */}
           <div className="flex items-center gap-3 mb-5 flex-wrap">
             <Camera className="w-5 h-5 text-muted-foreground shrink-0" />
             <h2 className="text-2xl font-bold text-foreground">Receipt Wall</h2>
@@ -150,28 +209,49 @@ export default function Dashboard() {
               </span>
             )}
 
-            {/* Month dropdown — always visible when there are any receipt months */}
-            {availableMonths.length > 0 && (
-              <div className="relative ml-auto">
-                <select
-                  data-testid="select-month-filter"
-                  value={selectedMonth ?? ""}
-                  onChange={e => setSelectedMonth(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2 rounded-xl text-sm font-semibold bg-white/[0.08] border border-white/15 text-white cursor-pointer hover:bg-white/15 transition-colors focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
+            {/* Select mode controls */}
+            {selectMode ? (
+              <div className="ml-auto flex items-center gap-3">
+                <button
+                  data-testid="button-select-all"
+                  onClick={toggleSelectAll}
+                  className="text-sm font-semibold text-[hsl(var(--primary))] hover:opacity-80 transition-opacity"
                 >
-                  {availableMonths.map(ym => (
-                    <option key={ym} value={ym} className="bg-[#1a1a1a] text-white">
-                      {fmtMonth(ym)}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  {allSelected ? "Deselect All" : "Select All"}
+                </button>
+                <button
+                  data-testid="button-cancel-select"
+                  onClick={exitSelectMode}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-white/60 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel
+                </button>
               </div>
+            ) : (
+              /* Month dropdown — always visible when there are any receipt months */
+              availableMonths.length > 0 && (
+                <div className="relative ml-auto">
+                  <select
+                    data-testid="select-month-filter"
+                    value={selectedMonth ?? ""}
+                    onChange={e => setSelectedMonth(e.target.value)}
+                    className="appearance-none pl-3 pr-8 py-2 rounded-xl text-sm font-semibold bg-white/[0.08] border border-white/15 text-white cursor-pointer hover:bg-white/15 transition-colors focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
+                  >
+                    {availableMonths.map(ym => (
+                      <option key={ym} value={ym} className="bg-[#1a1a1a] text-white">
+                        {fmtMonth(ym)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              )
             )}
           </div>
 
-          {/* Month filter pills — horizontally scrollable row */}
-          {availableMonths.length > 1 && (
+          {/* Month filter pills — hidden in select mode */}
+          {!selectMode && availableMonths.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-1 mb-6 no-scrollbar">
               {availableMonths.map(ym => (
                 <button
@@ -191,8 +271,8 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Monthly verdict roast panel */}
-          {selectedMonth && (filteredExpenses.length > 0 || roastLoading) && (
+          {/* Monthly verdict roast panel — hidden in select mode */}
+          {!selectMode && selectedMonth && (filteredExpenses.length > 0 || roastLoading) && (
             <motion.div
               key={selectedMonth}
               initial={{ opacity: 0, y: -10 }}
@@ -266,7 +346,18 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredExpenses.map((expense, i) => (
-                <ExpenseCard key={expense.id} expense={expense} index={i} />
+                <ExpenseCard
+                  key={expense.id}
+                  expense={expense}
+                  index={i}
+                  onDelete={() => deleteSingle.mutate(expense.id)}
+                  isDeleting={deleteSingle.isPending}
+                  isSelectMode={selectMode}
+                  isSelected={selectedIds.has(expense.id)}
+                  onSelect={() => toggleSelect(expense.id)}
+                  onLongPress={() => enterSelectMode(expense.id)}
+                  isExiting={exitingIds.has(expense.id)}
+                />
               ))}
             </div>
           )}
@@ -277,6 +368,108 @@ export default function Dashboard() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
       />
+
+      {/* Sticky bottom bar — shown in select mode */}
+      <AnimatePresence>
+        {selectMode && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+            className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-3"
+            style={{ background: "linear-gradient(to top, rgba(10,10,10,0.98) 60%, transparent)" }}
+          >
+            <div className="max-w-lg mx-auto">
+              <button
+                data-testid="button-bulk-delete"
+                onClick={() => selectedIds.size > 0 && setShowBulkConfirm(true)}
+                disabled={selectedIds.size === 0 || bulkDeleteMutation.isPending}
+                className="w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all duration-200"
+                style={{
+                  background: selectedIds.size === 0 ? "rgba(255,82,82,0.12)" : "#FF5252",
+                  color: selectedIds.size === 0 ? "rgba(255,82,82,0.4)" : "#FFFFFF",
+                  cursor: selectedIds.size === 0 ? "not-allowed" : "pointer",
+                }}
+              >
+                <Trash2 className="w-5 h-5" />
+                {selectedIds.size === 0
+                  ? "Select receipts to delete"
+                  : `Delete (${selectedIds.size} selected)`}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk delete confirmation dialog */}
+      <AnimatePresence>
+        {showBulkConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+            style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+            onClick={() => setShowBulkConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-sm rounded-3xl p-6 flex flex-col gap-5"
+              style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.08)" }}
+              data-testid="dialog-bulk-delete"
+            >
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14,
+                  background: "rgba(255,82,82,0.12)", border: "1px solid rgba(255,82,82,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Trash2 style={{ width: 22, height: 22, color: "#FF5252" }} />
+                </div>
+                <div>
+                  <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 17, color: "#FFFFFF", margin: "0 0 6px" }}>
+                    Delete {selectedIds.size} receipt{selectedIds.size !== 1 ? "s" : ""}?
+                  </p>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#8A9099", margin: 0, lineHeight: 1.5 }}>
+                    This cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  data-testid="button-bulk-delete-cancel"
+                  onClick={() => setShowBulkConfirm(false)}
+                  style={{
+                    flex: 1, padding: "12px 0", borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.1)", background: "transparent",
+                    color: "#8A9099", fontFamily: "'DM Sans', sans-serif",
+                    fontWeight: 600, fontSize: 14, cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  data-testid="button-bulk-delete-confirm"
+                  onClick={handleBulkDelete}
+                  style={{
+                    flex: 1, padding: "12px 0", borderRadius: 14,
+                    border: "none", background: "#FF5252",
+                    color: "#FFFFFF", fontFamily: "'DM Sans', sans-serif",
+                    fontWeight: 700, fontSize: 14, cursor: "pointer",
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

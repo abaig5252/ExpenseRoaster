@@ -154,3 +154,18 @@ export function useDeleteExpense() {
     },
   });
 }
+
+export function useBulkDeleteExpenses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiFetch("/api/expenses/bulk", { method: "DELETE", body: JSON.stringify({ ids }) });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.expenses.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.expenses.summary.path] });
+      queryClient.invalidateQueries({ queryKey: [api.expenses.monthlySeries.path] });
+      queryClient.invalidateQueries({ queryKey: [api.expenses.financialAdvice.path] });
+    },
+  });
+}

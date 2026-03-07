@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { expenses, users, contactSubmissions, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact } from "@shared/schema";
-import { eq, desc, gte, and, sql } from "drizzle-orm";
+import { eq, desc, gte, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   createContactSubmission(data: InsertContact): Promise<void>;
@@ -14,6 +14,7 @@ export interface IStorage {
   getExpenses(userId: string): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
   deleteExpense(id: number, userId: string): Promise<void>;
+  bulkDeleteExpenses(userId: string, ids: number[]): Promise<number>;
   getMonthlySummary(userId: string): Promise<{ monthlyTotal: number; recentRoasts: string[] }>;
   getMonthlySeries(userId: string): Promise<{ month: string; total: number; count: number }[]>;
   updateUserProfile(userId: string, data: { firstName?: string; lastName?: string; currency?: string; onboardingComplete?: boolean }): Promise<User>;
@@ -96,6 +97,14 @@ export class DatabaseStorage implements IStorage {
 
   async deleteExpense(id: number, userId: string): Promise<void> {
     await db.delete(expenses).where(and(eq(expenses.id, id), eq(expenses.userId, userId)));
+  }
+
+  async bulkDeleteExpenses(userId: string, ids: number[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const result = await db
+      .delete(expenses)
+      .where(and(eq(expenses.userId, userId), inArray(expenses.id, ids)));
+    return (result as any).rowCount ?? ids.length;
   }
 
   async getMonthlySummary(userId: string): Promise<{ monthlyTotal: number; recentRoasts: string[] }> {

@@ -1009,5 +1009,17 @@ All content must directly reference their actual spending data and use ${annualC
     res.status(204).send();
   });
 
+  // ─── Expenses: Bulk Delete ───────────────────────────────────────
+  app.delete("/api/expenses/bulk", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "ids array required" });
+    }
+    const numericIds = ids.map(Number).filter(n => !isNaN(n));
+    const deleted = await storage.bulkDeleteExpenses(userId, numericIds);
+    return res.json({ deleted });
+  });
+
   return httpServer;
 }

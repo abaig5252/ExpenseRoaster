@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Trash2, AlertTriangle, X } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Trash2, AlertTriangle, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { useCurrency } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
@@ -10,6 +10,11 @@ interface ExpenseCardProps {
   onDelete?: () => void;
   isDeleting?: boolean;
   isDisgrace?: boolean;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  onLongPress?: () => void;
+  isExiting?: boolean;
 }
 
 const categoryEmoji: Record<string, string> = {
@@ -42,9 +47,11 @@ const sourceLabels: Record<string, string> = {
   "manual":         "Manual",
 };
 
-export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false }: ExpenseCardProps) {
+export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false, isSelectMode = false, isSelected = false, onSelect, onLongPress, isExiting = false }: ExpenseCardProps) {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const { formatAmount } = useCurrency();
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
 
   const amountDollars = expense.amount / 100;
   const formattedAmount = formatAmount(expense.amount);
@@ -57,7 +64,29 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
   const baseSeverity = amountDollars < 10 ? 1 : amountDollars < 50 ? 2 : amountDollars < 150 ? 3 : amountDollars < 500 ? 4 : 5;
   const severity = isDisgrace ? 5 : baseSeverity;
 
-  const accentColor = isDisgrace ? "#FF5252" : "#00E676";
+  const accentColor = isDisgrace ? "#FF5252" : isSelected ? "#00E676" : "#00E676";
+
+  const startLongPress = useCallback(() => {
+    didLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      onLongPress?.();
+    }, 500);
+  }, [onLongPress]);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const handleCardClick = useCallback(() => {
+    if (didLongPress.current) return;
+    if (isSelectMode) {
+      onSelect?.();
+    }
+  }, [isSelectMode, onSelect]);
 
   function handleTrashClick() {
     setDeleteStep(1);
@@ -79,17 +108,53 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
     <div
       data-testid={`card-expense-${expense.id}`}
       className="group relative overflow-hidden"
+      onMouseDown={startLongPress}
+      onMouseUp={cancelLongPress}
+      onMouseLeave={cancelLongPress}
+      onTouchStart={startLongPress}
+      onTouchEnd={cancelLongPress}
+      onTouchCancel={cancelLongPress}
+      onClick={handleCardClick}
       style={{
         background: "#1A1A1A",
         borderRadius: 20,
         padding: 16,
-        border: isDisgrace ? "1px solid rgba(255,82,82,0.25)" : "1px solid rgba(255,255,255,0.05)",
-        borderLeft: `3px solid ${accentColor}`,
+        border: isSelected
+          ? "2px solid #00E676"
+          : isDisgrace
+            ? "1px solid rgba(255,82,82,0.25)"
+            : "1px solid rgba(255,255,255,0.05)",
+        borderLeft: isSelected ? "2px solid #00E676" : `3px solid ${isDisgrace ? "#FF5252" : "#00E676"}`,
         marginBottom: 10,
-        animation: "slideUp 0.4s ease both",
-        animationDelay: `${index * 70}ms`,
+        animation: isExiting
+          ? "cardExit 0.3s ease forwards"
+          : "slideUp 0.4s ease both",
+        animationDelay: isExiting ? "0ms" : `${index * 70}ms`,
+        cursor: isSelectMode ? "pointer" : "default",
+        transition: "border-color 0.15s, box-shadow 0.15s",
+        boxShadow: isSelected ? "0 0 0 1px #00E676, 0 4px 24px rgba(0,230,118,0.15)" : undefined,
       }}
     >
+      {/* Select mode checkbox */}
+      {isSelectMode && (
+        <div
+          onClick={e => { e.stopPropagation(); onSelect?.(); }}
+          data-testid={`checkbox-select-${expense.id}`}
+          style={{
+            position: "absolute", top: 10, left: 10, zIndex: 10,
+            width: 22, height: 22, borderRadius: "50%",
+            border: isSelected ? "none" : "2px solid rgba(255,255,255,0.3)",
+            background: isSelected ? "#00E676" : "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+            transition: "background 0.15s, border 0.15s",
+            boxShadow: isSelected ? "0 0 8px rgba(0,230,118,0.5)" : undefined,
+          }}
+        >
+          {isSelected && <Check style={{ width: 13, height: 13, color: "#000", strokeWidth: 3 }} />}
+        </div>
+      )}
+
       {/* Monthly Disgrace badge */}
       {isDisgrace && (
         <div style={{
@@ -203,8 +268,8 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
         ))}
       </div>
 
-      {/* Trash button — hidden until hover, not shown when confirming */}
-      {onDelete && deleteStep === 0 && (
+      {/* Trash button — hidden until hover, not shown in select mode or when confirming */}
+      {onDelete && deleteStep === 0 && !isSelectMode && (
         <button
           onClick={handleTrashClick}
           data-testid={`button-delete-${expense.id}`}
