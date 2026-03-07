@@ -630,6 +630,8 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
       }
 
       const input = api.expenses.upload.input.parse(req.body);
+      // Normalize HEIC/HEIF data URLs to JPEG so OpenAI Vision accepts them
+      const imageUrl = input.image.replace(/^data:image\/(heic|heif);base64,/i, 'data:image/jpeg;base64,');
       const userCurrency = user.currency || "USD";
       const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
@@ -659,7 +661,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
   "location": "<city and country from receipt, or null>",
   "roast": "<one sharp sentence roasting the merchant name and amount — do NOT mention any address, street, or neighbourhood>"
 }` },
-              { type: "image_url", image_url: { url: input.image } },
+              { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
         ],

@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -93,6 +94,8 @@ function formatMoney(cents: number, currency: string) {
 export default function UploadScreen() {
   const { user, refreshUser, updateCurrency } = useAuth();
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageMime, setImageMime] = useState<string>('image/jpeg');
   const [tone, setTone] = useState('savage');
   const [ephemeral, setEphemeral] = useState<Expense | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -260,17 +263,27 @@ export default function UploadScreen() {
   async function pickImage(from: 'camera' | 'gallery') {
     try {
       let res;
+      const pickerOptions: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+        base64: true,
+      };
       if (from === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) { Alert.alert('Permission Denied', 'Camera access is required.'); return; }
-        res = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+        res = await ImagePicker.launchCameraAsync(pickerOptions);
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) { Alert.alert('Permission Denied', 'Photo library access is required.'); return; }
-        res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+        res = await ImagePicker.launchImageLibraryAsync(pickerOptions);
       }
       if (!res.canceled && res.assets[0]) {
-        setImageUri(res.assets[0].uri);
+        const asset = res.assets[0];
+        setImageUri(asset.uri);
+        setImageBase64(asset.base64 ?? null);
+        // expo-image-picker with quality<1 converts HEIC/HEIF to JPEG on iOS
+        const mime = asset.mimeType ?? 'image/jpeg';
+        setImageMime(mime.startsWith('image/') ? mime : 'image/jpeg');
         setEphemeral(null);
       }
     } catch (e: unknown) {
@@ -282,13 +295,28 @@ export default function UploadScreen() {
     if (!imageUri || uploading) return;
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append('receipt', { uri: imageUri, type: 'image/jpeg', name: 'receipt.jpg' } as never);
-      fd.append('tone', tone);
+      let base64Data = imageBase64;
+
+      // If base64 wasn't returned by the picker, read the file directly
+      if (!base64Data) {
+        base64Data = await FileSystem.readAsStringAsync(imageUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
+
+      // Build the data URL — expo-image-picker with quality<1 converts HEIC/HEIF to JPEG
+      const effectiveMime = (imageMime === 'image/heic' || imageMime === 'image/heif') ? 'image/jpeg' : imageMime;
+      const imageDataUrl = `data:${effectiveMime};base64,${base64Data}`;
+
       const token = await getToken();
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['x-app-token'] = token;
-      const res = await fetch(`${API_BASE_URL}/api/expenses/upload`, { method: 'POST', headers, body: fd });
+
+      const res = await fetch(`${API_BASE_URL}/api/expenses/upload`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ image: imageDataUrl, tone }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: 'Upload failed' }));
         throw new Error((err as { message?: string }).message ?? 'Upload failed');
@@ -297,9 +325,11 @@ export default function UploadScreen() {
       if (data.ephemeral) {
         setEphemeral(data.expense);
         setImageUri(null);
+        setImageBase64(null);
       } else {
         setEphemeral(null);
         setImageUri(null);
+        setImageBase64(null);
         refetch();
       }
       await refreshUser();
@@ -399,7 +429,7 @@ export default function UploadScreen() {
         {imageUri && !uploading && (
           <View style={s.selectedCard}>
             <Image source={{ uri: imageUri }} style={s.preview} resizeMode="cover" />
-            <TouchableOpacity style={s.clearBtn} onPress={() => { setImageUri(null); setEphemeral(null); }}>
+            <TouchableOpacity style={s.clearBtn} onPress={() => { setImageUri(null); setImageBase64(null); setEphemeral(null); }}>
               <Ionicons name="close-circle" size={26} color={colors.textMuted} />
             </TouchableOpacity>
             <Text style={s.toneLabel}>Choose your roast style</Text>

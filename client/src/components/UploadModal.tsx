@@ -61,7 +61,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
           const heic2any = (await import("heic2any")).default;
           const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
           const blob = Array.isArray(converted) ? converted[0] : converted;
-          file = new File([blob], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
+          file = new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
         } catch (err) {
           const msg = (err as any)?.message || "Failed to convert HEIC image. Try saving as JPG first.";
           setDropError(msg);
@@ -299,7 +299,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                         </div>
                         <p className="text-xl font-bold text-white mb-2">Drop your receipt here</p>
                         <p className="text-sm text-muted-foreground max-w-[260px]">
-                          JPG, PNG, WebP, GIF, or HEIC — all formats accepted, including iPhone photos.
+                          JPG, PNG, WebP, GIF, HEIC, or HEIF — all formats accepted, including iPhone photos.
                           {isFree && <span className="block mt-1 text-[hsl(var(--primary))]">{Math.max(0, 1 - (me?.monthlyUploadCount || 0))} upload remaining this month.</span>}
                         </p>
                       </>
