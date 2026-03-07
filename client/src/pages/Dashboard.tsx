@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Plus, Flame, Activity, DollarSign, RefreshCw, Calendar, Loader2 } from "lucide-react";
+import { Plus, Flame, Activity, Camera, RefreshCw, Calendar, Loader2 } from "lucide-react";
 import { useExpenses, useExpenseSummary, useMonthlyRoast } from "@/hooks/use-expenses";
 import { useCurrency } from "@/hooks/use-currency";
 import { ExpenseCard } from "@/components/ExpenseCard";
@@ -130,38 +130,39 @@ export default function Dashboard() {
 
         {/* Receipts Grid with month filter */}
         <div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-6 h-6 text-muted-foreground" />
-              <h2 className="text-2xl font-bold text-foreground">Receipt Wall</h2>
-              {!expensesLoading && selectedMonth && (
-                <span className="text-sm text-muted-foreground font-medium">
-                  — {filteredExpenses.length} receipt{filteredExpenses.length !== 1 ? "s" : ""},{" "}
-                  {formatAmount(filteredTotal)}
-                </span>
-              )}
-            </div>
+          {/* Section header */}
+          <div className="flex items-center gap-3 mb-4">
+            <Camera className="w-5 h-5 text-muted-foreground" />
+            <h2 className="text-2xl font-bold text-foreground">Receipt Wall</h2>
+            {!expensesLoading && filteredExpenses.length > 0 && (
+              <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] text-xs font-bold flex items-center justify-center">
+                {filteredExpenses.length}
+              </span>
+            )}
+          </div>
 
-            {availableMonths.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
-                <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+          {/* Month filter tabs — horizontally scrollable, matches mobile */}
+          {availableMonths.length > 0 && (
+            <div className="overflow-x-auto no-scrollbar mb-6 -mx-4 px-4">
+              <div className="flex items-center gap-2" style={{ width: "max-content" }}>
                 {availableMonths.map(ym => (
                   <button
                     key={ym}
                     data-testid={`month-filter-${ym}`}
                     onClick={() => setSelectedMonth(ym)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
                       selectedMonth === ym
-                        ? "bg-[hsl(var(--primary))] text-white shadow-lg shadow-[hsl(var(--primary))]/30"
-                        : "glass-panel text-muted-foreground hover:text-white hover:bg-white/10"
+                        ? "bg-[hsl(var(--primary))] text-white shadow-lg shadow-[hsl(var(--primary))]/40"
+                        : "bg-white/[0.07] border border-white/10 text-muted-foreground hover:text-white hover:bg-white/15"
                     }`}
                   >
+                    <Calendar className={`w-3 h-3 shrink-0 ${selectedMonth === ym ? "text-white" : "text-muted-foreground"}`} />
                     {fmtMonth(ym)}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Monthly verdict roast panel */}
           {selectedMonth && (filteredExpenses.length > 0 || roastLoading) && (

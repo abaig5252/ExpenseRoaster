@@ -201,6 +201,9 @@
 ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
 
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* PWA: safe area + bottom tab bar padding on mobile */
 @media (max-width: 767px) {
   .min-h-screen {
