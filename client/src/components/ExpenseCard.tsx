@@ -135,8 +135,8 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
         boxShadow: isSelected ? "0 0 0 1px #00E676, 0 4px 24px rgba(0,230,118,0.15)" : undefined,
       }}
     >
-      {/* Select mode checkbox */}
-      {isSelectMode && (
+      {/* Select mode checkbox — shown when in select mode */}
+      {isSelectMode ? (
         <div
           onClick={e => { e.stopPropagation(); onSelect?.(); }}
           data-testid={`checkbox-select-${expense.id}`}
@@ -153,6 +153,25 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
         >
           {isSelected && <Check style={{ width: 13, height: 13, color: "#000", strokeWidth: 3 }} />}
         </div>
+      ) : (
+        /* Hover-to-select button — visible on mouse hover when NOT in select mode (desktop) */
+        onLongPress && (
+          <button
+            onClick={e => { e.stopPropagation(); onLongPress(); }}
+            data-testid={`button-enter-select-${expense.id}`}
+            className="absolute top-2.5 left-2.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+            title="Select"
+            style={{
+              width: 22, height: 22, borderRadius: "50%",
+              border: "2px solid rgba(255,255,255,0.25)",
+              background: "rgba(0,0,0,0.55)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Check style={{ width: 11, height: 11, color: "rgba(255,255,255,0.5)", strokeWidth: 3 }} />
+          </button>
+        )
       )}
 
       {/* Monthly Disgrace badge */}
