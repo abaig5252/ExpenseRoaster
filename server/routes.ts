@@ -59,14 +59,14 @@ async function generateMonthlyRoast(
     messages: [
       {
         role: "system",
-        content: `You write short, funny spending summaries. 2-3 sentences, casual and cheeky, like a friend who's seen your bank statement. Reference the specific merchants and amounts. No lists, no headers, no structure — just flowing sentences. Use ${currency}.`,
+        content: `You write funny, cheeky spending summaries — 3-4 casual sentences, like a friend who's looked at your bank statement and has thoughts. Reference the specific merchants and amounts. Keep comparisons proportionate and realistic: if someone spent $100, compare it to things that actually cost around $100 (a nice dinner out, two months of Netflix, a decent pair of jeans) — not rent or a mortgage. If they spent $2000, then maybe rent is fair game. Be specific and grounded. No lists, no headers, just flowing sentences. Use ${currency}.`,
       },
       {
         role: "user",
         content: `${monthLabel}: ${total} ${currency} across ${expenses.length} receipt${expenses.length !== 1 ? 's' : ''}.\n\n${lines}`,
       },
     ],
-    max_completion_tokens: 200,
+    max_completion_tokens: 280,
   });
   return response.choices[0]?.message?.content ?? "Your bank account has filed a restraining order.";
 }
