@@ -613,40 +613,6 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
     }
   });
 
-  // ─── Expenses: Monthly roast summary (premium) ───────────────────
-  app.get("/api/expenses/monthly-roast", isAuthenticated, async (req: any, res) => {
-    const userId = getUserId(req);
-    const user = await storage.getUser(userId);
-    if (!user || user.tier === "free") return res.status(403).json({ message: "Premium required" });
-
-    try {
-      const allExpenses = await storage.getExpenses(userId);
-      if (allExpenses.length === 0) return res.json({ roast: "Nothing to roast yet. Upload some receipts!" });
-
-      const totalSpend = allExpenses.reduce((s, e) => s + e.amount, 0);
-      const categoryTotals: Record<string, number> = {};
-      for (const exp of allExpenses) categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
-      const topCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([cat, amt]) => `${cat}: $${(amt / 100).toFixed(2)}`).join(", ");
-
-      const roastUser = await storage.getUser(userId);
-      const roastCurrency = roastUser?.currency || "USD";
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [
-          { role: "system", content: `You are a savage comedian doing a monthly roast of someone's spending habits. Be brutal, be funny, be specific. 3-4 sentences max. The user's currency is ${roastCurrency} — use it when referencing amounts and make comparisons appropriate for that region. Do NOT mention city names, street addresses, or any geographic location.` },
-          { role: "user", content: `Currency: ${roastCurrency}\nTotal spent: ${(totalSpend / 100).toFixed(2)} ${roastCurrency}. Top categories: ${topCategories}. Roast my entire month of spending.` },
-        ],
-        max_completion_tokens: 200,
-      });
-
-      res.json({ roast: response.choices[0]?.message?.content || "Your spending is beyond roasting. I'm just impressed." });
-    } catch (err) {
-      console.error("Monthly roast error:", err);
-      res.status(500).json({ message: "Failed to generate monthly roast" });
-    }
-  });
-
   // ─── Expenses: Upload receipt ────────────────────────────────────
   app.post(api.expenses.upload.path, isAuthenticated, async (req: any, res: Response) => {
     try {
@@ -705,7 +671,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
 
       const extracted = JSON.parse(resultText);
       const parsedDate = new Date(extracted.date);
-      const dateToUse = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+      const dateToUse = isNaN(parsedDate.getTime()) || parsedDate.getFullYear() < 1990 ? new Date() : parsedDate;
 
       // Increment upload count regardless of tier
       await storage.incrementMonthlyUpload(userId);

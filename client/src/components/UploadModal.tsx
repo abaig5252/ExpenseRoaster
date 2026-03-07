@@ -44,28 +44,41 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
   const [converting, setConverting] = useState(false);
 
+  const [dropError, setDropError] = useState<string | null>(null);
+
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    let file = acceptedFiles[0];
-    if (!file) return;
+    setDropError(null);
+    try {
+      let file = acceptedFiles[0];
+      if (!file) return;
 
-    const isHeic = file.type === "image/heic" || file.type === "image/heif" ||
-      file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
+      const isHeic = file.type === "image/heic" || file.type === "image/heif" ||
+        file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
 
-    if (isHeic) {
-      setConverting(true);
-      try {
-        const heic2any = (await import("heic2any")).default;
-        const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
-        file = new File([converted as Blob], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
-      } finally {
-        setConverting(false);
+      if (isHeic) {
+        setConverting(true);
+        try {
+          const heic2any = (await import("heic2any")).default;
+          const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+          const blob = Array.isArray(converted) ? converted[0] : converted;
+          file = new File([blob], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
+        } catch (err) {
+          const msg = (err as any)?.message || "Failed to convert HEIC image. Try saving as JPG first.";
+          setDropError(msg);
+          return;
+        } finally {
+          setConverting(false);
+        }
       }
-    }
 
-    setPreview(URL.createObjectURL(file));
-    const reader = new FileReader();
-    reader.onload = () => setBase64Image(reader.result as string);
-    reader.readAsDataURL(file);
+      setPreview(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.onload = () => setBase64Image(reader.result as string);
+      reader.readAsDataURL(file);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load image. Please try another file.";
+      setDropError(msg);
+    }
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -98,6 +111,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
     setPreview(null);
     setBase64Image(null);
     setResult(null);
+    setDropError(null);
     uploadMutation.reset();
     onClose();
   };
@@ -202,6 +216,12 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                 </div>
               ) : (
                 <div className="flex flex-col gap-5">
+                  {dropError && (
+                    <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex items-start gap-3 text-destructive">
+                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                      <p className="text-sm font-medium">{dropError}</p>
+                    </div>
+                  )}
                   {uploadMutation.isError && (
                     <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex flex-col gap-2 text-destructive">
                       <div className="flex items-start gap-3">
