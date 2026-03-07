@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Plus, Flame, Activity, Camera, RefreshCw, Calendar, Loader2 } from "lucide-react";
+import { Plus, Flame, Activity, Camera, RefreshCw, ChevronDown, Loader2 } from "lucide-react";
 import { useExpenses, useExpenseSummary, useMonthlyRoast } from "@/hooks/use-expenses";
 import { useCurrency } from "@/hooks/use-currency";
 import { ExpenseCard } from "@/components/ExpenseCard";
@@ -23,7 +23,7 @@ export default function Dashboard() {
   const { formatAmount } = useCurrency();
 
   const { data: expenses, isLoading: expensesLoading, error: expensesError } = useExpenses();
-  const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
+  const { data: summary } = useExpenseSummary();
 
   const receiptExpenses = useMemo(
     () => (expenses ?? []).filter(e => e.source === "receipt"),
@@ -35,7 +35,6 @@ export default function Dashboard() {
     return [...months].sort().reverse();
   }, [receiptExpenses]);
 
-  // Auto-select: current month if it has receipts, else most recent month with receipts
   useEffect(() => {
     if (availableMonths.length === 0) return;
     if (selectedMonth !== null && availableMonths.includes(selectedMonth)) return;
@@ -55,9 +54,15 @@ export default function Dashboard() {
     "receipt"
   );
 
-  const formattedTotal = summary
-    ? formatAmount(summary.monthlyTotal)
-    : formatAmount(0);
+  const displayTotal = expensesLoading
+    ? null
+    : filteredExpenses.length > 0
+      ? formatAmount(filteredTotal)
+      : formatAmount(0);
+
+  const displaySubtitle = selectedMonth && filteredExpenses.length > 0
+    ? `spent on receipts in ${fmtMonth(selectedMonth)}.`
+    : "upload receipts to track your spending.";
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -99,19 +104,19 @@ export default function Dashboard() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel mb-6 border-[hsl(var(--secondary))]/30">
               <Activity className="w-4 h-4 text-[hsl(var(--secondary))]" />
               <span className="text-sm font-semibold tracking-wide text-[hsl(var(--secondary))] uppercase">
-                Monthly Damage Report
+                Receipt Damage Report
               </span>
             </div>
 
             <h1 className="text-6xl md:text-8xl font-amount-hero text-foreground leading-none flex items-center gap-2">
-              {summaryLoading ? (
-                <span className="animate-pulse bg-white/10 rounded-2xl w-64 h-24 block"></span>
+              {expensesLoading ? (
+                <span className="animate-pulse bg-white/10 rounded-2xl w-64 h-24 block" />
               ) : (
-                formattedTotal
+                displayTotal
               )}
             </h1>
             <p className="text-xl text-muted-foreground mt-4 font-medium">
-              spent on things you probably didn't need.
+              {displaySubtitle}
             </p>
           </motion.div>
 
@@ -120,6 +125,7 @@ export default function Dashboard() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             onClick={() => setIsUploadOpen(true)}
+            data-testid="button-upload-receipt"
             className="group relative px-8 py-5 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] rounded-3xl font-display font-bold text-xl text-white shadow-2xl shadow-[hsl(var(--primary))]/30 hover:shadow-[hsl(var(--primary))]/50 hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 overflow-hidden"
           >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
@@ -128,39 +134,59 @@ export default function Dashboard() {
           </motion.button>
         </header>
 
-        {/* Receipts Grid with month filter */}
+        {/* Receipt Wall */}
         <div>
-          {/* Section header */}
-          <div className="flex items-center gap-3 mb-4">
-            <Camera className="w-5 h-5 text-muted-foreground" />
+          {/* Section header row: icon + title + count badge + month dropdown */}
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <Camera className="w-5 h-5 text-muted-foreground shrink-0" />
             <h2 className="text-2xl font-bold text-foreground">Receipt Wall</h2>
             {!expensesLoading && filteredExpenses.length > 0 && (
-              <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] text-xs font-bold flex items-center justify-center">
+              <span
+                data-testid="badge-receipt-count"
+                className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] text-xs font-bold flex items-center justify-center"
+              >
                 {filteredExpenses.length}
               </span>
             )}
+
+            {/* Month dropdown — always visible when there are any receipt months */}
+            {availableMonths.length > 0 && (
+              <div className="relative ml-auto">
+                <select
+                  data-testid="select-month-filter"
+                  value={selectedMonth ?? ""}
+                  onChange={e => setSelectedMonth(e.target.value)}
+                  className="appearance-none pl-3 pr-8 py-2 rounded-xl text-sm font-semibold bg-white/[0.08] border border-white/15 text-white cursor-pointer hover:bg-white/15 transition-colors focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
+                >
+                  {availableMonths.map(ym => (
+                    <option key={ym} value={ym} className="bg-[#1a1a1a] text-white">
+                      {fmtMonth(ym)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            )}
           </div>
 
-          {/* Month filter tabs — horizontally scrollable, matches mobile */}
-          {availableMonths.length > 0 && (
-            <div className="overflow-x-auto no-scrollbar mb-6 -mx-4 px-4">
-              <div className="flex items-center gap-2" style={{ width: "max-content" }}>
-                {availableMonths.map(ym => (
-                  <button
-                    key={ym}
-                    data-testid={`month-filter-${ym}`}
-                    onClick={() => setSelectedMonth(ym)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
-                      selectedMonth === ym
-                        ? "bg-[hsl(var(--primary))] text-white shadow-lg shadow-[hsl(var(--primary))]/40"
-                        : "bg-white/[0.07] border border-white/10 text-muted-foreground hover:text-white hover:bg-white/15"
-                    }`}
-                  >
-                    <Calendar className={`w-3 h-3 shrink-0 ${selectedMonth === ym ? "text-white" : "text-muted-foreground"}`} />
-                    {fmtMonth(ym)}
-                  </button>
-                ))}
-              </div>
+          {/* Month filter pills — horizontally scrollable row */}
+          {availableMonths.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 mb-6 no-scrollbar">
+              {availableMonths.map(ym => (
+                <button
+                  key={ym}
+                  data-testid={`month-pill-${ym}`}
+                  onClick={() => setSelectedMonth(ym)}
+                  className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 ${
+                    selectedMonth === ym
+                      ? "text-white shadow-lg shadow-[#00E676]/30"
+                      : "border border-white/10 text-white/60 hover:text-white hover:bg-white/10"
+                  }`}
+                  style={selectedMonth === ym ? { backgroundColor: "#00E676" } : { backgroundColor: "#2a2a2a" }}
+                >
+                  {fmtMonth(ym)}
+                </button>
+              ))}
             </div>
           )}
 
@@ -196,6 +222,7 @@ export default function Dashboard() {
             </motion.div>
           )}
 
+          {/* Receipt cards */}
           {expensesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
