@@ -94,7 +94,7 @@ ${patternNote}
 Receipts:
 ${expenseLines}
 
-Deliver the verdict.`,
+Write this as one flowing paragraph of prose — no numbered lists, no bullet points, no headers. Just sentences.`,
       },
     ],
     max_completion_tokens: 380,

@@ -45,7 +45,6 @@ export function useMonthlyRoast(month: string | null, source?: string) {
       return res.json();
     },
     enabled: !!month,
-    staleTime: 5 * 60 * 1000,
   });
 }
 
