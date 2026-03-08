@@ -71,7 +71,7 @@ export function ReceiptCollageCard({
       data-testid={`card-receipt-${expense.id}`}
       onClick={handleCardClick}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setMenuOpen(false); }}
+      onMouseLeave={() => { setHovered(false); }}
       style={{
         background: "#1A1A1A",
         border: isSelected
