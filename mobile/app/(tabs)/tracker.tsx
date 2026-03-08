@@ -48,8 +48,9 @@ const CHART_H = 120;
 const CATEGORY_COLORS = ['#E85D26', '#C4A832', '#7B6FE8', '#3BB8A0', '#E8526A', '#5BA85E', '#8A9099'];
 
 function shortMonth(str: string) {
-  const d = new Date(str + '-01');
-  return d.toLocaleDateString('en-US', { month: 'short' });
+  const [y, m] = str.split('-').map(Number);
+  // Construct in LOCAL time (not UTC) to avoid month-flip in non-UTC timezones
+  return new Date(y, m - 1, 15).toLocaleDateString('en-US', { month: 'short' });
 }
 
 export default function TrackerScreen() {
@@ -185,6 +186,7 @@ export default function TrackerScreen() {
     if (selectedYear) {
       const now = new Date();
       const yearNum = parseInt(selectedYear);
+      // Use local month to avoid UTC off-by-one
       const endMonth = yearNum === now.getFullYear() ? now.getMonth() + 1 : 12;
       return Array.from({ length: endMonth }, (_, i) => {
         const m = String(i + 1).padStart(2, '0');
@@ -193,13 +195,16 @@ export default function TrackerScreen() {
       });
     }
 
-    // Exactly 12 consecutive calendar months ending with the current month
+    // Exactly 12 consecutive calendar months ending with the current LOCAL month
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth(); // 0-indexed, local time
     const slots: string[] = [];
     for (let i = 11; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(1);
-      d.setMonth(d.getMonth() - i);
-      slots.push(d.toISOString().slice(0, 7));
+      let m = curMonth - i;
+      let y = curYear;
+      if (m < 0) { m += 12; y -= 1; }
+      slots.push(`${y}-${String(m + 1).padStart(2, '0')}`);
     }
     return slots.map(ym => ({ month: ym, total: byMonth[ym]?.total ?? 0, count: byMonth[ym]?.count ?? 0 }));
   }, [allExpenses, selectedYear, selectedCats]);
@@ -349,7 +354,8 @@ export default function TrackerScreen() {
                   {selectedYear && availableMonthsForYear.length > 0 && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.monthPillRow}>
                       {availableMonthsForYear.map(ym => {
-                        const label = new Date(ym + '-02').toLocaleDateString('en-US', { month: 'short' });
+                        const [py, pm] = ym.split('-').map(Number);
+                        const label = new Date(py, pm - 1, 15).toLocaleDateString('en-US', { month: 'short' });
                         const isActive = selectedMonth === ym;
                         return (
                           <TouchableOpacity
@@ -375,9 +381,10 @@ export default function TrackerScreen() {
                 const barH = m.total === 0 ? 0 : Math.max(4, (m.total / maxTotal) * CHART_H);
                 const isMonthSelected = selectedMonth === m.month;
                 const hasMonthFilter = selectedMonth !== null;
+                const isHighest = m.total === maxTotal && m.total > 0;
                 const barColor = hasMonthFilter
                   ? isMonthSelected ? '#7BD8E8' : 'rgba(255,255,255,0.12)'
-                  : colors.primary;
+                  : isHighest ? '#E85D26' : colors.primary;
                 return (
                   <TouchableOpacity
                     key={m.month}
@@ -619,7 +626,7 @@ const s = StyleSheet.create({
   monthPillTextActive: { color: colors.primary, fontWeight: '700' },
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   barCol: { flex: 1, alignItems: 'center', gap: spacing.xs },
-  bar: { width: '60%', backgroundColor: colors.primary, borderRadius: radius.xs ?? 4, minHeight: 4 },
+  bar: { width: '60%', backgroundColor: colors.primary, borderRadius: radius.xs ?? 4 },
   barLabel: { ...typography.caption, fontSize: 10 },
   barAmount: { ...typography.caption, fontSize: 9, color: colors.textDim },
 
