@@ -97,10 +97,13 @@ export default function TrackerScreen() {
   const currentYM = new Date().toISOString().slice(0, 7);
   const isFiltered = selectedCats.size > 0 || selectedMonth !== null || selectedYear !== null;
 
+  const currentYear = String(new Date().getFullYear());
   const availableYears = useMemo(() => {
     const years = new Set(allExpenses.map(e => (e.date ?? '').slice(0, 4)).filter(Boolean));
+    // Current year is already covered by "12 mo" — exclude it from year pills
+    years.delete(currentYear);
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, [allExpenses]);
+  }, [allExpenses, currentYear]);
 
   const availableMonthsForYear = useMemo(() => {
     if (!selectedYear) return [];

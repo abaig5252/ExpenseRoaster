@@ -130,13 +130,16 @@ export default function MonthlyTracker() {
   const currentYM = new Date().toISOString().slice(0, 7);
 
   // Years that have expense data
+  const currentYear = String(new Date().getFullYear());
   const availableYears = useMemo(() => {
     const years = new Set(allExpenses.map(e => {
       const d = parseReceiptDate(e.date);
       return String(d.getFullYear());
     }));
+    // Current year is already covered by "12 mo" — exclude it from year pills
+    years.delete(currentYear);
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, [allExpenses]);
+  }, [allExpenses, currentYear]);
 
   // Months (YYYY-MM) that have data within the selected year, sorted ascending
   const availableMonthsForYear = useMemo(() => {
