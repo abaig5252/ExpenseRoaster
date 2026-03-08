@@ -129,7 +129,7 @@ export default function MonthlyTracker() {
 
   const currentYM = new Date().toISOString().slice(0, 7);
 
-  // Years that have expense data — for the year dropdown
+  // Years that have expense data
   const availableYears = useMemo(() => {
     const years = new Set(allExpenses.map(e => {
       const d = parseReceiptDate(e.date);
@@ -137,6 +137,17 @@ export default function MonthlyTracker() {
     }));
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
   }, [allExpenses]);
+
+  // Months (YYYY-MM) that have data within the selected year, sorted ascending
+  const availableMonthsForYear = useMemo(() => {
+    if (!selectedYear) return [];
+    const months = new Set(
+      allExpenses
+        .filter(e => String(parseReceiptDate(e.date).getFullYear()) === selectedYear)
+        .map(e => parseReceiptDate(e.date).toISOString().slice(0, 7))
+    );
+    return Array.from(months).sort();
+  }, [allExpenses, selectedYear]);
 
   // Expenses filtered by selected month → selected year → last 12 months
   const monthFilteredExpenses = useMemo(() => {
@@ -445,21 +456,59 @@ export default function MonthlyTracker() {
               </p>
             </div>
             {availableYears.length > 0 && (
-              <select
-                value={selectedYear ?? ""}
-                onChange={e => { setSelectedYear(e.target.value || null); setSelectedMonth(null); }}
-                className="text-xs font-semibold rounded-xl px-3 py-1.5 border transition-colors outline-none cursor-pointer"
-                style={{
-                  background: selectedYear ? "rgba(168,85,247,0.12)" : "rgba(255,255,255,0.05)",
-                  borderColor: selectedYear ? "rgba(168,85,247,0.4)" : "rgba(255,255,255,0.12)",
-                  color: selectedYear ? "#c084fc" : "hsl(var(--muted-foreground))",
-                }}
-              >
-                <option value="">Last 12 months</option>
-                {availableYears.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+              <div className="flex flex-col gap-2 items-end">
+                {/* Year pills */}
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                  <button
+                    onClick={() => { setSelectedYear(null); setSelectedMonth(null); }}
+                    data-testid="year-pill-12mo"
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                      !selectedYear
+                        ? "bg-[hsl(var(--primary))] text-black shadow-[0_0_8px_hsl(var(--primary)/0.4)]"
+                        : "bg-white/[0.06] text-muted-foreground hover:text-white hover:bg-white/[0.1] border border-white/[0.08]"
+                    }`}
+                  >
+                    12 mo
+                  </button>
+                  {availableYears.map(y => (
+                    <button
+                      key={y}
+                      onClick={() => { setSelectedYear(selectedYear === y ? null : y); setSelectedMonth(null); }}
+                      data-testid={`year-pill-${y}`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        selectedYear === y
+                          ? "bg-[hsl(var(--primary))] text-black shadow-[0_0_8px_hsl(var(--primary)/0.4)]"
+                          : "bg-white/[0.06] text-muted-foreground hover:text-white hover:bg-white/[0.1] border border-white/[0.08]"
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+                {/* Month sub-row — appears when a year is selected */}
+                {selectedYear && availableMonthsForYear.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 justify-end">
+                    {availableMonthsForYear.map(ym => {
+                      const monthShort = new Date(ym + "-02").toLocaleDateString("en-US", { month: "short" });
+                      const isActive = selectedMonth === ym;
+                      return (
+                        <button
+                          key={ym}
+                          onClick={() => toggleMonth(ym)}
+                          data-testid={`month-pill-${ym}`}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                            isActive
+                              ? "bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/50 shadow-[0_0_6px_hsl(var(--primary)/0.25)]"
+                              : "bg-white/[0.04] text-muted-foreground border border-white/[0.08] hover:text-white hover:bg-white/[0.08]"
+                          }`}
+                        >
+                          {monthShort}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
           {seriesLoading ? (
