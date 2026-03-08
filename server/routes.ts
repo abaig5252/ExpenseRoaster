@@ -1082,14 +1082,7 @@ All content must directly reference their actual spending data and use ${annualC
     res.status(201).json({ ok: true });
   });
 
-  // ─── Expenses: Delete ────────────────────────────────────────────
-  app.delete(buildUrl(api.expenses.delete.path).replace(":id", ":id"), isAuthenticated, async (req: any, res: Response) => {
-    const userId = getUserId(req);
-    await storage.deleteExpense(Number(req.params.id), userId);
-    res.status(204).send();
-  });
-
-  // ─── Expenses: Bulk Delete ───────────────────────────────────────
+  // ─── Expenses: Bulk Delete (must be before /:id to avoid route shadowing) ───
   app.delete("/api/expenses/bulk", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
     const { ids } = req.body;
@@ -1097,8 +1090,18 @@ All content must directly reference their actual spending data and use ${annualC
       return res.status(400).json({ message: "ids array required" });
     }
     const numericIds = ids.map(Number).filter(n => !isNaN(n));
+    if (numericIds.length === 0) {
+      return res.status(400).json({ message: "No valid IDs provided" });
+    }
     const deleted = await storage.bulkDeleteExpenses(userId, numericIds);
     return res.json({ deleted });
+  });
+
+  // ─── Expenses: Delete ────────────────────────────────────────────
+  app.delete(buildUrl(api.expenses.delete.path).replace(":id", ":id"), isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    await storage.deleteExpense(Number(req.params.id), userId);
+    res.status(204).send();
   });
 
   return httpServer;

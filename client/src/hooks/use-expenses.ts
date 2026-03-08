@@ -19,6 +19,7 @@ async function apiFetch(url: string, options?: RequestInit) {
     }
     throw new Error(`Request failed (${res.status})`);
   }
+  if (res.status === 204) return res;
   const ct = res.headers.get("content-type") ?? "";
   if (!ct.includes("application/json") && !ct.includes("text/plain")) {
     throw new Error("Unexpected server response — please try again");
@@ -212,7 +213,11 @@ export function useBulkDeleteExpenses() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (ids: number[]) => {
-      await apiFetch("/api/expenses/bulk", { method: "DELETE", body: JSON.stringify({ ids }) });
+      await apiFetch("/api/expenses/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.expenses.list.path] });
