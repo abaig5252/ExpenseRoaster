@@ -78,10 +78,11 @@ export type AdviceBreakdown = {
   potentialSaving: number;
 };
 
-export function useFinancialAdvice(filters?: { month?: string | null; year?: string | null; categories?: string[] }) {
+export function useFinancialAdvice(filters?: { month?: string | null; year?: string | null; categories?: string[]; source?: string }) {
   const month = filters?.month ?? null;
   const year = filters?.year ?? null;
   const categories = filters?.categories ?? [];
+  const source = filters?.source ?? "all";
   const catKey = [...categories].sort().join(",");
 
   const url = (() => {
@@ -89,12 +90,13 @@ export function useFinancialAdvice(filters?: { month?: string | null; year?: str
     if (month) params.set("month", month);
     else if (year) params.set("year", year);
     if (categories.length > 0) params.set("categories", catKey);
+    if (source && source !== "all") params.set("source", source);
     const qs = params.toString();
     return qs ? `${api.expenses.financialAdvice.path}?${qs}` : api.expenses.financialAdvice.path;
   })();
 
   return useQuery<{ advice: string; topCategory: string; savingsPotential: number; breakdown: AdviceBreakdown[]; timeContext?: string }>({
-    queryKey: [api.expenses.financialAdvice.path, month, year, catKey],
+    queryKey: [api.expenses.financialAdvice.path, month, year, catKey, source],
     retry: false,
     queryFn: async () => {
       const res = await apiFetch(url);

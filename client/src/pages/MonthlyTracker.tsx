@@ -96,6 +96,7 @@ export default function MonthlyTracker() {
     month: selectedMonth,
     year: selectedYear,
     categories: Array.from(selectedCats),
+    source: sourceFilter,
   });
 
   function toggleCat(cat: string) {

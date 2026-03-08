@@ -421,10 +421,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(403).json({ message: "Financial advice requires Premium" });
     }
     try {
-      const { month, year, categories } = req.query as { month?: string; year?: string; categories?: string };
+      const { month, year, categories, source } = req.query as { month?: string; year?: string; categories?: string; source?: string };
       const filterCategories = categories ? categories.split(",").map((c: string) => c.trim()).filter(Boolean) : [];
 
       let allExpenses = await storage.getExpenses(userId);
+
+      // Filter by source (receipt / bank_statement)
+      if (source === "receipt") {
+        allExpenses = allExpenses.filter(e => e.source === "receipt");
+      } else if (source === "bank_statement") {
+        allExpenses = allExpenses.filter(e => e.source === "bank_statement" || e.source === "manual");
+      }
 
       // Filter by month, year, or categories if provided
       if (month) {
