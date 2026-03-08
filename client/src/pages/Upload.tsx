@@ -44,7 +44,7 @@ export default function Upload() {
   const deleteMutation = useDeleteExpense();
   const bulkDeleteMutation = useBulkDeleteExpenses();
   const updateMutation = useUpdateExpense();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, currency: headerCurrency } = useCurrency();
   const { toast } = useToast();
 
   // ─── Edit Receipt ─────────────────────────────────────────────────
@@ -62,8 +62,8 @@ export default function Upload() {
     setEditCategory(expense.category);
     const d = expense.date instanceof Date ? expense.date : new Date(expense.date as unknown as string);
     setEditDate(d.toISOString().slice(0, 10));
-    setEditCurrency((expense as any).currency || "USD");
-  }, []);
+    setEditCurrency(headerCurrency || (expense as any).currency || "USD");
+  }, [headerCurrency]);
 
   const closeEditDialog = useCallback(() => {
     setEditingExpense(null);
