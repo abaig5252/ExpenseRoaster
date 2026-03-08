@@ -310,7 +310,7 @@ export default function BankScreen() {
                 keyboardType="numeric"
                 maxLength={7}
               />
-              <Text style={s.previewHint}>AI detected this month — edit if incorrect (format: YYYY-MM)</Text>
+              <Text style={s.previewHint}>Confirm this matches your statement — change if needed (YYYY-MM)</Text>
 
               <View style={s.twoButtonRow}>
                 <TouchableOpacity

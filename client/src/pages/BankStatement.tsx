@@ -262,7 +262,7 @@ export default function BankStatement() {
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors"
                       style={{ colorScheme: "dark" }}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">AI detected: <span className="text-white font-semibold">{monthLabel}</span>. Edit if incorrect.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Confirm this matches your statement: <span className="text-white font-semibold">{monthLabel}</span>.</p>
                   </div>
                 </motion.div>
               )}
