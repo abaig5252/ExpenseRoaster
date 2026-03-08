@@ -237,6 +237,8 @@ export default function UploadScreen() {
   const currency = user?.currency ?? 'USD';
   const firstName = user?.firstName ?? user?.email?.split('@')[0] ?? 'friend';
 
+  const [displayCurrencyPickerVisible, setDisplayCurrencyPickerVisible] = useState(false);
+
   const { data: summary } = useQuery<Summary>({
     queryKey: ['/api/expenses/summary'],
     queryFn: () => apiGet('/api/expenses/summary'),
@@ -269,6 +271,38 @@ export default function UploadScreen() {
     () => selectedMonth ? receiptExpenses.filter(e => expenseMonth(e) === selectedMonth) : receiptExpenses,
     [receiptExpenses.length, selectedMonth]
   );
+
+  const filteredTotal = useMemo(
+    () => filteredReceipts.reduce((sum, e) => sum + e.amount, 0),
+    [filteredReceipts]
+  );
+
+  const baseCurrency = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredReceipts.forEach(e => {
+      const c = e.currency || currency;
+      counts[c] = (counts[c] || 0) + 1;
+    });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return sorted[0]?.[0] || currency;
+  }, [filteredReceipts, currency]);
+
+  const [displayCurrency, setDisplayCurrency] = useState(baseCurrency);
+  useEffect(() => { setDisplayCurrency(baseCurrency); }, [baseCurrency]);
+
+  const needsConversion = displayCurrency !== baseCurrency;
+
+  const { data: rateData, isLoading: rateLoading } = useQuery<{ rate: number }>({
+    queryKey: ['/api/exchange-rate', baseCurrency, displayCurrency],
+    queryFn: () => apiGet(`/api/exchange-rate?from=${baseCurrency}&to=${displayCurrency}`),
+    enabled: needsConversion && !!baseCurrency,
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const convertedTotal = useMemo(() => {
+    if (!needsConversion || !rateData?.rate) return null;
+    return Math.round(filteredTotal * rateData.rate);
+  }, [filteredTotal, needsConversion, rateData]);
 
   const { data: monthlyRoastData, isFetching: roastLoading } = useQuery<{ roast: string | null; total: number; count: number }>({
     queryKey: ['/api/expenses/monthly-roast', selectedMonth],
@@ -703,6 +737,13 @@ export default function UploadScreen() {
             onClose={() => setCurrencyPickerVisible(false)}
           />
 
+          <CurrencyPickerModal
+            visible={displayCurrencyPickerVisible}
+            current={displayCurrency}
+            onSelect={(code) => setDisplayCurrency(code)}
+            onClose={() => setDisplayCurrencyPickerVisible(false)}
+          />
+
           {/* ── Hero ── */}
           <View style={s.hero}>
             <Animated.Text style={[s.heroLabel, { opacity: greetingOpacity }]}>
@@ -711,9 +752,28 @@ export default function UploadScreen() {
             </Animated.Text>
 
             {isPremium ? (
-              <Animated.Text style={[s.heroAmount, { opacity: amountOpacity }]}>
-                {formatMoney(displayedAmount, currency)}
-              </Animated.Text>
+              <View>
+                <Animated.Text style={[s.heroAmount, { opacity: amountOpacity }]}>
+                  {convertedTotal !== null
+                    ? `≈ ${formatMoney(convertedTotal, displayCurrency)}`
+                    : formatMoney(displayedAmount, baseCurrency)}
+                </Animated.Text>
+                <TouchableOpacity
+                  onPress={() => setDisplayCurrencyPickerVisible(true)}
+                  style={s.displayCurrencyBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="globe-outline" size={11} color="rgba(255,255,255,0.4)" />
+                  <Text style={s.displayCurrencyText}>{displayCurrency}</Text>
+                  <Ionicons name="chevron-down" size={10} color="rgba(255,255,255,0.4)" />
+                  {needsConversion && rateData && (
+                    <Text style={s.displayCurrencyFrom}> · from {baseCurrency}</Text>
+                  )}
+                  {rateLoading && (
+                    <ActivityIndicator size="small" color="rgba(255,255,255,0.3)" style={{ marginLeft: 4 }} />
+                  )}
+                </TouchableOpacity>
+              </View>
             ) : (
               <Animated.Text style={[s.heroTitle, { opacity: amountOpacity }]}>
                 Roast My Receipt
@@ -940,7 +1000,8 @@ export default function UploadScreen() {
                       isSelected={selectedIds.has(exp.id)}
                       isExiting={deletingIds.has(exp.id)}
                       onSelect={() => toggleSelect(exp.id)}
-                      onMenu={() => handleMenu(exp)}
+                      onEdit={() => openEditSheet(exp)}
+                      onDelete={() => handleSingleDelete(exp.id)}
                     />
                   ))}
                 </View>
@@ -1185,10 +1246,11 @@ interface ReceiptCardProps {
   isSelected?: boolean;
   isExiting?: boolean;
   onSelect?: () => void;
-  onMenu?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelected = false, isExiting = false, onSelect, onMenu }: ReceiptCardProps) {
+function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelected = false, isExiting = false, onSelect, onEdit, onDelete }: ReceiptCardProps) {
   const translateY = useRef(new Animated.Value(44)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
   const exitScale  = useRef(new Animated.Value(1)).current;
@@ -1339,15 +1401,27 @@ function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelecte
         </TouchableOpacity>
       )}
 
-      {/* ⋮ Menu button — shown when NOT in select mode */}
+      {/* Pencil — edit, top-left */}
       {!isSelectMode && (
         <TouchableOpacity
-          onPress={onMenu}
-          style={rc.menuBtn}
+          onPress={onEdit}
+          style={rc.editBtn}
           activeOpacity={0.6}
           hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
-          <Ionicons name="ellipsis-vertical" size={15} color="rgba(255,255,255,0.45)" />
+          <Ionicons name="pencil" size={12} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
+      )}
+
+      {/* Trash — delete, top-right */}
+      {!isSelectMode && (
+        <TouchableOpacity
+          onPress={onDelete}
+          style={rc.deleteBtn}
+          activeOpacity={0.6}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        >
+          <Ionicons name="trash-outline" size={12} color="rgba(255,82,82,0.5)" />
         </TouchableOpacity>
       )}
 
@@ -1461,7 +1535,12 @@ const rc = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: 'rgba(255,82,82,0.15)',
   },
   deleteText: { fontSize: 12, color: '#FF5252', fontWeight: '600' },
-  menuBtn: {
+  editBtn: {
+    position: 'absolute', top: 8, left: 8, zIndex: 10,
+    padding: 5, borderRadius: 7,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  deleteBtn: {
     position: 'absolute', top: 8, right: 8, zIndex: 10,
     padding: 5, borderRadius: 7,
     backgroundColor: 'rgba(0,0,0,0.35)',
@@ -1495,6 +1574,16 @@ const s = StyleSheet.create({
   heroAmount: { fontSize: 52, fontWeight: '800', color: colors.text, letterSpacing: -1.5, lineHeight: 60 },
   heroTitle: { fontSize: 36, fontWeight: '800', color: colors.text, lineHeight: 42 },
   heroSub: { ...typography.body, color: colors.textMuted, lineHeight: 22 },
+  displayCurrencyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
+    marginTop: 6,
+  },
+  displayCurrencyText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.55)' },
+  displayCurrencyFrom: { fontSize: 10, color: 'rgba(255,255,255,0.35)' },
 
   uploadBtnWrap: { alignSelf: 'flex-start', borderRadius: 16, overflow: 'hidden' },
   uploadBtn: {
