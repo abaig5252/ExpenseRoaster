@@ -91,6 +91,49 @@ export function useFinancialAdvice(filters?: { month?: string | null; year?: str
   });
 }
 
+export type PreviewData = {
+  amount: number;
+  description: string;
+  date: string;
+  category: string;
+  roast: string;
+  currency: string;
+};
+
+export function usePreviewReceipt() {
+  return useMutation({
+    mutationFn: async (data: { image: string; tone?: string }) => {
+      const res = await apiFetch("/api/expenses/preview-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return res.json() as Promise<PreviewData>;
+    },
+  });
+}
+
+export function useConfirmReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { amount: number; description: string; date: string; category: string; roast: string }) => {
+      const res = await apiFetch("/api/expenses/confirm-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return parseDates(await res.json()) as ExpenseResponse & { ephemeral?: boolean };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.expenses.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.expenses.summary.path] });
+      queryClient.invalidateQueries({ queryKey: [api.expenses.monthlySeries.path] });
+      queryClient.invalidateQueries({ queryKey: [api.expenses.financialAdvice.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+    },
+  });
+}
+
 export function useUploadExpense() {
   const queryClient = useQueryClient();
   return useMutation({

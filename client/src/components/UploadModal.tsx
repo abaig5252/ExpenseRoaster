@@ -1,12 +1,14 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { UploadCloud, X, Flame, AlertCircle, Camera } from "lucide-react";
-import { useUploadExpense } from "@/hooks/use-expenses";
+import { UploadCloud, X, Flame, AlertCircle, Camera, Check, ChevronLeft, ScanLine } from "lucide-react";
+import { usePreviewReceipt, useConfirmReceipt } from "@/hooks/use-expenses";
 import { useMe } from "@/hooks/use-subscription";
 import { useCurrency } from "@/hooks/use-currency";
 import { Link } from "wouter";
+import { VERDICT_CATEGORY_COLORS } from "@/lib/verdict";
 import type { ExpenseResponse } from "@shared/routes";
+import type { PreviewData } from "@/hooks/use-expenses";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -21,7 +23,12 @@ const TONES = [
   { value: "supportive", label: "Supportive 💛", desc: "Gentle honesty" },
 ];
 
-const loadingMessages = [
+const CATEGORIES = [
+  "Food & Drink", "Groceries", "Shopping", "Transport",
+  "Travel", "Entertainment", "Health & Fitness", "Subscriptions", "Other",
+];
+
+const analysingMessages = [
   "Scanning your financial crimes...",
   "Quantifying the poor choices...",
   "Consulting the judges...",
@@ -30,25 +37,33 @@ const loadingMessages = [
   "Preparing your intervention...",
 ];
 
+type Stage = "upload" | "preview" | "result";
+
 export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalProps) {
+  const [stage, setStage] = useState<Stage>("upload");
   const [preview, setPreview] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
-  const [result, setResult] = useState<ExpenseResponse | null>(null);
   const [tone, setTone] = useState("savage");
-  const [loadingMsg] = useState(() => loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
-  const uploadMutation = useUploadExpense();
+  const [dropError, setDropError] = useState<string | null>(null);
+  const [loadingMsg] = useState(() => analysingMessages[Math.floor(Math.random() * analysingMessages.length)]);
+
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+
+  const [result, setResult] = useState<(ExpenseResponse & { ephemeral?: boolean }) | null>(null);
+
+  const previewMutation = usePreviewReceipt();
+  const confirmMutation = useConfirmReceipt();
+
   const { data: me } = useMe();
   const { formatAmount } = useCurrency();
-
   const isPremium = me?.tier === "premium";
-
-  const [dropError, setDropError] = useState<string | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setDropError(null);
     const file = acceptedFiles[0];
     if (!file) return;
-    // HEIC/HEIF files are sent as-is; server converts them to JPEG using sharp
     setPreview(URL.createObjectURL(file));
     const reader = new FileReader();
     reader.onload = () => setBase64Image(reader.result as string);
@@ -69,13 +84,37 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
     maxFiles: 1,
   });
 
-  const handleUpload = () => {
+  const handleAnalyse = () => {
     if (!base64Image) return;
-    uploadMutation.mutate(
+    previewMutation.mutate(
       { image: base64Image, tone },
       {
         onSuccess: (data) => {
+          setPreviewData(data);
+          setEditAmount((data.amount / 100).toFixed(2));
+          setEditCategory(data.category);
+          setStage("preview");
+        },
+      }
+    );
+  };
+
+  const handleConfirm = () => {
+    if (!previewData) return;
+    const amountCents = Math.round(parseFloat(editAmount) * 100);
+    if (isNaN(amountCents) || amountCents <= 0) return;
+    confirmMutation.mutate(
+      {
+        amount: amountCents,
+        description: previewData.description,
+        date: previewData.date,
+        category: editCategory,
+        roast: previewData.roast,
+      },
+      {
+        onSuccess: (data) => {
           setResult(data);
+          setStage("result");
           if (data.ephemeral && onSuccess) onSuccess(data);
         },
       }
@@ -83,16 +122,30 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
   };
 
   const resetAndClose = () => {
+    setStage("upload");
     setPreview(null);
     setBase64Image(null);
+    setPreviewData(null);
+    setEditAmount("");
+    setEditCategory("");
     setResult(null);
     setDropError(null);
-    uploadMutation.reset();
+    previewMutation.reset();
+    confirmMutation.reset();
     onClose();
   };
 
-  const isLimitError = (uploadMutation.error as any)?.message?.includes("limit reached") ||
-    (uploadMutation as any)?.error?.message?.includes("UPLOAD_LIMIT");
+  const isLimitError =
+    (previewMutation.error as any)?.message?.includes("limit reached") ||
+    (confirmMutation.error as any)?.message?.includes("limit reached");
+
+  const activeError = previewMutation.error || confirmMutation.error;
+  const isPending = previewMutation.isPending || confirmMutation.isPending;
+
+  const headerTitle =
+    stage === "result" ? "Verdict Delivered" :
+    stage === "preview" ? "Review Your Receipt" :
+    "Upload & Get Roasted";
 
   return (
     <AnimatePresence>
@@ -114,12 +167,19 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
             {/* Header */}
             <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[hsl(var(--primary))]/5">
               <div className="flex items-center gap-3">
+                {stage === "preview" && (
+                  <button
+                    onClick={() => { setStage("upload"); previewMutation.reset(); }}
+                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors mr-1"
+                    data-testid="button-preview-back"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                )}
                 <div className="w-9 h-9 rounded-xl bg-[hsl(var(--primary))]/20 flex items-center justify-center">
                   <Flame className="w-5 h-5 text-[hsl(var(--primary))]" />
                 </div>
-                <h2 className="text-xl font-bold text-white">
-                  {result ? "Verdict Delivered" : "Upload & Get Roasted"}
-                </h2>
+                <h2 className="text-xl font-bold text-white">{headerTitle}</h2>
               </div>
               <button onClick={resetAndClose} data-testid="button-close-modal" className="p-2 rounded-xl hover:bg-white/10 transition-colors">
                 <X className="w-5 h-5 text-muted-foreground" />
@@ -128,22 +188,23 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
             {/* Content */}
             <div className="p-6 overflow-y-auto">
-              {uploadMutation.isPending ? (
+              {isPending ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-6">
                   <div className="relative">
                     <div className="w-20 h-20 rounded-full border-4 border-[hsl(var(--primary))]/20 border-t-[hsl(var(--primary))] animate-spin" />
                     <Flame className="w-8 h-8 text-[hsl(var(--primary))] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                   </div>
-                  <p className="text-lg font-semibold text-white text-center animate-pulse">{loadingMsg}</p>
+                  <p className="text-lg font-semibold text-white text-center animate-pulse">
+                    {stage === "upload" ? loadingMsg : "Saving your receipt..."}
+                  </p>
                   <p className="text-sm text-muted-foreground text-center">The judges are deliberating...</p>
                 </div>
-              ) : result ? (
+
+              ) : stage === "result" && result ? (
                 <div className="flex flex-col items-center text-center gap-6">
                   <div className="w-full bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--secondary))]/10 rounded-3xl p-6 border border-[hsl(var(--primary))]/20">
                     <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Financial Damage</div>
-                    <div className="text-5xl font-amount-card text-white mb-2">
-                      {formatAmount(result.amount)}
-                    </div>
+                    <div className="text-5xl font-amount-card text-white mb-2">{formatAmount(result.amount)}</div>
                     <div className="text-base text-muted-foreground">{result.description}</div>
                     <div className="inline-flex items-center gap-1 px-3 py-1 bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] rounded-full text-xs font-bold uppercase tracking-wider mt-2">
                       {result.category}
@@ -176,23 +237,21 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                   >
                     I Accept My Financial Shame
                   </button>
-                  <button onClick={() => { setResult(null); setPreview(null); setBase64Image(null); uploadMutation.reset(); }} className="text-sm text-muted-foreground hover:text-white transition-colors">
+                  <button
+                    onClick={() => { setStage("upload"); setPreview(null); setBase64Image(null); setResult(null); previewMutation.reset(); confirmMutation.reset(); }}
+                    className="text-sm text-muted-foreground hover:text-white transition-colors"
+                  >
                     Upload Another Receipt
                   </button>
                 </div>
-              ) : (
+
+              ) : stage === "preview" && previewData ? (
                 <div className="flex flex-col gap-5">
-                  {dropError && (
-                    <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex items-start gap-3 text-destructive">
-                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                      <p className="text-sm font-medium">{dropError}</p>
-                    </div>
-                  )}
-                  {uploadMutation.isError && (
+                  {activeError && (
                     <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex flex-col gap-2 text-destructive">
                       <div className="flex items-start gap-3">
                         <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                        <p className="text-sm font-medium">{(uploadMutation.error as any)?.message}</p>
+                        <p className="text-sm font-medium">{(activeError as any)?.message}</p>
                       </div>
                       {isLimitError && (
                         <Link href="/pricing" onClick={resetAndClose}>
@@ -204,7 +263,107 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                     </div>
                   )}
 
-                  {/* Tone selector (premium only) */}
+                  <p className="text-sm text-muted-foreground">
+                    Looks right? Edit anything that's off, then confirm.
+                  </p>
+
+                  {/* Merchant */}
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Merchant</label>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-semibold">
+                      {previewData.description}
+                    </div>
+                  </div>
+
+                  {/* Amount */}
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Amount</label>
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl overflow-hidden focus-within:border-[hsl(var(--primary))]/50 transition-colors">
+                      <span className="pl-4 text-[hsl(var(--primary))] font-bold text-lg select-none">
+                        {previewData.currency === "GBP" ? "£" : previewData.currency === "EUR" ? "€" : "$"}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        data-testid="input-preview-amount"
+                        className="flex-1 bg-transparent px-3 py-3 text-2xl font-bold text-white outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Category chips */}
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Category</label>
+                    <div className="flex flex-wrap gap-2">
+                      {CATEGORIES.map((cat) => {
+                        const active = editCategory === cat;
+                        const col = VERDICT_CATEGORY_COLORS[cat.toLowerCase()] ?? "#4A5060";
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setEditCategory(cat)}
+                            data-testid={`button-category-${cat.toLowerCase().replace(/\s+/g, "-").replace(/&/g, "")}`}
+                            className="px-3 py-1.5 rounded-full text-sm font-semibold border transition-all"
+                            style={
+                              active
+                                ? { backgroundColor: col + "33", borderColor: col, color: col }
+                                : { backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.5)" }
+                            }
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Roast preview */}
+                  <div className="bg-[hsl(var(--primary))]/5 border border-[hsl(var(--primary))]/20 rounded-2xl p-4 flex items-start gap-3">
+                    <Flame className="w-4 h-4 text-[hsl(var(--primary))] shrink-0 mt-0.5" />
+                    <p className="text-sm italic text-white/80 leading-relaxed">"{previewData.roast}"</p>
+                  </div>
+
+                  {/* Confirm button */}
+                  <button
+                    onClick={handleConfirm}
+                    disabled={confirmMutation.isPending}
+                    data-testid="button-confirm-receipt"
+                    className="w-full py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] text-white btn-glow transition-all flex items-center justify-center gap-3 disabled:opacity-60"
+                  >
+                    <Check className="w-5 h-5" />
+                    Confirm Upload
+                  </button>
+                </div>
+
+              ) : (
+                <div className="flex flex-col gap-5">
+                  {dropError && (
+                    <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex items-start gap-3 text-destructive">
+                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                      <p className="text-sm font-medium">{dropError}</p>
+                    </div>
+                  )}
+                  {previewMutation.isError && (
+                    <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex flex-col gap-2 text-destructive">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <p className="text-sm font-medium">{(previewMutation.error as any)?.message}</p>
+                      </div>
+                      {isLimitError && (
+                        <Link href="/pricing" onClick={resetAndClose}>
+                          <span className="text-sm font-bold text-[hsl(var(--primary))] hover:underline cursor-pointer ml-8">
+                            Upgrade to Premium for unlimited uploads →
+                          </span>
+                        </Link>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tone selector */}
                   <div>
                     <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
                       Roast Tone {!isPremium && <span className="text-[hsl(var(--primary))]">(Premium)</span>}
@@ -239,6 +398,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                     )}
                   </div>
 
+                  {/* Dropzone */}
                   <div
                     {...getRootProps()}
                     data-testid="dropzone-receipt"
@@ -274,12 +434,12 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
                   {preview && (
                     <button
-                      onClick={handleUpload}
+                      onClick={handleAnalyse}
                       data-testid="button-roast-purchase"
                       className="w-full py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] text-white btn-glow transition-all flex items-center justify-center gap-3"
                     >
-                      <Flame className="w-5 h-5" />
-                      Roast This Purchase
+                      <ScanLine className="w-5 h-5" />
+                      Analyse Receipt
                     </button>
                   )}
                 </div>
