@@ -136,10 +136,9 @@ export default function MonthlyTracker() {
       const d = parseReceiptDate(e.date);
       return String(d.getFullYear());
     }));
-    // Current year is already covered by "12 mo" — exclude it from year pills
-    years.delete(currentYear);
+    // Always include current year; past years appear automatically as data is uploaded
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, [allExpenses, currentYear]);
+  }, [allExpenses]);
 
   // Months (YYYY-MM) that have data within the selected year, sorted ascending
   const availableMonthsForYear = useMemo(() => {
@@ -229,9 +228,15 @@ export default function MonthlyTracker() {
         return { month: ym, label: fmtMonth(ym), total: byMonth[ym]?.total ?? 0, count: byMonth[ym]?.count ?? 0 };
       });
     }
-    // Last 12 months (or all available months if fewer), sorted ascending
-    const months = Object.keys(byMonth).sort().slice(-12);
-    return months.map(ym => ({ month: ym, label: fmtMonth(ym), total: byMonth[ym].total, count: byMonth[ym].count }));
+    // Exactly 12 consecutive calendar months ending with the current month
+    const slots: string[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      slots.push(d.toISOString().slice(0, 7));
+    }
+    return slots.map(ym => ({ month: ym, label: fmtMonth(ym), total: byMonth[ym]?.total ?? 0, count: byMonth[ym]?.count ?? 0 }));
   }, [allExpenses, selectedYear, selectedCats]);
 
   // Advice breakdown — backend already filters by month/year/category so use directly

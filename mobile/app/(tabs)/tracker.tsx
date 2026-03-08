@@ -28,12 +28,6 @@ interface Expense {
   date: string;
 }
 
-interface MonthlySeries {
-  month: string;
-  total: number;
-  count: number;
-}
-
 interface AdviceBreakdown {
   category: string;
   roast: string;
@@ -67,15 +61,9 @@ export default function TrackerScreen() {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
-  const { data: expenses } = useQuery<Expense[]>({
+  const { data: expenses, isLoading: expensesLoading } = useQuery<Expense[]>({
     queryKey: ['/api/expenses'],
     queryFn: () => apiGet('/api/expenses'),
-    enabled: isPremium,
-  });
-
-  const { data: series, isLoading: seriesLoading } = useQuery<MonthlySeries[]>({
-    queryKey: ['/api/expenses/monthly-series'],
-    queryFn: () => apiGet('/api/expenses/monthly-series'),
     enabled: isPremium,
   });
 
@@ -100,10 +88,9 @@ export default function TrackerScreen() {
   const currentYear = String(new Date().getFullYear());
   const availableYears = useMemo(() => {
     const years = new Set(allExpenses.map(e => (e.date ?? '').slice(0, 4)).filter(Boolean));
-    // Current year is already covered by "12 mo" — exclude it from year pills
-    years.delete(currentYear);
+    // Always include current year; past years appear automatically as data is uploaded
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, [allExpenses, currentYear]);
+  }, [allExpenses]);
 
   const availableMonthsForYear = useMemo(() => {
     if (!selectedYear) return [];
@@ -183,34 +170,39 @@ export default function TrackerScreen() {
     return allExpenses.filter(e => e.date?.slice(0, 7) === currentYM).reduce((sum, e) => sum + e.amount, 0);
   }, [filteredExpenses, selectedMonth, selectedYear, selectedCats, allExpenses, currentYM]);
 
-  // Chart: when year selected build Jan-Dec from allExpenses; otherwise use API series
+  // Chart: when year selected build Jan-Dec from allExpenses; otherwise 12 consecutive calendar months
   const chartData = useMemo(() => {
+    const src = selectedCats.size > 0 ? allExpenses.filter(e => selectedCats.has(e.category)) : allExpenses;
+    const byMonth: Record<string, { total: number; count: number }> = {};
+    src.forEach(e => {
+      const ym = (e.date ?? '').slice(0, 7);
+      if (!ym) return;
+      if (!byMonth[ym]) byMonth[ym] = { total: 0, count: 0 };
+      byMonth[ym].total += e.amount;
+      byMonth[ym].count++;
+    });
+
     if (selectedYear) {
       const now = new Date();
       const yearNum = parseInt(selectedYear);
       const endMonth = yearNum === now.getFullYear() ? now.getMonth() + 1 : 12;
-      const slots = Array.from({ length: endMonth }, (_, i) => {
+      return Array.from({ length: endMonth }, (_, i) => {
         const m = String(i + 1).padStart(2, '0');
-        return { month: `${selectedYear}-${m}`, total: 0, count: 0 };
+        const ym = `${selectedYear}-${m}`;
+        return { month: ym, total: byMonth[ym]?.total ?? 0, count: byMonth[ym]?.count ?? 0 };
       });
-      const src = selectedCats.size > 0 ? allExpenses.filter(e => selectedCats.has(e.category)) : allExpenses;
-      src.forEach(e => {
-        if ((e.date ?? '').slice(0, 4) !== selectedYear) return;
-        const ym = (e.date ?? '').slice(0, 7);
-        const slot = slots.find(s => s.month === ym);
-        if (slot) { slot.total += e.amount; slot.count++; }
-      });
-      return slots;
     }
-    if (!series) return [];
-    if (selectedCats.size === 0) return series;
-    const byMonth: Record<string, number> = {};
-    allExpenses.filter(e => selectedCats.has(e.category)).forEach(e => {
-      const ym = (e.date ?? '').slice(0, 7);
-      if (ym) byMonth[ym] = (byMonth[ym] || 0) + e.amount;
-    });
-    return series.map(row => ({ ...row, total: byMonth[row.month] ?? 0 }));
-  }, [series, allExpenses, selectedYear, selectedCats]);
+
+    // Exactly 12 consecutive calendar months ending with the current month
+    const slots: string[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      slots.push(d.toISOString().slice(0, 7));
+    }
+    return slots.map(ym => ({ month: ym, total: byMonth[ym]?.total ?? 0, count: byMonth[ym]?.count ?? 0 }));
+  }, [allExpenses, selectedYear, selectedCats]);
 
   const maxTotal = Math.max(...(chartData.map(m => m.total) ?? [1]), 1);
 
@@ -325,7 +317,7 @@ export default function TrackerScreen() {
         </View>
 
         {/* Monthly history chart */}
-        {seriesLoading ? (
+        {expensesLoading ? (
           <ActivityIndicator color={colors.primary} />
         ) : chartData.length > 0 ? (
           <View style={s.chartCard}>
