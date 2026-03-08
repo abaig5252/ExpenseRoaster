@@ -5,12 +5,14 @@ import {
   ActionSheetIOS,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
 import { apiGet, apiDelete, API_BASE_URL, getToken } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
+import { CurrencyPickerModal } from '../../src/components/CurrencyPickerModal';
 import { colors, spacing, radius, typography } from '../../src/theme';
 
 interface Expense {
@@ -52,6 +54,8 @@ export default function BankScreen() {
   const [tone, setTone] = useState('savage');
   const [importing, setImporting] = useState(false);
   const [importImageUri, setImportImageUri] = useState<string | null>(null);
+  const [importCurrency, setImportCurrency] = useState(currency);
+  const [importCurrencyPickerVisible, setImportCurrencyPickerVisible] = useState(false);
   const [parsedRoast, setParsedRoast] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -109,21 +113,22 @@ export default function BankScreen() {
     if (!importImageUri || importing) return;
     setImporting(true);
     try {
+      const base64 = await FileSystem.readAsStringAsync(importImageUri, { encoding: FileSystem.EncodingType.Base64 });
+      const imageDataUrl = `data:image/jpeg;base64,${base64}`;
       const token = await getToken();
-      const fd = new FormData();
-      fd.append('statement', { uri: importImageUri, type: 'image/jpeg', name: 'statement.jpg' } as never);
-      fd.append('tone', tone);
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['x-app-token'] = token;
-      const res = await fetch(`${API_BASE_URL}/api/expenses/parse-statement`, {
-        method: 'POST', headers, body: fd,
+      const res = await fetch(`${API_BASE_URL}/api/expenses/import-csv`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ data: imageDataUrl, format: 'image', tone, currency: importCurrency }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Parse failed' }));
+        const err = await res.json().catch(() => ({ message: 'Import failed' }));
         throw new Error((err as { message?: string }).message);
       }
-      const data = await res.json() as { roast?: string };
-      setParsedRoast(data.roast ?? 'Statement processed!');
+      const data = await res.json() as { roast?: string; imported?: number };
+      setParsedRoast(data.roast ?? `Imported ${data.imported ?? 0} transactions!`);
       qc.invalidateQueries({ queryKey: ['/api/expenses'] });
     } catch (e: unknown) {
       Alert.alert('Import Failed', (e as Error).message);
@@ -208,6 +213,25 @@ export default function BankScreen() {
               </View>
             )}
           </TouchableOpacity>
+
+          {/* ── Statement Currency ── */}
+          <View style={s.currencyRow}>
+            <Text style={s.fieldLabel}>STATEMENT CURRENCY</Text>
+            <TouchableOpacity
+              style={s.currencyBtn}
+              onPress={() => setImportCurrencyPickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={s.currencyBtnText}>{importCurrency}</Text>
+              <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <CurrencyPickerModal
+            visible={importCurrencyPickerVisible}
+            current={importCurrency}
+            onSelect={(code) => setImportCurrency(code)}
+            onClose={() => setImportCurrencyPickerVisible(false)}
+          />
 
           {importImageUri && (
             <TouchableOpacity style={s.submitWrap} onPress={importStatement} disabled={importing} activeOpacity={0.85}>
@@ -358,6 +382,19 @@ const s = StyleSheet.create({
     gap: spacing.sm, paddingVertical: 16,
   },
   submitBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
+  fieldLabel: {
+    fontSize: 11, fontWeight: '700', letterSpacing: 1.2,
+    color: colors.textMuted, textTransform: 'uppercase',
+  },
+  currencyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  currencyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  },
+  currencyBtnText: { fontSize: 13, fontWeight: '700', color: colors.text },
 
   importZone: {
     height: 160, backgroundColor: INPUT_BG, borderRadius: radius.lg,
