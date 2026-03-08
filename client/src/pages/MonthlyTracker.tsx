@@ -553,7 +553,7 @@ export default function MonthlyTracker() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6" data-testid="tracker-grid">
           {/* Category breakdown — clickable */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-            className="glass-panel rounded-3xl p-6">
+            className="glass-panel rounded-3xl p-6 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-xl font-bold text-white">Spending by Category</h2>
@@ -578,7 +578,7 @@ export default function MonthlyTracker() {
             {sortedCategories.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">No data yet</div>
             ) : (
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 -mr-2 pr-2">
                 {sortedCategories.map(([cat, total], i) => {
                   const pct = grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
                   const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
@@ -626,8 +626,9 @@ export default function MonthlyTracker() {
 
           {/* Financial Advice — context-aware */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}
-            className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
-            <div className="flex items-center justify-between">
+            className="glass-panel rounded-3xl p-6 flex flex-col min-h-0">
+            {/* Fixed header */}
+            <div className="flex items-center justify-between mb-5 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
                   <Lightbulb className="w-5 h-5 text-[hsl(var(--accent))]" />
@@ -647,6 +648,8 @@ export default function MonthlyTracker() {
               )}
             </div>
 
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto min-h-0 -mr-2 pr-2">
             {adviceLoading ? (
               <div className="flex flex-col gap-3">
                 <Skeleton className="h-6 w-3/4 bg-white/5" />
@@ -682,7 +685,7 @@ export default function MonthlyTracker() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 px-1">
+                <div className="flex items-center gap-2 px-1 mt-1">
                   <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   <p className="text-xs text-muted-foreground">For guidance only — consult a financial advisor for major decisions.</p>
                 </div>
@@ -693,6 +696,7 @@ export default function MonthlyTracker() {
                 <p className="text-muted-foreground text-sm">Upload expenses to get personalized financial advice.</p>
               </div>
             )}
+            </div>{/* end scrollable body */}
           </motion.div>
         </div>
 
