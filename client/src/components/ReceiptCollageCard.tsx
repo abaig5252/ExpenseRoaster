@@ -158,10 +158,10 @@ export function ReceiptCollageCard({
             alignItems: "center", justifyContent: "center",
             transition: "background 0.15s",
           }}
-          onMouseOver={e => (e.currentTarget.style.background = "rgba(255,82,82,0.2)")}
+          onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.14)")}
           onMouseOut={e => (e.currentTarget.style.background = "rgba(0,0,0,0.4)")}
         >
-          <Trash2 style={{ width: 12, height: 12, color: "rgba(255,82,82,0.7)" }} />
+          <Trash2 style={{ width: 12, height: 12, color: "rgba(255,255,255,0.6)" }} />
         </button>
       )}
 
