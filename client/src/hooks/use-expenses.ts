@@ -11,7 +11,18 @@ function parseDates(data: any) {
 async function apiFetch(url: string, options?: RequestInit) {
   const res = await fetch(url, { credentials: "include", ...options });
   if (res.status === 401) { window.location.href = "/api/login"; throw new Error("Unauthorized"); }
-  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || "Request failed"); }
+  if (!res.ok) {
+    const ct = res.headers.get("content-type") ?? "";
+    if (ct.includes("application/json")) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.message || "Request failed");
+    }
+    throw new Error(`Request failed (${res.status})`);
+  }
+  const ct = res.headers.get("content-type") ?? "";
+  if (!ct.includes("application/json") && !ct.includes("text/plain")) {
+    throw new Error("Unexpected server response — please try again");
+  }
   return res;
 }
 
