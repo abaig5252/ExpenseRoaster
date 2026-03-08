@@ -371,8 +371,8 @@ export default function TrackerScreen() {
               {selectedMonth ? `${selectedMonthLabel()} — tap again to deselect` : 'Tap a bar to focus on that month'}
             </Text>
             <View style={[s.chart, { height: CHART_H + 48 }]}>
-              {(selectedYear ? chartData : chartData.slice(-6)).map((m) => {
-                const barH = Math.max(4, (m.total / maxTotal) * CHART_H);
+              {chartData.map((m) => {
+                const barH = m.total === 0 ? 0 : Math.max(4, (m.total / maxTotal) * CHART_H);
                 const isMonthSelected = selectedMonth === m.month;
                 const hasMonthFilter = selectedMonth !== null;
                 const barColor = hasMonthFilter
