@@ -5,7 +5,7 @@ import { useDropzone } from "react-dropzone";
 import { Wallet, UploadCloud, Plus, Flame, Trash2, Calendar, DollarSign, AlertCircle, Loader2, FileText, Lock, Image } from "lucide-react";
 import { useAddManualExpense, useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
-import { useCurrency } from "@/hooks/use-currency";
+import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
 import { AppNav } from "@/components/AppNav";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -34,8 +34,10 @@ const empty: FormState = {
 };
 
 export default function BankStatement() {
-  const { formatAmount } = useCurrency();
+  const { currency: headerCurrency } = useCurrency();
   const [form, setForm] = useState<FormState>(empty);
+  const [formCurrency, setFormCurrency] = useState<string>(headerCurrency || "USD");
+  const [importCurrency, setImportCurrency] = useState<string>(headerCurrency || "USD");
   const [tone, setTone] = useState("savage");
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<FormState>>({});
@@ -70,7 +72,7 @@ export default function BankStatement() {
     if (!validate()) return;
     const amountCents = Math.round(Number(form.amount) * 100);
     addMutation.mutate(
-      { amount: amountCents, description: form.description.trim(), category: form.category, date: form.date, source: form.source, tone },
+      { amount: amountCents, description: form.description.trim(), category: form.category, date: form.date, source: form.source, tone, currency: formCurrency },
       {
         onSuccess: (data) => {
           setSubmitted(data.roast);
@@ -87,7 +89,7 @@ export default function BankStatement() {
 
   const handleImport = () => {
     if (!importData) return;
-    importMutation.mutate({ data: importData.data, format: importData.format, tone }, {
+    importMutation.mutate({ data: importData.data, format: importData.format, tone, currency: importCurrency }, {
       onSuccess: (data) => {
         toast({ title: `Imported ${data.imported} transactions!`, description: "Each one came with its own roast." });
         setImportData(null);
@@ -242,7 +244,7 @@ export default function BankStatement() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Amount ($)</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Amount</label>
                     <div className="relative">
                       <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <input type="number" step="0.01" min="0.01" placeholder="0.00" value={form.amount} onChange={set("amount")} disabled={!isPremium} data-testid="input-amount"
@@ -255,9 +257,24 @@ export default function BankStatement() {
                     <div className="relative">
                       <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <input type="date" value={form.date} onChange={set("date")} disabled={!isPremium} data-testid="input-date"
-                        className={`w-full bg-white/5 border rounded-xl pl-9 pr-4 py-3 text-white focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors disabled:opacity-50 ${errors.date ? "border-destructive/50" : "border-white/10"}`} />
+                        className={`w-full bg-white/5 border rounded-xl pl-9 pr-4 py-3 text-white focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors disabled:opacity-50 ${errors.date ? "border-destructive/50" : "border-white/10"}`} style={{ colorScheme: "dark" }} />
                     </div>
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Currency</label>
+                  <select
+                    value={formCurrency}
+                    onChange={e => setFormCurrency(e.target.value)}
+                    disabled={!isPremium}
+                    data-testid="select-form-currency"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-semibold focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors appearance-none cursor-pointer disabled:opacity-50"
+                  >
+                    {CURRENCIES.map(({ code, label }) => (
+                      <option key={code} value={code} className="bg-[hsl(var(--background))]">{label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -321,6 +338,20 @@ export default function BankStatement() {
                   </div>
                 )}
 
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Statement Currency</label>
+                  <select
+                    value={importCurrency}
+                    onChange={e => setImportCurrency(e.target.value)}
+                    data-testid="select-import-currency"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-semibold focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors appearance-none cursor-pointer"
+                  >
+                    {CURRENCIES.map(({ code, label }) => (
+                      <option key={code} value={code} className="bg-[hsl(var(--background))]">{label}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {importMutation.isError && (
                   <div className="flex items-start gap-2 text-destructive text-sm">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -373,7 +404,7 @@ export default function BankStatement() {
                     <div className="flex justify-between items-start gap-2">
                       <p className="font-bold text-white text-sm truncate">{exp.description}</p>
                       <span className="text-base font-amount-card text-white shrink-0">
-                        {formatAmount(exp.amount)}
+                        {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">

@@ -36,6 +36,7 @@ export const api = {
         category: z.string().min(1),
         date: z.string(),
         source: z.enum(['manual', 'bank_statement']).default('manual'),
+        currency: z.string().min(2).max(5).optional(),
       }),
       responses: {
         201: expenseShape,

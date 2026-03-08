@@ -177,6 +177,7 @@ export function useAddManualExpense() {
       date: string;
       source: "manual" | "bank_statement";
       tone?: string;
+      currency?: string;
     }) => {
       const res = await apiFetch(api.expenses.addManual.path, {
         method: "POST",

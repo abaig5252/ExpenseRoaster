@@ -810,7 +810,8 @@ Respond ONLY with this JSON (no markdown, no extra keys):
 
       const input = api.expenses.addManual.input.parse(req.body);
       const tone = (req.body.tone as string) || "savage";
-      const roast = await generateRoast(input.description, input.amount, input.category, tone, undefined, user.currency || "USD", new Date(input.date));
+      const manualCurrency = input.currency || user.currency || "USD";
+      const roast = await generateRoast(input.description, input.amount, input.category, tone, undefined, manualCurrency, new Date(input.date));
 
       const expense = await storage.createExpense({
         userId,
@@ -821,6 +822,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         roast,
         imageUrl: null,
         source: input.source,
+        currency: manualCurrency,
       });
 
       res.status(201).json(expense);
@@ -872,6 +874,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         roast,
         imageUrl: null,
         source: "bank_statement",
+        currency,
       });
       created.push(expense);
     }
@@ -886,10 +889,10 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       return res.status(403).json({ message: "Statement import requires Premium", code: "PREMIUM_REQUIRED" });
     }
 
-    const { data, format, tone } = req.body;
+    const { data, format, tone, currency: bodyCurrency } = req.body;
     const fmt: string = format || "pdf";
     const toneVal = tone || "savage";
-    const userCurrency = user.currency || "USD";
+    const userCurrency = bodyCurrency || user.currency || "USD";
 
     try {
       // ── PDF ──────────────────────────────────────────────────────
