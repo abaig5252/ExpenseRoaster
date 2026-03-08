@@ -713,6 +713,89 @@ Respond ONLY with this JSON (no markdown, no extra keys):
     }
   });
 
+  // ─── Expenses: Preview receipt (extract without storing) ──────────
+  app.post("/api/expenses/preview-receipt", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.checkAndResetMonthlyUpload(userId);
+      const isFree = user.tier === "free";
+      if (isFree && user.monthlyUploadCount >= FREE_UPLOAD_LIMIT) {
+        return res.status(403).json({ message: `Free tier limit reached.`, code: "UPLOAD_LIMIT_REACHED" });
+      }
+      const tone = req.body.tone || "savage";
+      const input = api.expenses.upload.input.parse(req.body);
+      let imageUrl = input.image;
+      if (/^data:image\/(heic|heif)/i.test(imageUrl)) {
+        const base64Data = imageUrl.replace(/^data:[^;]+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+        const jpegBuffer = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer();
+        imageUrl = `data:image/jpeg;base64,${jpegBuffer.toString("base64")}`;
+      }
+      const userCurrency = user.currency || "USD";
+      const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}\n\nExtract expense data from this receipt image. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert to ${userCurrency}. For the roast field, be specific to this merchant and amount. No addresses or neighbourhoods.`;
+      const aiResponse = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: [
+            { type: "text", text: `Carefully read this receipt. Find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Convert to ${userCurrency} cents (dollars × 100).\n\nRespond ONLY with this JSON:\n{\n  "amount": <cents integer>,\n  "description": "<short merchant name>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",\n  "roast": "<1-2 cheeky sentences about this merchant and exact amount>"\n}` },
+            { type: "image_url", image_url: { url: imageUrl } },
+          ]},
+        ],
+        response_format: { type: "json_object" },
+      });
+      const resultText = aiResponse.choices[0]?.message?.content;
+      if (!resultText) throw new Error("No AI response");
+      const extracted = JSON.parse(resultText);
+      const parsedDate = new Date(extracted.date);
+      const dateToUse = isNaN(parsedDate.getTime()) || parsedDate.getFullYear() < 1990 ? new Date() : parsedDate;
+      res.json({
+        amount: Math.round(extracted.amount),
+        description: extracted.description || "Unknown Purchase",
+        date: dateToUse.toISOString(),
+        category: extracted.category || "Other",
+        roast: extracted.roast || "I'm speechless.",
+        currency: userCurrency,
+      });
+    } catch (err) {
+      console.error("Preview receipt error:", err);
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Failed to analyse receipt" });
+    }
+  });
+
+  // ─── Expenses: Confirm receipt (store already-extracted data) ─────
+  app.post("/api/expenses/confirm-receipt", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      let user = await storage.checkAndResetMonthlyUpload(userId);
+      const isFree = user.tier === "free";
+      if (isFree && user.monthlyUploadCount >= FREE_UPLOAD_LIMIT) {
+        return res.status(403).json({ message: `Free tier limit reached.`, code: "UPLOAD_LIMIT_REACHED" });
+      }
+      const { amount, description, date, category, roast } = req.body;
+      if (!amount || !description || !date || !category) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      await storage.incrementMonthlyUpload(userId);
+      if (isFree) {
+        return res.status(201).json({
+          id: -1, userId, amount: Math.round(amount), description, date,
+          category, roast: roast || "I'm speechless.", imageUrl: null, source: "receipt",
+          ephemeral: true, uploadsUsed: user.monthlyUploadCount + 1, uploadsLimit: FREE_UPLOAD_LIMIT,
+        });
+      }
+      const expense = await storage.createExpense({
+        userId, amount: Math.round(amount), description,
+        date: new Date(date), category, roast: roast || "I'm speechless.", imageUrl: null, source: "receipt",
+      });
+      res.status(201).json(expense);
+    } catch (err) {
+      console.error("Confirm receipt error:", err);
+      res.status(500).json({ message: "Failed to confirm receipt" });
+    }
+  });
+
   // ─── Expenses: Add manual ────────────────────────────────────────
   app.post(api.expenses.addManual.path, isAuthenticated, async (req: any, res: Response) => {
     try {

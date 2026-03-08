@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, ActionSheetIOS, Platform,
-  Animated, Easing, LayoutAnimation, UIManager,
+  Animated, Easing, LayoutAnimation, UIManager, Modal, TextInput, KeyboardAvoidingView,
 } from 'react-native';
 
 import * as ImagePicker from 'expo-image-picker';
@@ -65,6 +65,18 @@ const VERDICT_CAT_COLORS: Record<string, string> = {
 };
 
 const VERDICT_CAT_NAMES = ['Food & Drink','Groceries','Shopping','Transport','Travel','Entertainment','Health & Fitness','Health','Subscriptions','Coffee','Other'];
+
+const CATEGORIES = ['Food & Drink','Groceries','Shopping','Transport','Travel','Entertainment','Health & Fitness','Subscriptions','Other'];
+
+type PreviewData = {
+  amount: number;
+  description: string;
+  date: string;
+  category: string;
+  roast: string;
+  currency: string;
+};
+
 const V_CURRENCY_RE = /^(?:S\$|CA\$|A\$|NZ\$|HK\$|MX\$|US\$|AU\$|C\$|[$£€¥₹])\s*[\d,]+(?:\.\d{1,2})?(?:\s*(?:SGD|USD|GBP|EUR|CAD|AUD|JPY|INR|CHF|MXN|HKD|NZD))?$/i;
 const V_COUNT_RE   = /^(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:receipts?|transactions?|items?)$|^\d+%$/i;
 const V_CAT_RE     = new RegExp(`^(${VERDICT_CAT_NAMES.join('|')})$`, 'i');
@@ -197,6 +209,10 @@ export default function UploadScreen() {
   const [ephemeral, setEphemeral] = useState<Expense | null>(null);
   const [uploading, setUploading] = useState(false);
   const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [confirming, setConfirming] = useState(false);
   const [displayedAmount, setDisplayedAmount] = useState(0);
 
   // ── Select Mode State ─────────────────────────────────────────────
@@ -493,46 +509,81 @@ export default function UploadScreen() {
     }
   }
 
-  async function uploadReceipt() {
+  async function analyseReceipt() {
     if (!imageUri || uploading) return;
     setUploading(true);
     try {
       let base64Data = imageBase64;
       if (!base64Data) {
-        base64Data = await FileSystem.readAsStringAsync(imageUri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+        base64Data = await FileSystem.readAsStringAsync(imageUri, { encoding: FileSystem.EncodingType.Base64 });
       }
       const effectiveMime = (imageMime === 'image/heic' || imageMime === 'image/heif') ? 'image/jpeg' : imageMime;
       const imageDataUrl = `data:${effectiveMime};base64,${base64Data}`;
       const token = await getToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['x-app-token'] = token;
-      const res = await fetch(`${API_BASE_URL}/api/expenses/upload`, {
+      const res = await fetch(`${API_BASE_URL}/api/expenses/preview-receipt`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ image: imageDataUrl, tone }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Analysis failed' }));
+        throw new Error((err as { message?: string }).message ?? 'Analysis failed');
+      }
+      const data = await res.json() as PreviewData;
+      setPreviewData(data);
+      setEditAmount((data.amount / 100).toFixed(2));
+      setEditCategory(data.category);
+    } catch (e: unknown) {
+      Alert.alert('Analysis Failed', (e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function confirmReceipt() {
+    if (!previewData || confirming) return;
+    setConfirming(true);
+    try {
+      const amountCents = Math.round(parseFloat(editAmount) * 100);
+      if (isNaN(amountCents) || amountCents <= 0) {
+        Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+        return;
+      }
+      const token = await getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['x-app-token'] = token;
+      const res = await fetch(`${API_BASE_URL}/api/expenses/confirm-receipt`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          amount: amountCents,
+          description: previewData.description,
+          date: previewData.date,
+          category: editCategory,
+          roast: previewData.roast,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: 'Upload failed' }));
         throw new Error((err as { message?: string }).message ?? 'Upload failed');
       }
       const data = await res.json() as UploadResult;
+      setPreviewData(null);
+      setImageUri(null);
+      setImageBase64(null);
       if (data.ephemeral) {
         setEphemeral(data.expense);
-        setImageUri(null);
-        setImageBase64(null);
       } else {
         setEphemeral(null);
-        setImageUri(null);
-        setImageBase64(null);
         refetch();
       }
       await refreshUser();
     } catch (e: unknown) {
       Alert.alert('Upload Failed', (e as Error).message);
     } finally {
-      setUploading(false);
+      setConfirming(false);
     }
   }
 
@@ -645,15 +696,21 @@ export default function UploadScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-              <TouchableOpacity style={s.roastBtnWrap} onPress={uploadReceipt} activeOpacity={0.85}>
+              <TouchableOpacity style={s.roastBtnWrap} onPress={analyseReceipt} activeOpacity={0.85} disabled={uploading}>
                 <LinearGradient
                   colors={['#00E676', '#6BFF9C']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={s.roastBtn}
                 >
-                  <Ionicons name="flame" size={18} color="#FFFFFF" />
-                  <Text style={s.roastBtnText}>Roast This Receipt</Text>
+                  {uploading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
+                      <Text style={s.roastBtnText}>Analyse Receipt</Text>
+                    </>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -835,6 +892,74 @@ export default function UploadScreen() {
             </Text>
           </TouchableOpacity>
         </Animated.View>
+
+      {/* ── Receipt Preview Modal ── */}
+      <Modal visible={!!previewData} animationType="slide" transparent onRequestClose={() => setPreviewData(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.previewOverlay}>
+          <View style={s.previewSheet}>
+            <View style={s.previewHeader}>
+              <Text style={s.previewTitle}>Receipt Preview</Text>
+              <Text style={s.previewSub}>Looks right? Edit anything that's off, then confirm.</Text>
+            </View>
+
+            <Text style={s.previewFieldLabel}>MERCHANT</Text>
+            <Text style={s.previewMerchant}>{previewData?.description}</Text>
+
+            <Text style={s.previewFieldLabel}>AMOUNT</Text>
+            <View style={s.previewAmountRow}>
+              <Text style={s.previewCurrSym}>{previewData ? currencySymbol(previewData.currency) : ''}</Text>
+              <TextInput
+                style={s.previewAmountInput}
+                value={editAmount}
+                onChangeText={setEditAmount}
+                keyboardType="decimal-pad"
+                selectTextOnFocus
+              />
+            </View>
+
+            <Text style={s.previewFieldLabel}>CATEGORY</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.previewCatScroll} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
+              {CATEGORIES.map(cat => {
+                const active = editCategory === cat;
+                const col = VERDICT_CAT_COLORS[cat.toLowerCase()] ?? '#4A5060';
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[s.previewCatChip, active && { backgroundColor: col, borderColor: col }]}
+                    onPress={() => setEditCategory(cat)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[s.previewCatChipText, active && { color: '#fff' }]}>{cat}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={s.previewRoastBox}>
+              <Ionicons name="flame" size={13} color="#00E676" style={{ marginTop: 1 }} />
+              <Text style={s.previewRoastText} numberOfLines={3}>"{previewData?.roast}"</Text>
+            </View>
+
+            <View style={s.previewBtns}>
+              <TouchableOpacity style={s.previewBackBtn} onPress={() => setPreviewData(null)} activeOpacity={0.7}>
+                <Text style={s.previewBackText}>Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.previewConfirmBtn} onPress={confirmReceipt} disabled={confirming} activeOpacity={0.85}>
+                <LinearGradient colors={['#00E676', '#6BFF9C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.previewConfirmGrad}>
+                  {confirming ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={17} color="#fff" />
+                      <Text style={s.previewConfirmText}>Confirm Upload</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       </SafeAreaView>
     </View>
@@ -1302,4 +1427,62 @@ const s = StyleSheet.create({
   },
   deleteBarText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   deleteBarTextDisabled: { color: 'rgba(255,82,82,0.4)' },
+
+  previewOverlay: {
+    flex: 1, justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.72)',
+  },
+  previewSheet: {
+    backgroundColor: '#111214',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: spacing.xl,
+    paddingBottom: 36,
+    gap: spacing.md,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  previewHeader: { gap: 4, marginBottom: 4 },
+  previewTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
+  previewSub: { ...typography.caption, color: colors.textMuted },
+  previewFieldLabel: { fontSize: 10, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 },
+  previewMerchant: { fontSize: 16, fontWeight: '600', color: colors.text },
+  previewAmountRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: spacing.md, paddingVertical: 10,
+  },
+  previewCurrSym: { fontSize: 18, fontWeight: '700', color: colors.primary },
+  previewAmountInput: {
+    flex: 1, fontSize: 22, fontWeight: '800', color: colors.text,
+  },
+  previewCatScroll: { marginHorizontal: -4 },
+  previewCatChip: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: radius.full,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  previewCatChipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+  previewRoastBox: {
+    flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start',
+    backgroundColor: 'rgba(0,230,118,0.06)',
+    borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(0,230,118,0.15)',
+    padding: spacing.md,
+  },
+  previewRoastText: { flex: 1, fontSize: 13, fontStyle: 'italic', color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
+  previewBtns: { flexDirection: 'row', gap: spacing.md, marginTop: 4 },
+  previewBackBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 16, borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  previewBackText: { fontSize: 15, fontWeight: '700', color: colors.textMuted },
+  previewConfirmBtn: { flex: 2, borderRadius: radius.lg, overflow: 'hidden' },
+  previewConfirmGrad: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.sm, paddingVertical: 16,
+  },
+  previewConfirmText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
