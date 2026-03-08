@@ -1,9 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { useEffect } from "react";
-import { Flame, Wallet, BarChart3, LogOut, Crown, FileText, Download, Mail, ChevronDown } from "lucide-react";
+import { Flame, Wallet, BarChart3, LogOut, Crown, FileText, Download, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
-import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
+import { useCurrency } from "@/hooks/use-currency";
 import { AppLogo } from "@/components/AppLogo";
 
 const navLinks = [
@@ -17,7 +17,7 @@ export function AppNav() {
   const { user, logout } = useAuth();
   const { data: me } = useMe();
   const [location] = useLocation();
-  const { currency, setCurrency, syncFromServer } = useCurrency();
+  const { syncFromServer } = useCurrency();
 
   useEffect(() => {
     if (me?.currency) {
@@ -99,21 +99,6 @@ export function AppNav() {
               </div>
             </Link>
           )}
-
-          {/* Currency selector */}
-          <div className="relative" data-testid="currency-selector">
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              data-testid="select-currency"
-              className="appearance-none bg-white/5 border border-white/10 text-white text-xs font-bold rounded-xl pl-3 pr-7 py-1.5 cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:border-[hsl(var(--primary))]/50"
-            >
-              {CURRENCIES.map(({ code }) => (
-                <option key={code} value={code} className="bg-[#121212] text-white">{code}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/50 pointer-events-none" />
-          </div>
 
           <div className="flex items-center gap-2 glass-panel px-3 py-1.5 rounded-xl">
             {user?.profileImageUrl ? (

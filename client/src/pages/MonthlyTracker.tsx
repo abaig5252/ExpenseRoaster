@@ -8,7 +8,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, type AdviceBreakdown } from "@/hooks/use-expenses";
 import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCurrency } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
 
 function fmtMonth(ym: string) {
@@ -16,13 +15,19 @@ function fmtMonth(ym: string) {
   return new Date(Number(year), Number(month) - 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  const { formatAmount: fmtCurrency } = useCurrency();
+function makeFmt(currencyCode: string) {
+  const code = currencyCode || "USD";
+  return (cents: number) =>
+    (cents / 100).toLocaleString(undefined, { style: "currency", currency: code });
+}
+
+const CustomTooltip = ({ active, payload, label, currencyCode }: any) => {
+  const fmt = makeFmt(currencyCode || "USD");
   if (!active || !payload?.length) return null;
   return (
     <div className="glass-panel rounded-xl px-4 py-3 border border-white/10 text-sm">
       <p className="font-bold text-white mb-1">{label}</p>
-      <p className="text-[hsl(var(--primary))]">{fmtCurrency(payload[0].value)}</p>
+      <p className="text-[hsl(var(--primary))]">{fmt(payload[0].value)}</p>
       {payload[0].payload.count != null && (
         <p className="text-muted-foreground">{payload[0].payload.count} transactions</p>
       )}
@@ -30,8 +35,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
-  const { formatAmount: fmtCurrency } = useCurrency();
+function CategoryAdviceCard({ item, currencyCode }: { item: AdviceBreakdown; currencyCode: string }) {
+  const fmtCurrency = makeFmt(currencyCode);
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -70,7 +75,6 @@ function CategoryAdviceCard({ item }: { item: AdviceBreakdown }) {
 const CATEGORY_COLORS = ["#E85D26", "#C4A832", "#7B6FE8", "#3BB8A0", "#E8526A", "#5BA85E", "#8A9099"];
 
 export default function MonthlyTracker() {
-  const { formatAmount: fmtCurrency } = useCurrency();
   const { isLoading: seriesLoading } = useMonthlySeries();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
   const { data: expenses } = useExpenses();
@@ -104,6 +108,14 @@ export default function MonthlyTracker() {
     () => (expenses ?? []).filter(e => e.source === "bank_statement"),
     [expenses]
   );
+
+  // Derive display currency from the most recent bank statement expense
+  const bankCurrency = useMemo(() => {
+    const sorted = allExpenses.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return (sorted[0] as any)?.currency || "USD";
+  }, [allExpenses]);
+  const fmtCurrency = makeFmt(bankCurrency);
+
   const currentYM = new Date().toISOString().slice(0, 7);
 
   // Years that have expense data — for the year dropdown
@@ -427,8 +439,8 @@ export default function MonthlyTracker() {
               <BarChart data={chartData} barSize={28} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: "hsl(260, 10%, 60%)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(v) => `$${(v / 100).toFixed(0)}`} tick={{ fill: "hsl(260, 10%, 60%)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                <YAxis tickFormatter={(v) => fmtCurrency(v).replace(/\.\d+$/, "")} tick={{ fill: "hsl(260, 10%, 60%)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip content={(props: any) => <CustomTooltip {...props} currencyCode={bankCurrency} />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                 <Bar
                   dataKey="total"
                   radius={[6, 6, 0, 0]}
@@ -573,7 +585,7 @@ export default function MonthlyTracker() {
                     {filteredBreakdown.map((item, i) => (
                       <div key={item.category}>
                         {i > 0 && <div className="border-t border-white/10 my-1" />}
-                        <CategoryAdviceCard item={item} />
+                        <CategoryAdviceCard item={item} currencyCode={bankCurrency} />
                       </div>
                     ))}
                   </>
@@ -622,7 +634,7 @@ export default function MonthlyTracker() {
                       <p className="text-xs text-muted-foreground italic line-clamp-2">"{exp.roast}"</p>
                     )}
                   </div>
-                  <span className="text-sm font-bold text-white shrink-0">{fmtCurrency(exp.amount)}</span>
+                  <span className="text-sm font-bold text-white shrink-0">{makeFmt((exp as any).currency || bankCurrency)(exp.amount)}</span>
                 </div>
               ))}
             </div>

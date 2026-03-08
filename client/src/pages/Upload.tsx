@@ -62,7 +62,7 @@ export default function Upload() {
     setEditCategory(expense.category);
     const d = expense.date instanceof Date ? expense.date : new Date(expense.date as unknown as string);
     setEditDate(d.toISOString().slice(0, 10));
-    setEditCurrency(headerCurrency || (expense as any).currency || "USD");
+    setEditCurrency((expense as any).currency || headerCurrency || "USD");
   }, [headerCurrency]);
 
   const closeEditDialog = useCallback(() => {
