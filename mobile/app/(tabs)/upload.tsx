@@ -222,6 +222,13 @@ export default function UploadScreen() {
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // ── Edit Receipt State ─────────────────────────────────────────────
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingDesc, setEditingDesc] = useState('');
+  const [editingAmount, setEditingAmount] = useState('');
+  const [editingCategory, setEditingCategory] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const isPremium = user?.tier === 'premium';
   const uploadsUsed = user?.monthlyUploadCount ?? 0;
   const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
@@ -365,6 +372,74 @@ export default function UploadScreen() {
       ]
     );
   }, [refetch, queryClient]);
+
+  const openEditSheet = useCallback((expense: Expense) => {
+    setEditingExpense(expense);
+    setEditingDesc(expense.description);
+    setEditingAmount((expense.amount / 100).toFixed(2));
+    setEditingCategory(expense.category);
+  }, []);
+
+  const closeEdit = useCallback(() => {
+    setEditingExpense(null);
+  }, []);
+
+  const saveEdit = useCallback(async () => {
+    if (!editingExpense || savingEdit) return;
+    const amountCents = Math.round(parseFloat(editingAmount) * 100);
+    if (isNaN(amountCents) || amountCents <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const token = await getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['x-app-token'] = token;
+      const res = await fetch(`${API_BASE_URL}/api/expenses/${editingExpense.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          description: editingDesc.trim(),
+          amount: amountCents,
+          category: editingCategory,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Update failed' }));
+        throw new Error((err as { message?: string }).message ?? 'Update failed');
+      }
+      setEditingExpense(null);
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ['/api/expenses/summary'] });
+    } catch (e: unknown) {
+      Alert.alert('Save Failed', (e as Error).message);
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editingExpense, editingDesc, editingAmount, editingCategory, savingEdit, refetch, queryClient]);
+
+  const handleMenu = useCallback((expense: Expense) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Edit', 'Delete'], destructiveButtonIndex: 2, cancelButtonIndex: 0 },
+        (index) => {
+          if (index === 1) openEditSheet(expense);
+          if (index === 2) handleSingleDelete(expense.id);
+        }
+      );
+    } else {
+      Alert.alert(
+        expense.description,
+        undefined,
+        [
+          { text: 'Edit', onPress: () => openEditSheet(expense) },
+          { text: 'Delete', style: 'destructive', onPress: () => handleSingleDelete(expense.id) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  }, [openEditSheet, handleSingleDelete]);
 
   // ── Animation values ───────────────────────────────────────────
   const greetingOpacity = useRef(new Animated.Value(0)).current;
@@ -865,7 +940,7 @@ export default function UploadScreen() {
                       isSelected={selectedIds.has(exp.id)}
                       isExiting={deletingIds.has(exp.id)}
                       onSelect={() => toggleSelect(exp.id)}
-                      onDelete={() => handleSingleDelete(exp.id)}
+                      onMenu={() => handleMenu(exp)}
                     />
                   ))}
                 </View>
@@ -1023,6 +1098,76 @@ export default function UploadScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ── Edit Receipt Modal ── */}
+      <Modal visible={!!editingExpense} animationType="slide" transparent onRequestClose={closeEdit}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.previewOverlay}>
+          <View style={s.previewSheet}>
+            <View style={s.previewHeader}>
+              <Text style={s.previewTitle}>Edit Receipt</Text>
+              <Text style={s.previewSub}>Update the details below and save.</Text>
+            </View>
+
+            <Text style={s.previewFieldLabel}>MERCHANT</Text>
+            <TextInput
+              style={s.editDescInput}
+              value={editingDesc}
+              onChangeText={setEditingDesc}
+              placeholder="Merchant name"
+              placeholderTextColor="rgba(255,255,255,0.25)"
+              returnKeyType="done"
+            />
+
+            <Text style={s.previewFieldLabel}>AMOUNT</Text>
+            <View style={s.previewAmountRow}>
+              <Text style={s.previewCurrSym}>{currencySymbol(editingExpense?.currency ?? currency)}</Text>
+              <TextInput
+                style={s.previewAmountInput}
+                value={editingAmount}
+                onChangeText={setEditingAmount}
+                keyboardType="decimal-pad"
+                selectTextOnFocus
+              />
+            </View>
+
+            <Text style={s.previewFieldLabel}>CATEGORY</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.previewCatScroll} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
+              {CATEGORIES.map(cat => {
+                const active = editingCategory === cat;
+                const col = VERDICT_CAT_COLORS[cat.toLowerCase()] ?? '#4A5060';
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[s.previewCatChip, active && { backgroundColor: col, borderColor: col }]}
+                    onPress={() => setEditingCategory(cat)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[s.previewCatChipText, active && { color: '#fff' }]}>{cat}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={s.previewBtns}>
+              <TouchableOpacity style={s.previewBackBtn} onPress={closeEdit} activeOpacity={0.7}>
+                <Text style={s.previewBackText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.previewConfirmBtn} onPress={saveEdit} disabled={savingEdit} activeOpacity={0.85}>
+                <LinearGradient colors={['#00E676', '#6BFF9C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.previewConfirmGrad}>
+                  {savingEdit ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={17} color="#fff" />
+                      <Text style={s.previewConfirmText}>Save Changes</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       </SafeAreaView>
     </View>
   );
@@ -1040,10 +1185,10 @@ interface ReceiptCardProps {
   isSelected?: boolean;
   isExiting?: boolean;
   onSelect?: () => void;
-  onDelete?: () => void;
+  onMenu?: () => void;
 }
 
-function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelected = false, isExiting = false, onSelect, onDelete }: ReceiptCardProps) {
+function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelected = false, isExiting = false, onSelect, onMenu }: ReceiptCardProps) {
   const translateY = useRef(new Animated.Value(44)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
   const exitScale  = useRef(new Animated.Value(1)).current;
@@ -1194,6 +1339,18 @@ function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelecte
         </TouchableOpacity>
       )}
 
+      {/* ⋮ Menu button — shown when NOT in select mode */}
+      {!isSelectMode && (
+        <TouchableOpacity
+          onPress={onMenu}
+          style={rc.menuBtn}
+          activeOpacity={0.6}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        >
+          <Ionicons name="ellipsis-vertical" size={15} color="rgba(255,255,255,0.45)" />
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity
         onPressIn={isSelectMode ? undefined : flareAll}
         onPress={toggleExpand}
@@ -1243,17 +1400,6 @@ function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelecte
           </View>
         )}
 
-        {/* Delete button — shown when expanded and not in select mode */}
-        {expanded && !isSelectMode && (
-          <TouchableOpacity
-            onPress={onDelete}
-            style={rc.deleteRow}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="trash-outline" size={14} color="#FF5252" />
-            <Text style={rc.deleteText}>Delete receipt</Text>
-          </TouchableOpacity>
-        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -1315,6 +1461,11 @@ const rc = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: 'rgba(255,82,82,0.15)',
   },
   deleteText: { fontSize: 12, color: '#FF5252', fontWeight: '600' },
+  menuBtn: {
+    position: 'absolute', top: 8, right: 8, zIndex: 10,
+    padding: 5, borderRadius: 7,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
 });
 
 const s = StyleSheet.create({
@@ -1547,6 +1698,12 @@ const s = StyleSheet.create({
     gap: spacing.sm, paddingVertical: 16,
   },
   previewConfirmText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  editDescInput: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 14, paddingVertical: 11,
+    fontSize: 16, fontWeight: '600', color: '#FFFFFF',
+  },
 
   resultDamageBox: {
     backgroundColor: 'rgba(0,230,118,0.07)',
