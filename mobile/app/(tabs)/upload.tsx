@@ -230,6 +230,7 @@ export default function UploadScreen() {
   const [editingCategory, setEditingCategory] = useState('');
   const [editingCurrency, setEditingCurrency] = useState('USD');
   const [editingCurrencyPickerVisible, setEditingCurrencyPickerVisible] = useState(false);
+  const [editingDate, setEditingDate] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
   const isPremium = user?.tier === 'premium';
@@ -416,6 +417,8 @@ export default function UploadScreen() {
     setEditingAmount((expense.amount / 100).toFixed(2));
     setEditingCategory(expense.category);
     setEditingCurrency((expense as any).currency || 'USD');
+    const raw = (expense as any).date;
+    setEditingDate(raw ? new Date(raw).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
   }, []);
 
   const closeEdit = useCallback(() => {
@@ -442,6 +445,7 @@ export default function UploadScreen() {
           amount: amountCents,
           category: editingCategory,
           currency: editingCurrency,
+          date: editingDate,
         }),
       });
       if (!res.ok) {
@@ -456,7 +460,7 @@ export default function UploadScreen() {
     } finally {
       setSavingEdit(false);
     }
-  }, [editingExpense, editingDesc, editingAmount, editingCategory, savingEdit, refetch, queryClient]);
+  }, [editingExpense, editingDesc, editingAmount, editingCategory, editingCurrency, editingDate, savingEdit, refetch, queryClient]);
 
   const handleMenu = useCallback((expense: Expense) => {
     if (Platform.OS === 'ios') {
@@ -1183,6 +1187,17 @@ export default function UploadScreen() {
               onChangeText={setEditingDesc}
               placeholder="Merchant name"
               placeholderTextColor="rgba(255,255,255,0.25)"
+              returnKeyType="done"
+            />
+
+            <Text style={s.previewFieldLabel}>DATE</Text>
+            <TextInput
+              style={s.editDescInput}
+              value={editingDate}
+              onChangeText={setEditingDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="rgba(255,255,255,0.25)"
+              keyboardType="numbers-and-punctuation"
               returnKeyType="done"
             />
 
