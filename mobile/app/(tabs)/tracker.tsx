@@ -9,11 +9,20 @@ import { useAuth } from '../../src/lib/auth';
 import { apiGet } from '../../src/lib/api';
 import { colors, spacing, radius, typography } from '../../src/theme';
 
+type SourceFilter = 'all' | 'receipt' | 'bank_statement';
+
+const SOURCE_TABS: { value: SourceFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'receipt', label: 'Receipts' },
+  { value: 'bank_statement', label: 'Bank Statement' },
+];
+
 interface Expense {
   id: number;
   description: string;
   amount: number;
   currency: string;
+  source: string;
   category: string;
   roast: string | null;
   date: string;
@@ -53,6 +62,7 @@ export default function TrackerScreen() {
   const { user } = useAuth();
   const isPremium = user?.tier === 'premium';
 
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
@@ -69,14 +79,21 @@ export default function TrackerScreen() {
     enabled: isPremium,
   });
 
+  const adviceSource = sourceFilter !== 'all' ? `?source=${sourceFilter}` : '';
   const { data: advice } = useQuery<FinancialAdvice>({
-    queryKey: ['/api/expenses/financial-advice'],
-    queryFn: () => apiGet('/api/expenses/financial-advice'),
+    queryKey: ['/api/expenses/financial-advice', sourceFilter],
+    queryFn: () => apiGet(`/api/expenses/financial-advice${adviceSource}`),
     enabled: isPremium && (expenses?.length ?? 0) > 0,
   });
 
   // ── Derived data ──────────────────────────────────────────────────
-  const allExpenses = expenses ?? [];
+  const allExpenses = useMemo(() => {
+    const all = expenses ?? [];
+    if (sourceFilter === 'receipt') return all.filter(e => e.source === 'receipt');
+    if (sourceFilter === 'bank_statement') return all.filter(e => e.source === 'bank_statement' || e.source === 'manual');
+    return all;
+  }, [expenses, sourceFilter]);
+
   const currentYM = new Date().toISOString().slice(0, 7);
   const isFiltered = selectedCats.size > 0 || selectedMonth !== null || selectedYear !== null;
 
@@ -84,6 +101,24 @@ export default function TrackerScreen() {
     const years = new Set(allExpenses.map(e => (e.date ?? '').slice(0, 4)).filter(Boolean));
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
   }, [allExpenses]);
+
+  const availableMonthsForYear = useMemo(() => {
+    if (!selectedYear) return [];
+    const months = new Set(
+      allExpenses
+        .filter(e => (e.date ?? '').slice(0, 4) === selectedYear)
+        .map(e => (e.date ?? '').slice(0, 7))
+        .filter(Boolean)
+    );
+    return Array.from(months).sort();
+  }, [allExpenses, selectedYear]);
+
+  function changeSource(src: SourceFilter) {
+    setSourceFilter(src);
+    setSelectedCats(new Set());
+    setSelectedMonth(null);
+    setSelectedYear(null);
+  }
 
   function toggleCat(cat: string) {
     setSelectedCats(prev => {
@@ -191,10 +226,18 @@ export default function TrackerScreen() {
       .slice(0, 10);
   }, [filteredExpenses]);
 
-  // ── Currency display ──────────────────────────────────────────────
-  const currency = user?.currency ?? 'USD';
+  // ── Currency display — derive from filtered expenses, not user profile ──
+  const displayCurrency = useMemo(() => {
+    const freq: Record<string, number> = {};
+    for (const e of allExpenses) {
+      const c = e.currency || user?.currency || 'USD';
+      freq[c] = (freq[c] || 0) + e.amount;
+    }
+    return Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] || user?.currency || 'USD';
+  }, [allExpenses, user]);
+
   function fmt(cents: number) {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
+    return `${(cents / 100).toFixed(2)} ${displayCurrency}`;
   }
 
   if (!isPremium) {
@@ -213,6 +256,22 @@ export default function TrackerScreen() {
     <SafeAreaView style={s.root}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Text style={s.pageTitle}>Monthly Tracker</Text>
+
+        {/* ── Source toggle ── */}
+        <View style={s.sourceToggle}>
+          {SOURCE_TABS.map(tab => (
+            <TouchableOpacity
+              key={tab.value}
+              style={[s.sourceTab, sourceFilter === tab.value && s.sourceTabActive]}
+              onPress={() => changeSource(tab.value)}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.sourceTabText, sourceFilter === tab.value && s.sourceTabTextActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* Active filter chips */}
         {isFiltered && (
@@ -271,24 +330,46 @@ export default function TrackerScreen() {
               <Text style={s.cardTitle}>
                 {selectedCats.size > 0 ? 'Spending — Filtered' : 'Spending History'}
               </Text>
-              {availableYears.length > 1 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.yearPillScroll} contentContainerStyle={s.yearPillRow}>
-                  <TouchableOpacity
-                    style={[s.yearPill, !selectedYear && s.yearPillActive]}
-                    onPress={() => { setSelectedYear(null); setSelectedMonth(null); }}
-                  >
-                    <Text style={[s.yearPillText, !selectedYear && s.yearPillTextActive]}>12 mo</Text>
-                  </TouchableOpacity>
-                  {availableYears.map(y => (
+              {availableYears.length > 0 && (
+                <View style={s.yearPillSection}>
+                  {/* Year row */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.yearPillRow}>
                     <TouchableOpacity
-                      key={y}
-                      style={[s.yearPill, selectedYear === y && s.yearPillYear]}
-                      onPress={() => { setSelectedYear(y); setSelectedMonth(null); }}
+                      style={[s.yearPill, !selectedYear && s.yearPillActive]}
+                      onPress={() => { setSelectedYear(null); setSelectedMonth(null); }}
                     >
-                      <Text style={[s.yearPillText, selectedYear === y && s.yearPillYearText]}>{y}</Text>
+                      <Text style={[s.yearPillText, !selectedYear && s.yearPillTextActive]}>12 mo</Text>
                     </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                    {availableYears.map(y => (
+                      <TouchableOpacity
+                        key={y}
+                        style={[s.yearPill, selectedYear === y && s.yearPillActive]}
+                        onPress={() => { setSelectedYear(selectedYear === y ? null : y); setSelectedMonth(null); }}
+                      >
+                        <Text style={[s.yearPillText, selectedYear === y && s.yearPillTextActive]}>{y}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  {/* Month sub-row — only when a year is selected */}
+                  {selectedYear && availableMonthsForYear.length > 0 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.monthPillRow}>
+                      {availableMonthsForYear.map(ym => {
+                        const label = new Date(ym + '-02').toLocaleDateString('en-US', { month: 'short' });
+                        const isActive = selectedMonth === ym;
+                        return (
+                          <TouchableOpacity
+                            key={ym}
+                            style={[s.monthPill, isActive && s.monthPillActive]}
+                            onPress={() => toggleMonth(ym)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[s.monthPillText, isActive && s.monthPillTextActive]}>{label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+                </View>
               )}
             </View>
             <Text style={s.tapHint}>
@@ -503,7 +584,23 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   chartHeader: { gap: spacing.xs },
-  yearPillScroll: { marginTop: 4 },
+  sourceToggle: {
+    flexDirection: 'row', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: radius.xl, padding: 5,
+  },
+  sourceTab: {
+    flex: 1, paddingVertical: 8, borderRadius: radius.lg,
+    alignItems: 'center',
+  },
+  sourceTabActive: {
+    backgroundColor: colors.primary,
+  },
+  sourceTabText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  sourceTabTextActive: { color: '#0D0D0D', fontWeight: '800' },
+
+  yearPillSection: { gap: 6, marginTop: 4 },
   yearPillRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
   yearPill: {
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full,
@@ -512,12 +609,19 @@ const s = StyleSheet.create({
   yearPillActive: {
     backgroundColor: colors.primaryDim, borderColor: colors.primaryBorder,
   },
-  yearPillYear: {
-    backgroundColor: 'rgba(192,132,252,0.12)', borderColor: 'rgba(192,132,252,0.35)',
-  },
   yearPillText: { ...typography.caption, color: colors.textMuted, fontSize: 11 },
   yearPillTextActive: { color: colors.primary, fontWeight: '700' },
-  yearPillYearText: { color: '#c084fc', fontWeight: '700' },
+
+  monthPillRow: { flexDirection: 'row', gap: 5, paddingVertical: 2 },
+  monthPill: {
+    paddingHorizontal: 9, paddingVertical: 3, borderRadius: radius.full,
+    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  monthPillActive: {
+    backgroundColor: colors.primaryDim, borderColor: colors.primaryBorder,
+  },
+  monthPillText: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
+  monthPillTextActive: { color: colors.primary, fontWeight: '700' },
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   barCol: { flex: 1, alignItems: 'center', gap: spacing.xs },
   bar: { width: '60%', backgroundColor: colors.primary, borderRadius: radius.xs ?? 4, minHeight: 4 },
