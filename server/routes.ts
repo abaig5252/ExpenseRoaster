@@ -1088,6 +1088,22 @@ All content must directly reference their actual spending data and use ${annualC
     res.status(201).json({ ok: true });
   });
 
+  // ─── Exchange Rate Proxy ─────────────────────────────────────────────────────
+  app.get("/api/exchange-rate", async (req: Request, res: Response) => {
+    const from = String(req.query.from || "USD").toUpperCase();
+    const to = String(req.query.to || "USD").toUpperCase();
+    if (from === to) return res.json({ rate: 1 });
+    try {
+      const resp = await fetch(`https://open.er-api.com/v6/latest/${from}`);
+      const data = await resp.json() as { rates?: Record<string, number> };
+      const rate = data.rates?.[to];
+      if (!rate) return res.status(404).json({ error: "Rate not found" });
+      return res.json({ rate });
+    } catch {
+      return res.status(502).json({ error: "Failed to fetch exchange rate" });
+    }
+  });
+
   // ─── Expenses: Bulk Delete (must be before /:id to avoid route shadowing) ───
   app.delete("/api/expenses/bulk", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);

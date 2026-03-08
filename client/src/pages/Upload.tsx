@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Flame, Plus, Receipt, RefreshCw, Lock, Camera, Loader2, Trash2, X } from "lucide-react";
+import { Flame, Plus, Receipt, RefreshCw, Lock, Camera, Loader2, Trash2, X, ChevronDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useExpenses, useExpenseSummary, useDeleteExpense, useBulkDeleteExpenses, useMonthlyRoast, useUpdateExpense } from "@/hooks/use-expenses";
 import { ReceiptCollageCard } from "@/components/ReceiptCollageCard";
 import { UploadModal } from "@/components/UploadModal";
@@ -44,7 +45,7 @@ export default function Upload() {
   const deleteMutation = useDeleteExpense();
   const bulkDeleteMutation = useBulkDeleteExpenses();
   const updateMutation = useUpdateExpense();
-  const { formatAmount, currency: headerCurrency } = useCurrency();
+  const { currency: headerCurrency } = useCurrency();
   const { toast } = useToast();
 
   // ─── Edit Receipt ─────────────────────────────────────────────────
@@ -112,6 +113,39 @@ export default function Upload() {
 
   // Filtered total (in cents)
   const filteredTotal = filteredReceipts.reduce((sum, e) => sum + e.amount, 0);
+
+  // Most common currency among the filtered receipts
+  const baseCurrency = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredReceipts.forEach(e => {
+      const c = (e as any).currency || "USD";
+      counts[c] = (counts[c] || 0) + 1;
+    });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return sorted[0]?.[0] || headerCurrency || "USD";
+  }, [filteredReceipts, headerCurrency]);
+
+  // Display currency — defaults to baseCurrency, user can override to convert
+  const [displayCurrency, setDisplayCurrency] = useState<string>(baseCurrency);
+  useEffect(() => { setDisplayCurrency(baseCurrency); }, [baseCurrency]);
+
+  const needsConversion = displayCurrency !== baseCurrency;
+
+  const { data: rateData, isLoading: rateLoading } = useQuery<{ rate: number }>({
+    queryKey: [`/api/exchange-rate?from=${baseCurrency}&to=${displayCurrency}`],
+    enabled: needsConversion && !!baseCurrency,
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const convertedTotal = useMemo(() => {
+    if (!needsConversion) return filteredTotal;
+    if (!rateData?.rate) return null;
+    return Math.round(filteredTotal * rateData.rate);
+  }, [filteredTotal, needsConversion, rateData]);
+
+  function fmtInCurrency(cents: number, code: string) {
+    return (cents / 100).toLocaleString(undefined, { style: "currency", currency: code || "USD" });
+  }
 
   // Monthly verdict roast
   const { data: monthlyRoastData, isLoading: roastLoading } = useMonthlyRoast(
@@ -200,11 +234,39 @@ export default function Upload() {
               {isFree ? "here's your free roast zone" : "here's your receipt wall"}
             </p>
             {!isFree && (
-              <h1 className="text-6xl md:text-8xl font-amount-hero text-white leading-none">
-                {isLoading ? (
-                  <span className="animate-pulse bg-white/10 rounded-2xl w-48 h-20 block" />
-                ) : formatAmount(filteredTotal)}
-              </h1>
+              <div>
+                <h1 className="text-6xl md:text-8xl font-amount-hero text-white leading-none">
+                  {isLoading ? (
+                    <span className="animate-pulse bg-white/10 rounded-2xl w-48 h-20 block" />
+                  ) : rateLoading ? (
+                    <span className="animate-pulse bg-white/10 rounded-2xl w-36 h-16 md:w-48 md:h-20 block" />
+                  ) : convertedTotal !== null
+                    ? `≈ ${fmtInCurrency(convertedTotal, displayCurrency)}`
+                    : fmtInCurrency(filteredTotal, baseCurrency)}
+                </h1>
+                {/* Currency selector */}
+                <div className="flex items-center gap-2 mt-3">
+                  <div className="relative">
+                    <select
+                      value={displayCurrency}
+                      onChange={e => setDisplayCurrency(e.target.value)}
+                      data-testid="select-display-currency"
+                      className="appearance-none bg-white/5 border border-white/10 text-white/70 text-xs font-bold rounded-xl pl-3 pr-7 py-1.5 cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:border-[hsl(var(--primary))]/50"
+                    >
+                      {CURRENCIES.map(({ code }) => (
+                        <option key={code} value={code} className="bg-[#121212] text-white">{code}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/50 pointer-events-none" />
+                  </div>
+                  {needsConversion && rateData && (
+                    <span className="text-xs text-muted-foreground">converted from {baseCurrency}</span>
+                  )}
+                  {needsConversion && !rateData && !rateLoading && (
+                    <span className="text-xs text-red-400/70">rate unavailable</span>
+                  )}
+                </div>
+              </div>
             )}
             {isFree && (
               <h1 className="text-5xl font-bold text-white leading-none mb-3">
