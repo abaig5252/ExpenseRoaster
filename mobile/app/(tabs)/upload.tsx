@@ -199,7 +199,7 @@ function formatMoney(cents: number, currency: string) {
 }
 
 export default function UploadScreen() {
-  const { user, refreshUser, updateCurrency } = useAuth();
+  const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -208,10 +208,11 @@ export default function UploadScreen() {
   const [tone, setTone] = useState('savage');
   const [ephemeral, setEphemeral] = useState<Expense | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editCategory, setEditCategory] = useState('');
+  const [editCurrency, setEditCurrency] = useState('USD');
+  const [editCurrencyPickerVisible, setEditCurrencyPickerVisible] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [resultData, setResultData] = useState<UploadResult | null>(null);
   const [displayedAmount, setDisplayedAmount] = useState(0);
@@ -227,6 +228,8 @@ export default function UploadScreen() {
   const [editingDesc, setEditingDesc] = useState('');
   const [editingAmount, setEditingAmount] = useState('');
   const [editingCategory, setEditingCategory] = useState('');
+  const [editingCurrency, setEditingCurrency] = useState('USD');
+  const [editingCurrencyPickerVisible, setEditingCurrencyPickerVisible] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   const isPremium = user?.tier === 'premium';
@@ -412,6 +415,7 @@ export default function UploadScreen() {
     setEditingDesc(expense.description);
     setEditingAmount((expense.amount / 100).toFixed(2));
     setEditingCategory(expense.category);
+    setEditingCurrency((expense as any).currency || 'USD');
   }, []);
 
   const closeEdit = useCallback(() => {
@@ -437,6 +441,7 @@ export default function UploadScreen() {
           description: editingDesc.trim(),
           amount: amountCents,
           category: editingCategory,
+          currency: editingCurrency,
         }),
       });
       if (!res.ok) {
@@ -645,6 +650,7 @@ export default function UploadScreen() {
       setPreviewData(data);
       setEditAmount((data.amount / 100).toFixed(2));
       setEditCategory(data.category);
+      setEditCurrency(data.currency || 'USD');
     } catch (e: unknown) {
       Alert.alert('Analysis Failed', (e as Error).message);
     } finally {
@@ -672,6 +678,7 @@ export default function UploadScreen() {
           description: previewData.description,
           date: previewData.date,
           category: editCategory,
+          currency: editCurrency,
           roast: previewData.roast,
         }),
       });
@@ -716,26 +723,11 @@ export default function UploadScreen() {
           <View style={s.nav}>
             <AppLogo size="xs" />
             <View style={s.navRight}>
-              <TouchableOpacity
-                style={s.currencyBadge}
-                onPress={() => setCurrencyPickerVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={s.currencyText}>{currency}</Text>
-                <Ionicons name="chevron-down" size={10} color={colors.textMuted} />
-              </TouchableOpacity>
               <View style={s.avatar}>
                 <Text style={s.avatarText}>{(firstName[0] ?? 'U').toUpperCase()}</Text>
               </View>
             </View>
           </View>
-
-          <CurrencyPickerModal
-            visible={currencyPickerVisible}
-            current={currency}
-            onSelect={updateCurrency}
-            onClose={() => setCurrencyPickerVisible(false)}
-          />
 
           <CurrencyPickerModal
             visible={displayCurrencyPickerVisible}
@@ -1102,7 +1094,7 @@ export default function UploadScreen() {
 
                 <Text style={s.previewFieldLabel}>AMOUNT</Text>
                 <View style={s.previewAmountRow}>
-                  <Text style={s.previewCurrSym}>{previewData ? currencySymbol(previewData.currency) : ''}</Text>
+                  <Text style={s.previewCurrSym}>{currencySymbol(editCurrency)}</Text>
                   <TextInput
                     style={s.previewAmountInput}
                     value={editAmount}
@@ -1111,6 +1103,22 @@ export default function UploadScreen() {
                     selectTextOnFocus
                   />
                 </View>
+
+                <Text style={s.previewFieldLabel}>CURRENCY</Text>
+                <TouchableOpacity
+                  style={s.currencySelectBtn}
+                  onPress={() => setEditCurrencyPickerVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.currencySelectText}>{editCurrency}</Text>
+                  <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
+                </TouchableOpacity>
+                <CurrencyPickerModal
+                  visible={editCurrencyPickerVisible}
+                  current={editCurrency}
+                  onSelect={(code) => setEditCurrency(code)}
+                  onClose={() => setEditCurrencyPickerVisible(false)}
+                />
 
                 <Text style={s.previewFieldLabel}>CATEGORY</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.previewCatScroll} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
@@ -1180,7 +1188,7 @@ export default function UploadScreen() {
 
             <Text style={s.previewFieldLabel}>AMOUNT</Text>
             <View style={s.previewAmountRow}>
-              <Text style={s.previewCurrSym}>{currencySymbol(editingExpense?.currency ?? currency)}</Text>
+              <Text style={s.previewCurrSym}>{currencySymbol(editingCurrency)}</Text>
               <TextInput
                 style={s.previewAmountInput}
                 value={editingAmount}
@@ -1189,6 +1197,22 @@ export default function UploadScreen() {
                 selectTextOnFocus
               />
             </View>
+
+            <Text style={s.previewFieldLabel}>CURRENCY</Text>
+            <TouchableOpacity
+              style={s.currencySelectBtn}
+              onPress={() => setEditingCurrencyPickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={s.currencySelectText}>{editingCurrency}</Text>
+              <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
+            </TouchableOpacity>
+            <CurrencyPickerModal
+              visible={editingCurrencyPickerVisible}
+              current={editingCurrency}
+              onSelect={(code) => setEditingCurrency(code)}
+              onClose={() => setEditingCurrencyPickerVisible(false)}
+            />
 
             <Text style={s.previewFieldLabel}>CATEGORY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.previewCatScroll} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
@@ -1553,13 +1577,6 @@ const s = StyleSheet.create({
 
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   navRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  currencyBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.surface, borderRadius: radius.full,
-    paddingHorizontal: spacing.sm, paddingVertical: 6,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  currencyText: { ...typography.caption, color: colors.text, fontWeight: '600' },
   avatar: {
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
@@ -1758,6 +1775,16 @@ const s = StyleSheet.create({
   previewAmountInput: {
     flex: 1, fontSize: 22, fontWeight: '800', color: colors.text,
   },
+  currencySelectBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: radius.full,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 4,
+  },
+  currencySelectText: { fontSize: 13, fontWeight: '700', color: colors.text },
   previewCatScroll: { marginHorizontal: -4 },
   previewCatChip: {
     paddingHorizontal: 14, paddingVertical: 7,
