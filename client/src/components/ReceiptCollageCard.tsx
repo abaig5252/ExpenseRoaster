@@ -16,27 +16,31 @@ interface Props {
 }
 
 const categoryEmoji: Record<string, string> = {
-  "Food & Drink":  "🍔",
-  "Shopping":      "🛍️",
-  "Transport":     "🚗",
-  "Entertainment": "🎬",
-  "Health":        "💊",
-  "Subscriptions": "📱",
-  "Coffee":        "☕",
-  "Groceries":     "🛒",
-  "Other":         "🧾",
+  "Food & Drink":    "🍔",
+  "Groceries":       "🛒",
+  "Shopping":        "🛍️",
+  "Transport":       "🚗",
+  "Travel":          "✈️",
+  "Entertainment":   "🎬",
+  "Health & Fitness":"💊",
+  "Health":          "💊",
+  "Subscriptions":   "📱",
+  "Coffee":          "☕",
+  "Other":           "🧾",
 };
 
 const categoryPillColors: Record<string, string> = {
-  "Food & Drink":  "#E85D26",
-  "Shopping":      "#C4A832",
-  "Transport":     "#3BB8A0",
-  "Entertainment": "#E8526A",
-  "Health":        "#5BA85E",
-  "Subscriptions": "#7B6FE8",
-  "Coffee":        "#C4A832",
-  "Groceries":     "#C4A832",
-  "Other":         "#4A5060",
+  "Food & Drink":    "#E85D26",
+  "Groceries":       "#78A856",
+  "Shopping":        "#C4A832",
+  "Transport":       "#3BB8A0",
+  "Travel":          "#3B8EB8",
+  "Entertainment":   "#E8526A",
+  "Health & Fitness":"#5BA85E",
+  "Health":          "#5BA85E",
+  "Subscriptions":   "#7B6FE8",
+  "Coffee":          "#C4A832",
+  "Other":           "#4A5060",
 };
 
 const ROTATIONS = [-2, 1, -1.5, 2, -0.5, 1.5, -1, 0.5, -2.5, 0];

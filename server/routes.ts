@@ -654,7 +654,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
   "amount": <grand total in ${userCurrency} cents, integer>,
   "description": "<merchant name — short, e.g. 'Walmart', 'Starbucks'>",
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
-  "category": "<Food & Drink|Shopping|Transport|Entertainment|Health|Subscriptions|Other>",
+  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",
   "location": "<city and country from receipt, or null>",
   "roast": "<1-2 sentences roasting this specific merchant and exact amount — cheeky and specific, not generic. No 'bold choice', no 'treating yourself'. Don't start with 'You'. No addresses or neighbourhoods.>"
 }` },
@@ -761,7 +761,16 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       const aiCat = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
-          { role: "system", content: "Categorize this bank transaction. Reply with ONLY one of: Food & Drink, Shopping, Transport, Entertainment, Health, Subscriptions, Other" },
+          { role: "system", content: `Categorize this bank transaction. Reply with ONLY one of these exact values — pick the best match:
+- Food & Drink: restaurants, cafes, bars, takeout, food delivery, fast food
+- Groceries: supermarkets, Walmart, Costco, grocery stores, bulk food
+- Shopping: clothing, retail, electronics, department stores, Amazon, general merchandise
+- Transport: gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash
+- Travel: flights, hotels, Airbnb, car rental, accommodation, travel agencies
+- Entertainment: movies, concerts, events, gaming, theme parks, sports, nightlife
+- Health & Fitness: pharmacy, gym, doctor, dentist, spa, beauty salon, personal care
+- Subscriptions: recurring monthly/annual services, streaming, software, apps, memberships
+- Other: only if nothing above clearly fits` },
           { role: "user", content: tx.description },
         ],
         max_completion_tokens: 10,

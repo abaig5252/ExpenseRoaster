@@ -51,18 +51,20 @@ type VSegment =
   | { type: 'category'; text: string; color: string };
 
 const VERDICT_CAT_COLORS: Record<string, string> = {
-  'food & drink':  '#E85D26',
-  'shopping':      '#C4A832',
-  'transport':     '#3BB8A0',
-  'entertainment': '#E8526A',
-  'health':        '#5BA85E',
-  'subscriptions': '#7B6FE8',
-  'coffee':        '#C4A832',
-  'groceries':     '#C4A832',
-  'other':         '#4A5060',
+  'food & drink':    '#E85D26',
+  'groceries':       '#78A856',
+  'shopping':        '#C4A832',
+  'transport':       '#3BB8A0',
+  'travel':          '#3B8EB8',
+  'entertainment':   '#E8526A',
+  'health & fitness':'#5BA85E',
+  'health':          '#5BA85E',
+  'subscriptions':   '#7B6FE8',
+  'coffee':          '#C4A832',
+  'other':           '#4A5060',
 };
 
-const VERDICT_CAT_NAMES = ['Food & Drink','Subscriptions','Entertainment','Transport','Shopping','Groceries','Coffee','Health','Other'];
+const VERDICT_CAT_NAMES = ['Food & Drink','Groceries','Shopping','Transport','Travel','Entertainment','Health & Fitness','Health','Subscriptions','Coffee','Other'];
 const V_CURRENCY_RE = /^(?:S\$|CA\$|A\$|NZ\$|HK\$|MX\$|US\$|AU\$|C\$|[$£€¥₹])\s*[\d,]+(?:\.\d{1,2})?(?:\s*(?:SGD|USD|GBP|EUR|CAD|AUD|JPY|INR|CHF|MXN|HKD|NZD))?$/i;
 const V_COUNT_RE   = /^(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:receipts?|transactions?|items?)$|^\d+%$/i;
 const V_CAT_RE     = new RegExp(`^(${VERDICT_CAT_NAMES.join('|')})$`, 'i');
