@@ -1460,7 +1460,7 @@ function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelecte
           activeOpacity={0.6}
           hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
-          <Ionicons name="trash-outline" size={12} color="rgba(255,82,82,0.5)" />
+          <Ionicons name="trash-outline" size={12} color="rgba(255,255,255,0.5)" />
         </TouchableOpacity>
       )}
 
