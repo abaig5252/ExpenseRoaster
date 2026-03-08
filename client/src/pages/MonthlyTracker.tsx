@@ -74,11 +74,20 @@ function CategoryAdviceCard({ item, currencyCode }: { item: AdviceBreakdown; cur
 
 const CATEGORY_COLORS = ["#E85D26", "#C4A832", "#7B6FE8", "#3BB8A0", "#E8526A", "#5BA85E", "#8A9099"];
 
+type SourceFilter = "all" | "receipt" | "bank_statement";
+
+const SOURCE_TABS: { value: SourceFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "receipt", label: "Receipts" },
+  { value: "bank_statement", label: "Bank Statement" },
+];
+
 export default function MonthlyTracker() {
   const { isLoading: seriesLoading } = useMonthlySeries();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
   const { data: expenses } = useExpenses();
 
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
@@ -103,11 +112,12 @@ export default function MonthlyTracker() {
   }
 
   // ── Derived data ──────────────────────────────────────────────────
-  // Only bank statement imports — receipts live on the Receipt Roast tab
-  const allExpenses = useMemo(
-    () => (expenses ?? []).filter(e => e.source === "bank_statement"),
-    [expenses]
-  );
+  const allExpenses = useMemo(() => {
+    const all = expenses ?? [];
+    if (sourceFilter === "receipt") return all.filter(e => e.source === "receipt");
+    if (sourceFilter === "bank_statement") return all.filter(e => e.source === "bank_statement" || e.source === "manual");
+    return all;
+  }, [expenses, sourceFilter]);
 
   // Derive display currency from the most recent bank statement expense
   const bankCurrency = useMemo(() => {
@@ -253,6 +263,13 @@ export default function MonthlyTracker() {
     setSelectedYear(null);
   }
 
+  function changeSource(src: SourceFilter) {
+    setSourceFilter(src);
+    setSelectedCats(new Set());
+    setSelectedMonth(null);
+    setSelectedYear(null);
+  }
+
   return (
     <div className="min-h-screen pb-24">
       <div className="bg-noise" />
@@ -269,6 +286,25 @@ export default function MonthlyTracker() {
           <p className="text-muted-foreground text-lg">
             Your spending history, a breakdown of where it goes, and advice you won't want to hear.
           </p>
+        </motion.div>
+
+        {/* ── Source toggle ── */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          className="flex items-center gap-2 mb-8 p-1.5 rounded-2xl bg-white/[0.04] border border-white/[0.07] w-fit">
+          {SOURCE_TABS.map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => changeSource(tab.value)}
+              data-testid={`source-tab-${tab.value}`}
+              className={`px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+                sourceFilter === tab.value
+                  ? "bg-[hsl(var(--primary))] text-black shadow-[0_0_12px_hsl(var(--primary)/0.35)]"
+                  : "text-muted-foreground hover:text-white hover:bg-white/[0.06]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </motion.div>
 
         {/* Active filter banner */}
