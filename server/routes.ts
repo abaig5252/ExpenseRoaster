@@ -471,7 +471,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const sortedCats = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
       const topCategory = sortedCats[0]?.[0] || "General";
       const totalSpend = allExpenses.reduce((s, e) => s + e.amount, 0);
-      const adviceCurrency = user?.currency || "USD";
+
+      // Derive currency from the most common currency in the filtered expenses
+      const currencyFreq: Record<string, number> = {};
+      for (const exp of allExpenses) {
+        const c = (exp as any).currency || user?.currency || "USD";
+        currencyFreq[c] = (currencyFreq[c] || 0) + exp.amount;
+      }
+      const adviceCurrency = Object.entries(currencyFreq).sort((a, b) => b[1] - a[1])[0]?.[0] || user?.currency || "USD";
 
       const categoryLines = sortedCats
         .map(([cat, amt]) => {
