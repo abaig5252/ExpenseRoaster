@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, MoreVertical, Pencil, Trash2, Check } from "lucide-react";
+import { AlertTriangle, Pencil, Trash2, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { useCurrency } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
@@ -50,7 +50,6 @@ export function ReceiptCollageCard({
   expense, index, onDelete, onEdit, isDeleting,
   isSelectMode = false, isSelected = false, onSelect, isExiting = false,
 }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hovered, setHovered] = useState(false);
   const { formatAmount } = useCurrency();
@@ -65,23 +64,6 @@ export function ReceiptCollageCard({
 
   const handleCardClick = () => {
     if (isSelectMode) onSelect?.();
-  };
-
-  const openMenu = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setMenuOpen(prev => !prev);
-  };
-
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    onEdit?.();
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    setShowDeleteConfirm(true);
   };
 
   return (
@@ -104,7 +86,7 @@ export function ReceiptCollageCard({
           ? "scale(0.88)"
           : isSelectMode
             ? "rotate(0deg)"
-            : hovered && !menuOpen && !showDeleteConfirm
+            : hovered && !showDeleteConfirm
               ? "rotate(0deg) scale(1.025)"
               : `rotate(${rotation}deg)`,
         opacity: isExiting ? 0 : 1,
@@ -139,87 +121,48 @@ export function ReceiptCollageCard({
         </div>
       )}
 
-      {/* ⋮ Menu button + dropdown — hidden in select mode */}
-      {!isSelectMode && (
-        <div style={{ position: "absolute", top: 8, right: 8, zIndex: 20 }}>
-          <button
-            onClick={openMenu}
-            data-testid={`button-menu-receipt-${expense.id}`}
-            style={{
-              width: 26, height: 26, borderRadius: 8,
-              background: menuOpen ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.4)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              cursor: "pointer", display: "flex",
-              alignItems: "center", justifyContent: "center",
-              transition: "background 0.15s",
-            }}
-            onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}
-            onMouseOut={e => { if (!menuOpen) e.currentTarget.style.background = "rgba(0,0,0,0.4)"; }}
-          >
-            <MoreVertical style={{ width: 13, height: 13, color: "rgba(255,255,255,0.6)" }} />
-          </button>
+      {/* Edit button — top left, hidden in select mode */}
+      {!isSelectMode && onEdit && (
+        <button
+          onClick={e => { e.stopPropagation(); onEdit(); }}
+          data-testid={`button-edit-receipt-${expense.id}`}
+          title="Edit receipt"
+          style={{
+            position: "absolute", top: 9, left: 9, zIndex: 10,
+            width: 26, height: 26, borderRadius: 8,
+            background: "rgba(0,0,0,0.4)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            cursor: "pointer", display: "flex",
+            alignItems: "center", justifyContent: "center",
+            transition: "background 0.15s",
+          }}
+          onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.14)")}
+          onMouseOut={e => (e.currentTarget.style.background = "rgba(0,0,0,0.4)")}
+        >
+          <Pencil style={{ width: 12, height: 12, color: "rgba(255,255,255,0.6)" }} />
+        </button>
+      )}
 
-          {/* Dropdown */}
-          {menuOpen && (
-            <>
-              {/* Click-outside capture */}
-              <div
-                style={{ position: "fixed", inset: 0, zIndex: 18 }}
-                onClick={() => setMenuOpen(false)}
-              />
-              <div
-                style={{
-                  position: "absolute", top: 30, right: 0,
-                  zIndex: 19,
-                  background: "#1E2128",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 10,
-                  padding: "4px",
-                  minWidth: 130,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-                  animation: "slideDown 0.12s ease both",
-                }}
-              >
-                <button
-                  onClick={handleEdit}
-                  data-testid={`button-edit-receipt-${expense.id}`}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center",
-                    gap: 8, padding: "8px 10px", borderRadius: 7,
-                    border: "none", background: "transparent",
-                    color: "#FFFFFF", cursor: "pointer",
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
-                    transition: "background 0.12s",
-                    textAlign: "left",
-                  }}
-                  onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
-                  onMouseOut={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  <Pencil style={{ width: 13, height: 13, color: "rgba(255,255,255,0.55)" }} />
-                  Edit
-                </button>
-                <button
-                  onClick={handleDeleteClick}
-                  data-testid={`button-delete-receipt-${expense.id}`}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center",
-                    gap: 8, padding: "8px 10px", borderRadius: 7,
-                    border: "none", background: "transparent",
-                    color: "#FF5252", cursor: "pointer",
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
-                    transition: "background 0.12s",
-                    textAlign: "left",
-                  }}
-                  onMouseOver={e => (e.currentTarget.style.background = "rgba(255,82,82,0.1)")}
-                  onMouseOut={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  <Trash2 style={{ width: 13, height: 13 }} />
-                  Delete
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+      {/* Delete button — top right, hidden in select mode */}
+      {!isSelectMode && onDelete && (
+        <button
+          onClick={e => { e.stopPropagation(); setShowDeleteConfirm(true); }}
+          data-testid={`button-delete-receipt-${expense.id}`}
+          title="Delete receipt"
+          style={{
+            position: "absolute", top: 9, right: 9, zIndex: 10,
+            width: 26, height: 26, borderRadius: 8,
+            background: "rgba(0,0,0,0.4)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            cursor: "pointer", display: "flex",
+            alignItems: "center", justifyContent: "center",
+            transition: "background 0.15s",
+          }}
+          onMouseOver={e => (e.currentTarget.style.background = "rgba(255,82,82,0.2)")}
+          onMouseOut={e => (e.currentTarget.style.background = "rgba(0,0,0,0.4)")}
+        >
+          <Trash2 style={{ width: 12, height: 12, color: "rgba(255,82,82,0.7)" }} />
+        </button>
       )}
 
       {/* Emoji + amount */}
