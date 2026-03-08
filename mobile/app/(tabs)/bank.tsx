@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, Image, ScrollView, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, Platform,
   ActionSheetIOS,
 } from 'react-native';
@@ -53,10 +53,16 @@ export default function BankScreen() {
 
   const [tone, setTone] = useState('savage');
   const [importing, setImporting] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [importImageUri, setImportImageUri] = useState<string | null>(null);
   const [importCurrency, setImportCurrency] = useState(currency);
   const [importCurrencyPickerVisible, setImportCurrencyPickerVisible] = useState(false);
-  const [parsedRoast, setParsedRoast] = useState<string | null>(null);
+  const [previewResult, setPreviewResult] = useState<{
+    transactions: { description: string; amount: number; date: string }[];
+    detectedMonth: string;
+    transactionCount: number;
+  } | null>(null);
+  const [editMonth, setEditMonth] = useState('');
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
@@ -102,33 +108,65 @@ export default function BankScreen() {
       }
       if (!res.canceled && res.assets[0]) {
         setImportImageUri(res.assets[0].uri);
-        setParsedRoast(null);
+        setPreviewResult(null);
       }
     } catch (e: unknown) {
       Alert.alert('Error', (e as Error).message);
     }
   }
 
-  async function importStatement() {
-    if (!importImageUri || importing) return;
-    setImporting(true);
+  async function scanStatement() {
+    if (!importImageUri || scanning) return;
+    setScanning(true);
     try {
       const base64 = await FileSystem.readAsStringAsync(importImageUri, { encoding: FileSystem.EncodingType.Base64 });
       const imageDataUrl = `data:image/jpeg;base64,${base64}`;
       const token = await getToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['x-app-token'] = token;
+      const res = await fetch(`${API_BASE_URL}/api/expenses/preview-statement`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ data: imageDataUrl, format: 'image', currency: importCurrency }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Scan failed' }));
+        throw new Error((err as { message?: string }).message);
+      }
+      const result = await res.json() as {
+        transactions: { description: string; amount: number; date: string }[];
+        detectedMonth: string;
+        transactionCount: number;
+      };
+      setPreviewResult(result);
+      setEditMonth(result.detectedMonth);
+    } catch (e: unknown) {
+      Alert.alert('Scan Failed', (e as Error).message);
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function importStatement() {
+    if (!previewResult || importing) return;
+    setImporting(true);
+    try {
+      const token = await getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['x-app-token'] = token;
       const res = await fetch(`${API_BASE_URL}/api/expenses/import-csv`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ data: imageDataUrl, format: 'image', tone, currency: importCurrency }),
+        body: JSON.stringify({ transactions: previewResult.transactions, month: editMonth, tone, currency: importCurrency }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: 'Import failed' }));
         throw new Error((err as { message?: string }).message);
       }
-      const data = await res.json() as { roast?: string; imported?: number };
-      setParsedRoast(data.roast ?? `Imported ${data.imported ?? 0} transactions!`);
+      const data = await res.json() as { imported?: number };
+      Alert.alert('Imported!', `${data.imported ?? 0} transactions imported and roasted.`);
+      setImportImageUri(null);
+      setPreviewResult(null);
       qc.invalidateQueries({ queryKey: ['/api/expenses'] });
     } catch (e: unknown) {
       Alert.alert('Import Failed', (e as Error).message);
@@ -233,28 +271,78 @@ export default function BankScreen() {
             onClose={() => setImportCurrencyPickerVisible(false)}
           />
 
-          {importImageUri && (
-            <TouchableOpacity style={s.submitWrap} onPress={importStatement} disabled={importing} activeOpacity={0.85}>
+          {/* Step 1: Scan button — shown when image selected but no preview yet */}
+          {importImageUri && !previewResult && (
+            <TouchableOpacity style={s.submitWrap} onPress={scanStatement} disabled={scanning} activeOpacity={0.85}>
               <LinearGradient
                 colors={['#00E676', '#6BFF9C']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={s.submitBtn}
               >
-                {importing ? <ActivityIndicator color="#FFFFFF" /> : (
+                {scanning ? <ActivityIndicator color="#FFFFFF" /> : (
                   <>
-                    <Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF" />
-                    <Text style={s.submitBtnText}>Import & Roast</Text>
+                    <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
+                    <Text style={s.submitBtnText}>Scan Statement</Text>
                   </>
                 )}
               </LinearGradient>
             </TouchableOpacity>
           )}
 
-          {parsedRoast && (
-            <View style={s.roastResult}>
-              <Text style={s.roastResultLabel}>THE ROAST</Text>
-              <Text style={s.roastResultText}>"{parsedRoast}"</Text>
+          {/* Step 2: Preview result with month editor + import button */}
+          {previewResult && (
+            <View style={s.previewBox}>
+              <View style={s.previewHeader}>
+                <Ionicons name="checkmark-circle" size={18} color="#00E676" />
+                <Text style={s.previewFoundText}>
+                  {previewResult.transactionCount} transaction{previewResult.transactionCount !== 1 ? 's' : ''} found
+                </Text>
+              </View>
+
+              <Text style={s.fieldLabel}>STATEMENT MONTH</Text>
+              <TextInput
+                style={s.monthInput}
+                value={editMonth}
+                onChangeText={setEditMonth}
+                placeholder="YYYY-MM"
+                placeholderTextColor={colors.textDim}
+                keyboardType="numeric"
+                maxLength={7}
+              />
+              <Text style={s.previewHint}>AI detected this month — edit if incorrect (format: YYYY-MM)</Text>
+
+              <View style={s.twoButtonRow}>
+                <TouchableOpacity
+                  style={s.rescanBtn}
+                  onPress={() => setPreviewResult(null)}
+                  disabled={importing}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.rescanBtnText}>Re-scan</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[s.submitWrapInline, importing && { opacity: 0.5 }]}
+                  onPress={importStatement}
+                  disabled={importing || !editMonth}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={['#00E676', '#6BFF9C']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={s.submitBtnInline}
+                  >
+                    {importing ? <ActivityIndicator color="#FFFFFF" /> : (
+                      <>
+                        <Ionicons name="flame-outline" size={16} color="#FFFFFF" />
+                        <Text style={s.submitBtnText}>Import & Roast All</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
@@ -404,6 +492,32 @@ const s = StyleSheet.create({
   importPreview: { width: '100%', height: '100%' },
   importPlaceholder: { alignItems: 'center', gap: spacing.sm },
   importPlaceholderText: { ...typography.bodyMuted },
+
+  previewBox: {
+    backgroundColor: 'rgba(0,230,118,0.05)', borderRadius: radius.lg,
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.25)',
+    padding: spacing.md, gap: spacing.sm,
+  },
+  previewHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  previewFoundText: { fontSize: 14, fontWeight: '700', color: colors.text },
+  previewHint: { fontSize: 11, color: colors.textMuted, marginTop: -4 },
+  monthInput: {
+    backgroundColor: INPUT_BG, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 10,
+    color: colors.text, fontSize: 15, fontWeight: '600',
+  },
+  twoButtonRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  rescanBtn: {
+    paddingHorizontal: 16, paddingVertical: 14, borderRadius: radius.lg,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  },
+  rescanBtnText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  submitWrapInline: { flex: 1, borderRadius: radius.lg, overflow: 'hidden' },
+  submitBtnInline: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.sm, paddingVertical: 14,
+  },
 
   roastResult: {
     backgroundColor: colors.primaryDim, borderRadius: radius.md,

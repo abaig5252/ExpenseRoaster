@@ -2,13 +2,27 @@ import { useState, useCallback } from "react";
 import { parseReceiptDate } from "@/lib/dates";
 import { motion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2 } from "lucide-react";
 import { useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
 import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
 import { AppNav } from "@/components/AppNav";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+
+type PreviewResult = {
+  transactions: { description: string; amount: number; date: string }[];
+  detectedMonth: string;
+  transactionCount: number;
+  location: string | null;
+};
+
+const TONES = [
+  { value: "savage", label: "Savage 🔥" },
+  { value: "playful", label: "Playful 😄" },
+  { value: "supportive", label: "Supportive 💛" },
+];
 
 export default function BankStatement() {
   const { currency: headerCurrency } = useCurrency();
@@ -16,6 +30,9 @@ export default function BankStatement() {
   const [tone, setTone] = useState("savage");
   const [importData, setImportData] = useState<{ data: string; format: "pdf" | "image"; fileName: string } | null>(null);
   const [converting, setConverting] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
+  const [editMonth, setEditMonth] = useState("");
 
   const { data: me } = useMe();
   const importMutation = useImportCSV();
@@ -26,28 +43,51 @@ export default function BankStatement() {
   const isPremium = me?.tier === "premium";
   const manualExpenses = expenses?.filter(e => e.source === "manual" || e.source === "bank_statement") ?? [];
 
-  const TONES = [
-    { value: "savage", label: "Savage 🔥" },
-    { value: "playful", label: "Playful 😄" },
-    { value: "supportive", label: "Supportive 💛" },
-  ];
+  const scanStatement = async () => {
+    if (!importData) return;
+    setScanning(true);
+    setPreviewResult(null);
+    try {
+      const res = await apiRequest("POST", "/api/expenses/preview-statement", {
+        data: importData.data,
+        format: importData.format,
+        currency: importCurrency,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Scan failed");
+      }
+      const result: PreviewResult = await res.json();
+      setPreviewResult(result);
+      setEditMonth(result.detectedMonth);
+    } catch (err: any) {
+      toast({ title: "Scan failed", description: err.message, variant: "destructive" });
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const handleImport = () => {
-    if (!importData) return;
-    importMutation.mutate({ data: importData.data, format: importData.format, tone, currency: importCurrency }, {
-      onSuccess: (data) => {
-        toast({ title: `Imported ${data.imported} transactions!`, description: "Each one came with its own roast." });
-        setImportData(null);
-      },
-      onError: (err: any) => {
-        toast({ title: "Import failed", description: err.message, variant: "destructive" });
-      },
-    });
+    if (!previewResult) return;
+    importMutation.mutate(
+      { transactions: previewResult.transactions, month: editMonth, tone, currency: importCurrency },
+      {
+        onSuccess: (data) => {
+          toast({ title: `Imported ${data.imported} transactions!`, description: "Each one came with its own roast." });
+          setImportData(null);
+          setPreviewResult(null);
+        },
+        onError: (err: any) => {
+          toast({ title: "Import failed", description: err.message, variant: "destructive" });
+        },
+      }
+    );
   };
 
   const onDrop = useCallback(async (files: File[]) => {
     const file = files[0];
     if (!file) return;
+    setPreviewResult(null);
 
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     const isHeic = file.type === "image/heic" || file.type === "image/heif" ||
@@ -85,6 +125,10 @@ export default function BankStatement() {
     },
     maxFiles: 1,
   });
+
+  const monthLabel = editMonth
+    ? new Date(editMonth + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : "";
 
   return (
     <div className="min-h-screen pb-24">
@@ -148,6 +192,7 @@ export default function BankStatement() {
                 <p className="text-xs text-muted-foreground">Upload a PDF or photo of your bank or credit card statement. Up to 100 transactions per import.</p>
               </div>
 
+              {/* File drop zone */}
               {converting ? (
                 <div className="border-2 border-dashed border-[hsl(var(--secondary))]/40 rounded-2xl p-8 text-center">
                   <Loader2 className="w-8 h-8 text-[hsl(var(--secondary))] mx-auto mb-3 animate-spin" />
@@ -162,9 +207,10 @@ export default function BankStatement() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-white truncate">{importData.fileName}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{importData.format} file — ready to import</p>
+                    <p className="text-xs text-muted-foreground capitalize">{importData.format} file — ready to scan</p>
                   </div>
-                  <button onClick={() => setImportData(null)} className="text-muted-foreground hover:text-white transition-colors text-xs underline shrink-0">
+                  <button onClick={() => { setImportData(null); setPreviewResult(null); }}
+                    className="text-muted-foreground hover:text-white transition-colors text-xs underline shrink-0">
                     Remove
                   </button>
                 </div>
@@ -178,6 +224,7 @@ export default function BankStatement() {
                 </div>
               )}
 
+              {/* Currency */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Statement Currency</label>
                 <select
@@ -193,6 +240,33 @@ export default function BankStatement() {
                 </select>
               </div>
 
+              {/* Preview result — shown after scan */}
+              {previewResult && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl border border-[hsl(var(--secondary))]/30 bg-[hsl(var(--secondary))]/5 p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[hsl(var(--secondary))] shrink-0" />
+                    <p className="text-sm font-bold text-white">
+                      {previewResult.transactionCount} transaction{previewResult.transactionCount !== 1 ? "s" : ""} found
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block flex items-center gap-1.5">
+                      <Calendar className="w-3 h-3" /> Statement Month
+                    </label>
+                    <input
+                      type="month"
+                      value={editMonth}
+                      onChange={e => setEditMonth(e.target.value)}
+                      data-testid="input-edit-month"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors"
+                      style={{ colorScheme: "dark" }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">AI detected: <span className="text-white font-semibold">{monthLabel}</span>. Edit if incorrect.</p>
+                  </div>
+                </motion.div>
+              )}
+
               {importMutation.isError && (
                 <div className="flex items-start gap-2 text-destructive text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -200,10 +274,31 @@ export default function BankStatement() {
                 </div>
               )}
 
-              <button onClick={handleImport} disabled={importMutation.isPending || !importData || !isPremium} data-testid="button-import-statement"
-                className="w-full py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--secondary))] to-[hsl(var(--primary))] text-white btn-glow transition-all flex items-center justify-center gap-3 disabled:opacity-60">
-                {importMutation.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Importing & Roasting...</> : <><FileText className="w-5 h-5" /> Import & Roast All</>}
-              </button>
+              {/* Step 1: Scan */}
+              {!previewResult && (
+                <button onClick={scanStatement} disabled={scanning || !importData || !isPremium} data-testid="button-scan-statement"
+                  className="w-full py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--secondary))] to-[hsl(var(--primary))] text-white btn-glow transition-all flex items-center justify-center gap-3 disabled:opacity-60">
+                  {scanning
+                    ? <><Loader2 className="w-5 h-5 animate-spin" /> Scanning...</>
+                    : <><FileText className="w-5 h-5" /> Scan Statement</>}
+                </button>
+              )}
+
+              {/* Step 2: Import & Roast */}
+              {previewResult && (
+                <div className="flex gap-3">
+                  <button onClick={() => setPreviewResult(null)} disabled={importMutation.isPending}
+                    className="px-5 py-4 rounded-2xl font-bold text-sm bg-white/5 text-muted-foreground hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50">
+                    Re-scan
+                  </button>
+                  <button onClick={handleImport} disabled={importMutation.isPending || !editMonth} data-testid="button-import-statement"
+                    className="flex-1 py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--secondary))] to-[hsl(var(--primary))] text-white btn-glow transition-all flex items-center justify-center gap-3 disabled:opacity-60">
+                    {importMutation.isPending
+                      ? <><Loader2 className="w-5 h-5 animate-spin" /> Roasting...</>
+                      : <><Flame className="w-5 h-5" /> Import & Roast All</>}
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
 

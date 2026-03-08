@@ -71,6 +71,12 @@ async function generateMonthlyRoast(
   return response.choices[0]?.message?.content ?? "Your bank account has filed a restraining order.";
 }
 
+function ordinalSuffix(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 async function generateRoast(description: string, amountCents: number, category: string, tone = "savage", _location?: string, currency = "USD", date?: Date | string): Promise<string> {
   const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage;
   let timeNote = "";
@@ -881,6 +887,79 @@ Respond ONLY with this JSON (no markdown, no extra keys):
     return created;
   }
 
+  // ─── Expenses: Preview statement (parse only, no save) ─────────────
+  app.post("/api/expenses/preview-statement", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const user = await storage.getUser(userId);
+    if (!user || user.tier === "free") {
+      return res.status(403).json({ message: "Statement import requires Premium", code: "PREMIUM_REQUIRED" });
+    }
+    const { data, format, currency: bodyCurrency } = req.body;
+    const fmt: string = format || "pdf";
+    const userCurrency = bodyCurrency || user.currency || "USD";
+
+    try {
+      let txs: { description: string; amount: number; date: string }[] = [];
+      let statementLocation: string | undefined;
+
+      if (fmt === "pdf") {
+        if (!data) return res.status(400).json({ message: "No PDF data provided" });
+        const base64 = data.replace(/^data:[^;]+;base64,/, "");
+        const buffer = Buffer.from(base64, "base64");
+        const parser = new PDFParse({ data: buffer });
+        const parsed = await parser.getText();
+        const pdfText = parsed.text?.slice(0, 8000) || "";
+        if (!pdfText.trim()) return res.status(400).json({ message: "Could not extract text from PDF" });
+        const extraction = await openai.chat.completions.create({
+          model: "gpt-5.2",
+          messages: [
+            { role: "system", content: `You are a bank statement parser. Extract all transactions from the text and return a JSON object with two keys:\n1. "location": the account holder's city and country (e.g. "Toronto, Canada"), or null.\n2. "transactions": a JSON array where each item has: { "description": string, "amount": number (positive, in ${userCurrency}), "date": "YYYY-MM-DD" }.\nOnly include spending transactions. Skip refunds, deposits, and transfers in.\nReturn ONLY valid JSON, no other text.` },
+            { role: "user", content: pdfText },
+          ],
+          response_format: { type: "json_object" },
+        });
+        try {
+          const raw = extraction.choices[0]?.message?.content?.trim() || "{}";
+          const p2 = JSON.parse(raw);
+          txs = Array.isArray(p2.transactions) ? p2.transactions : [];
+          statementLocation = p2.location || undefined;
+        } catch { return res.status(400).json({ message: "Could not parse transactions from PDF" }); }
+      } else if (fmt === "image") {
+        if (!data) return res.status(400).json({ message: "No image data provided" });
+        const extraction = await openai.chat.completions.create({
+          model: "gpt-5.2",
+          messages: [
+            { role: "system", content: `You are a bank statement parser. Extract all transactions visible in this image and return a JSON object with two keys:\n1. "location": the account holder's city and country (e.g. "Mumbai, India"), or null.\n2. "transactions": a JSON array where each item has: { "description": string, "amount": number (positive, in ${userCurrency}), "date": "YYYY-MM-DD" }.\nOnly include spending transactions. Skip refunds, deposits, and transfers in.\nReturn ONLY valid JSON, no other text.` },
+            { role: "user", content: [{ type: "image_url", image_url: { url: data } }] },
+          ],
+          response_format: { type: "json_object" },
+        });
+        try {
+          const raw = extraction.choices[0]?.message?.content?.trim() || "{}";
+          const p2 = JSON.parse(raw);
+          txs = Array.isArray(p2.transactions) ? p2.transactions : [];
+          statementLocation = p2.location || undefined;
+        } catch { return res.status(400).json({ message: "Could not parse transactions from image" }); }
+      } else {
+        return res.status(400).json({ message: "Unsupported format." });
+      }
+
+      // Detect the most common month in the extracted transactions
+      const monthCounts: Record<string, number> = {};
+      for (const tx of txs) {
+        const m = (tx.date || "").slice(0, 7);
+        if (m) monthCounts[m] = (monthCounts[m] || 0) + 1;
+      }
+      const detectedMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+        || new Date().toISOString().slice(0, 7);
+
+      return res.json({ transactions: txs, detectedMonth, transactionCount: txs.length, location: statementLocation || null });
+    } catch (err) {
+      console.error("Statement preview error:", err);
+      res.status(500).json({ message: "Failed to preview statement" });
+    }
+  });
+
   // ─── Expenses: Import statement (PDF / image) — premium ─────
   app.post("/api/expenses/import-csv", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
@@ -889,10 +968,30 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       return res.status(403).json({ message: "Statement import requires Premium", code: "PREMIUM_REQUIRED" });
     }
 
-    const { data, format, tone, currency: bodyCurrency } = req.body;
+    const { data, format, tone, currency: bodyCurrency, transactions: preParsed, month } = req.body;
     const fmt: string = format || "pdf";
     const toneVal = tone || "savage";
     const userCurrency = bodyCurrency || user.currency || "USD";
+
+    // ── Pre-parsed path: transactions already extracted, just save+roast ──
+    if (Array.isArray(preParsed) && preParsed.length > 0) {
+      try {
+        let txs = preParsed as { description: string; amount: number; date: string }[];
+        if (month) {
+          const [yr, mo] = month.split('-').map(Number);
+          const daysInMonth = new Date(yr, mo, 0).getDate();
+          txs = txs.map(tx => {
+            const day = Math.min(Number((tx.date || "01").slice(8, 10)) || 1, daysInMonth);
+            return { ...tx, date: `${yr}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}` };
+          });
+        }
+        const created = await processTransactions(userId, txs, toneVal, undefined, userCurrency);
+        return res.status(201).json({ imported: created.length, expenses: created });
+      } catch (err) {
+        console.error("Statement import error (pre-parsed):", err);
+        return res.status(500).json({ message: "Failed to import statement" });
+      }
+    }
 
     try {
       // ── PDF ──────────────────────────────────────────────────────
