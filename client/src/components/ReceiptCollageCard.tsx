@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, Pencil, Trash2, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
-import { useCurrency } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
 
 interface Props {
@@ -52,11 +51,10 @@ export function ReceiptCollageCard({
 }: Props) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const { formatAmount } = useCurrency();
-
   const rotation = ROTATIONS[index % ROTATIONS.length];
   const amountDollars = expense.amount / 100;
-  const formattedAmount = formatAmount(expense.amount);
+  const expenseCurrency = (expense as any).currency || "USD";
+  const formattedAmount = (expense.amount / 100).toLocaleString(undefined, { style: "currency", currency: expenseCurrency });
   const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(parseReceiptDate(expense.date));
   const emoji = categoryEmoji[expense.category] || "🧾";
   const pillColor = categoryPillColors[expense.category] || "#4A5060";
