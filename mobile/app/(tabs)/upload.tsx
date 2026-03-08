@@ -213,6 +213,7 @@ export default function UploadScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [resultData, setResultData] = useState<UploadResult | null>(null);
   const [displayedAmount, setDisplayedAmount] = useState(0);
 
   // ── Select Mode State ─────────────────────────────────────────────
@@ -571,12 +572,8 @@ export default function UploadScreen() {
       }
       const data = await res.json() as UploadResult;
       setPreviewData(null);
-      setImageUri(null);
-      setImageBase64(null);
-      if (data.ephemeral) {
-        setEphemeral(data.expense);
-      } else {
-        setEphemeral(null);
+      setResultData(data);
+      if (!data.ephemeral) {
         refetch();
       }
       await refreshUser();
@@ -584,6 +581,18 @@ export default function UploadScreen() {
       Alert.alert('Upload Failed', (e as Error).message);
     } finally {
       setConfirming(false);
+    }
+  }
+
+  function dismissResult() {
+    const data = resultData;
+    setResultData(null);
+    setImageUri(null);
+    setImageBase64(null);
+    if (data?.ephemeral) {
+      setEphemeral(data.expense);
+    } else {
+      setEphemeral(null);
     }
   }
 
@@ -894,69 +903,122 @@ export default function UploadScreen() {
         </Animated.View>
 
       {/* ── Receipt Preview Modal ── */}
-      <Modal visible={!!previewData} animationType="slide" transparent onRequestClose={() => setPreviewData(null)}>
+      <Modal
+        visible={!!previewData || !!resultData}
+        animationType="slide"
+        transparent
+        onRequestClose={() => resultData ? dismissResult() : setPreviewData(null)}
+      >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.previewOverlay}>
           <View style={s.previewSheet}>
-            <View style={s.previewHeader}>
-              <Text style={s.previewTitle}>Receipt Preview</Text>
-              <Text style={s.previewSub}>Looks right? Edit anything that's off, then confirm.</Text>
-            </View>
 
-            <Text style={s.previewFieldLabel}>MERCHANT</Text>
-            <Text style={s.previewMerchant}>{previewData?.description}</Text>
+            {resultData ? (
+              /* ── Stage 3: Verdict Delivered ─────────────────────── */
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 20, paddingBottom: 4 }}>
+                <View style={s.previewHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="flame" size={20} color="#00E676" />
+                    <Text style={s.previewTitle}>Verdict Delivered</Text>
+                  </View>
+                  <Text style={s.previewSub}>Your financial crimes have been judged.</Text>
+                </View>
 
-            <Text style={s.previewFieldLabel}>AMOUNT</Text>
-            <View style={s.previewAmountRow}>
-              <Text style={s.previewCurrSym}>{previewData ? currencySymbol(previewData.currency) : ''}</Text>
-              <TextInput
-                style={s.previewAmountInput}
-                value={editAmount}
-                onChangeText={setEditAmount}
-                keyboardType="decimal-pad"
-                selectTextOnFocus
-              />
-            </View>
+                <View style={s.resultDamageBox}>
+                  <Text style={s.resultDamageLabel}>FINANCIAL DAMAGE</Text>
+                  <Text style={s.resultDamageAmount}>{formatMoney(resultData.expense.amount, resultData.expense.currency)}</Text>
+                  <Text style={s.resultDamageMerchant}>{resultData.expense.description}</Text>
+                  <View style={[s.categoryPill, { marginTop: 6 }]}>
+                    <Text style={s.categoryPillText}>{resultData.expense.category.toUpperCase()}</Text>
+                  </View>
+                </View>
 
-            <Text style={s.previewFieldLabel}>CATEGORY</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.previewCatScroll} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
-              {CATEGORIES.map(cat => {
-                const active = editCategory === cat;
-                const col = VERDICT_CAT_COLORS[cat.toLowerCase()] ?? '#4A5060';
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[s.previewCatChip, active && { backgroundColor: col, borderColor: col }]}
-                    onPress={() => setEditCategory(cat)}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={[s.previewCatChipText, active && { color: '#fff' }]}>{cat}</Text>
+                <View style={s.resultRoastBox}>
+                  <View style={s.resultRoastBadge}>
+                    <Ionicons name="flame" size={11} color="#fff" />
+                    <Text style={s.resultRoastBadgeText}>THE ROAST</Text>
+                  </View>
+                  <Text style={s.resultRoastText}>"{resultData.expense.roast}"</Text>
+                </View>
+
+                {resultData.ephemeral && (
+                  <View style={s.resultFreeNote}>
+                    <Text style={s.resultFreeNoteText}>Free tier: this roast won't be saved to your history.</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity style={s.resultDismissWrap} onPress={dismissResult} activeOpacity={0.85}>
+                  <LinearGradient colors={['#00E676', '#6BFF9C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.resultDismissGrad}>
+                    <Text style={s.resultDismissText}>I Accept My Financial Shame</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </ScrollView>
+
+            ) : (
+              /* ── Stage 2: Preview / Edit ─────────────────────────── */
+              <>
+                <View style={s.previewHeader}>
+                  <Text style={s.previewTitle}>Receipt Preview</Text>
+                  <Text style={s.previewSub}>Looks right? Edit anything that's off, then confirm.</Text>
+                </View>
+
+                <Text style={s.previewFieldLabel}>MERCHANT</Text>
+                <Text style={s.previewMerchant}>{previewData?.description}</Text>
+
+                <Text style={s.previewFieldLabel}>AMOUNT</Text>
+                <View style={s.previewAmountRow}>
+                  <Text style={s.previewCurrSym}>{previewData ? currencySymbol(previewData.currency) : ''}</Text>
+                  <TextInput
+                    style={s.previewAmountInput}
+                    value={editAmount}
+                    onChangeText={setEditAmount}
+                    keyboardType="decimal-pad"
+                    selectTextOnFocus
+                  />
+                </View>
+
+                <Text style={s.previewFieldLabel}>CATEGORY</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.previewCatScroll} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
+                  {CATEGORIES.map(cat => {
+                    const active = editCategory === cat;
+                    const col = VERDICT_CAT_COLORS[cat.toLowerCase()] ?? '#4A5060';
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[s.previewCatChip, active && { backgroundColor: col, borderColor: col }]}
+                        onPress={() => setEditCategory(cat)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={[s.previewCatChipText, active && { color: '#fff' }]}>{cat}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                <View style={s.previewRoastBox}>
+                  <Ionicons name="flame" size={13} color="#00E676" style={{ marginTop: 1 }} />
+                  <Text style={s.previewRoastText} numberOfLines={3}>"{previewData?.roast}"</Text>
+                </View>
+
+                <View style={s.previewBtns}>
+                  <TouchableOpacity style={s.previewBackBtn} onPress={() => setPreviewData(null)} activeOpacity={0.7}>
+                    <Text style={s.previewBackText}>Back</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                  <TouchableOpacity style={s.previewConfirmBtn} onPress={confirmReceipt} disabled={confirming} activeOpacity={0.85}>
+                    <LinearGradient colors={['#00E676', '#6BFF9C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.previewConfirmGrad}>
+                      {confirming ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark" size={17} color="#fff" />
+                          <Text style={s.previewConfirmText}>Confirm Upload</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
 
-            <View style={s.previewRoastBox}>
-              <Ionicons name="flame" size={13} color="#00E676" style={{ marginTop: 1 }} />
-              <Text style={s.previewRoastText} numberOfLines={3}>"{previewData?.roast}"</Text>
-            </View>
-
-            <View style={s.previewBtns}>
-              <TouchableOpacity style={s.previewBackBtn} onPress={() => setPreviewData(null)} activeOpacity={0.7}>
-                <Text style={s.previewBackText}>Back</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.previewConfirmBtn} onPress={confirmReceipt} disabled={confirming} activeOpacity={0.85}>
-                <LinearGradient colors={['#00E676', '#6BFF9C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.previewConfirmGrad}>
-                  {confirming ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark" size={17} color="#fff" />
-                      <Text style={s.previewConfirmText}>Confirm Upload</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1485,4 +1547,43 @@ const s = StyleSheet.create({
     gap: spacing.sm, paddingVertical: 16,
   },
   previewConfirmText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  resultDamageBox: {
+    backgroundColor: 'rgba(0,230,118,0.07)',
+    borderRadius: radius.xl, borderWidth: 1, borderColor: 'rgba(0,230,118,0.18)',
+    padding: spacing.lg, gap: spacing.xs, alignItems: 'center',
+  },
+  resultDamageLabel: {
+    fontSize: 10, fontWeight: '700', color: colors.textMuted,
+    letterSpacing: 1.5, textTransform: 'uppercase',
+  },
+  resultDamageAmount: {
+    fontSize: 44, fontWeight: '800', color: colors.text, letterSpacing: -1.5, lineHeight: 52,
+  },
+  resultDamageMerchant: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  resultRoastBox: {
+    backgroundColor: 'rgba(255,82,82,0.08)',
+    borderRadius: radius.xl, borderWidth: 2, borderColor: 'rgba(255,82,82,0.22)',
+    padding: spacing.lg,
+  },
+  resultRoastBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#FF5252', borderRadius: radius.full,
+    paddingHorizontal: spacing.sm, paddingVertical: 4,
+    alignSelf: 'flex-start', marginBottom: spacing.sm,
+  },
+  resultRoastBadgeText: {
+    fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 1, textTransform: 'uppercase',
+  },
+  resultRoastText: {
+    fontSize: 16, fontStyle: 'italic', fontWeight: '600', color: colors.text, lineHeight: 24,
+  },
+  resultFreeNote: {
+    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: radius.lg,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', padding: spacing.md,
+  },
+  resultFreeNoteText: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
+  resultDismissWrap: { borderRadius: radius.lg, overflow: 'hidden' },
+  resultDismissGrad: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
+  resultDismissText: { fontSize: 16, fontWeight: '800', color: '#fff' },
 });
