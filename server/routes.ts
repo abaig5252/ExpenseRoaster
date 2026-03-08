@@ -773,21 +773,24 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       if (isFree && user.monthlyUploadCount >= FREE_UPLOAD_LIMIT) {
         return res.status(403).json({ message: `Free tier limit reached.`, code: "UPLOAD_LIMIT_REACHED" });
       }
-      const { amount, description, date, category, roast } = req.body;
+      const { amount, description, date, category, roast, currency: bodyCurrency } = req.body;
       if (!amount || !description || !date || !category) {
         return res.status(400).json({ message: "Missing required fields" });
       }
+      const confirmCurrency = bodyCurrency || user.currency || "USD";
       await storage.incrementMonthlyUpload(userId);
       if (isFree) {
         return res.status(201).json({
           id: -1, userId, amount: Math.round(amount), description, date,
           category, roast: roast || "I'm speechless.", imageUrl: null, source: "receipt",
+          currency: confirmCurrency,
           ephemeral: true, uploadsUsed: user.monthlyUploadCount + 1, uploadsLimit: FREE_UPLOAD_LIMIT,
         });
       }
       const expense = await storage.createExpense({
         userId, amount: Math.round(amount), description,
         date: new Date(date), category, roast: roast || "I'm speechless.", imageUrl: null, source: "receipt",
+        currency: confirmCurrency,
       });
       res.status(201).json(expense);
     } catch (err) {
@@ -1102,11 +1105,13 @@ All content must directly reference their actual spending data and use ${annualC
     const userId = getUserId(req);
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid expense ID" });
-    const { description, amount, category } = req.body;
-    const data: { description?: string; amount?: number; category?: string } = {};
+    const { description, amount, category, date, currency } = req.body;
+    const data: { description?: string; amount?: number; category?: string; date?: Date; currency?: string } = {};
     if (description !== undefined) data.description = String(description).trim();
     if (amount !== undefined) data.amount = Number(amount);
     if (category !== undefined) data.category = String(category);
+    if (date !== undefined) data.date = new Date(date);
+    if (currency !== undefined) data.currency = String(currency);
     const updated = await storage.updateExpense(id, userId, data);
     if (!updated) return res.status(404).json({ message: "Expense not found" });
     return res.json(updated);

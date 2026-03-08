@@ -9,7 +9,7 @@ import { RoastCard } from "@/components/RoastCard";
 import { VerdictText } from "@/components/VerdictText";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
-import { useCurrency } from "@/hooks/use-currency";
+import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -52,12 +52,17 @@ export default function Upload() {
   const [editDesc, setEditDesc] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editCurrency, setEditCurrency] = useState("USD");
 
   const openEditDialog = useCallback((expense: ExpenseResponse) => {
     setEditingExpense(expense);
     setEditDesc(expense.description);
     setEditAmount((expense.amount / 100).toFixed(2));
     setEditCategory(expense.category);
+    const d = expense.date instanceof Date ? expense.date : new Date(expense.date as unknown as string);
+    setEditDate(d.toISOString().slice(0, 10));
+    setEditCurrency((expense as any).currency || "USD");
   }, []);
 
   const closeEditDialog = useCallback(() => {
@@ -70,10 +75,10 @@ export default function Upload() {
     const amountCents = Math.round(parseFloat(editAmount) * 100);
     if (isNaN(amountCents) || amountCents <= 0) return;
     updateMutation.mutate(
-      { id: editingExpense.id, description: editDesc.trim(), amount: amountCents, category: editCategory },
+      { id: editingExpense.id, description: editDesc.trim(), amount: amountCents, category: editCategory, date: editDate, currency: editCurrency },
       { onSuccess: () => { setEditingExpense(null); } }
     );
-  }, [editingExpense, editDesc, editAmount, editCategory, updateMutation]);
+  }, [editingExpense, editDesc, editAmount, editCategory, editDate, editCurrency, updateMutation]);
 
   const isFree = !me || me.tier === "free";
   const uploadsUsed = me?.monthlyUploadCount || 0;
@@ -613,22 +618,53 @@ export default function Upload() {
                   />
                 </div>
 
-                {/* Amount */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Amount</label>
-                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:border-[hsl(var(--primary))]/50 focus-within:ring-1 focus-within:ring-[hsl(var(--primary))]/30">
-                    <span className="text-[hsl(var(--primary))] font-bold text-lg select-none">{editingExpense.currency === "GBP" ? "£" : editingExpense.currency === "EUR" ? "€" : "$"}</span>
-                    <input
-                      data-testid="input-edit-amount"
-                      value={editAmount}
-                      onChange={e => setEditAmount(e.target.value)}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="flex-1 bg-transparent text-white text-xl font-bold focus:outline-none"
-                      placeholder="0.00"
-                    />
+                {/* Amount + Currency row */}
+                <div className="flex gap-3">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Amount</label>
+                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:border-[hsl(var(--primary))]/50 focus-within:ring-1 focus-within:ring-[hsl(var(--primary))]/30">
+                      <span className="text-[hsl(var(--primary))] font-bold text-lg select-none">
+                        {editCurrency === "GBP" ? "£" : editCurrency === "EUR" ? "€" : editCurrency === "JPY" ? "¥" : editCurrency === "INR" ? "₹" : "$"}
+                      </span>
+                      <input
+                        data-testid="input-edit-amount"
+                        value={editAmount}
+                        onChange={e => setEditAmount(e.target.value)}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="flex-1 bg-transparent text-white text-xl font-bold focus:outline-none"
+                        placeholder="0.00"
+                      />
+                    </div>
                   </div>
+                  <div className="flex flex-col gap-2 w-28">
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Currency</label>
+                    <select
+                      data-testid="select-edit-currency"
+                      value={editCurrency}
+                      onChange={e => setEditCurrency(e.target.value)}
+                      className="h-full bg-white/5 border border-white/10 rounded-xl px-3 py-3 text-white text-sm font-semibold focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-1 focus:ring-[hsl(var(--primary))]/30 cursor-pointer"
+                      style={{ appearance: "none", WebkitAppearance: "none" }}
+                    >
+                      {CURRENCIES.map(({ code }) => (
+                        <option key={code} value={code} style={{ background: "#1A1A2E" }}>{code}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Date</label>
+                  <input
+                    data-testid="input-edit-date"
+                    type="date"
+                    value={editDate}
+                    onChange={e => setEditDate(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-base font-semibold focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-1 focus:ring-[hsl(var(--primary))]/30"
+                    style={{ colorScheme: "dark" }}
+                  />
                 </div>
 
                 {/* Category */}

@@ -197,11 +197,11 @@ export function useAddManualExpense() {
 export function useUpdateExpense() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, description, amount, category }: { id: number; description?: string; amount?: number; category?: string }) => {
+    mutationFn: async ({ id, description, amount, category, date, currency }: { id: number; description?: string; amount?: number; category?: string; date?: string; currency?: string }) => {
       return apiFetch(`/api/expenses/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description, amount, category }),
+        body: JSON.stringify({ description, amount, category, date, currency }),
       });
     },
     onSuccess: () => {

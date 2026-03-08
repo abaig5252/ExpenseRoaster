@@ -55,6 +55,7 @@ export const expenses = pgTable("expenses", {
   roast: text("roast").notNull(),
   imageUrl: text("image_url"),
   source: text("source").default("receipt"),
+  currency: varchar("currency").default("USD").notNull(),
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true });
