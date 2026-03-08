@@ -1097,6 +1097,21 @@ All content must directly reference their actual spending data and use ${annualC
     return res.json({ deleted });
   });
 
+  // ─── Expenses: Update ────────────────────────────────────────────
+  app.patch("/api/expenses/:id", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid expense ID" });
+    const { description, amount, category } = req.body;
+    const data: { description?: string; amount?: number; category?: string } = {};
+    if (description !== undefined) data.description = String(description).trim();
+    if (amount !== undefined) data.amount = Number(amount);
+    if (category !== undefined) data.category = String(category);
+    const updated = await storage.updateExpense(id, userId, data);
+    if (!updated) return res.status(404).json({ message: "Expense not found" });
+    return res.json(updated);
+  });
+
   // ─── Expenses: Delete ────────────────────────────────────────────
   app.delete(buildUrl(api.expenses.delete.path).replace(":id", ":id"), isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);

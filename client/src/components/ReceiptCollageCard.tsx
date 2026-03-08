@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, X, Check } from "lucide-react";
+import { AlertTriangle, MoreVertical, Pencil, Trash2, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { useCurrency } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
@@ -8,6 +8,7 @@ interface Props {
   expense: ExpenseResponse;
   index: number;
   onDelete?: () => void;
+  onEdit?: () => void;
   isDeleting?: boolean;
   isSelectMode?: boolean;
   isSelected?: boolean;
@@ -46,10 +47,11 @@ const categoryPillColors: Record<string, string> = {
 const ROTATIONS = [-2, 1, -1.5, 2, -0.5, 1.5, -1, 0.5, -2.5, 0];
 
 export function ReceiptCollageCard({
-  expense, index, onDelete, isDeleting,
+  expense, index, onDelete, onEdit, isDeleting,
   isSelectMode = false, isSelected = false, onSelect, isExiting = false,
 }: Props) {
-  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hovered, setHovered] = useState(false);
   const { formatAmount } = useCurrency();
 
@@ -65,12 +67,29 @@ export function ReceiptCollageCard({
     if (isSelectMode) onSelect?.();
   };
 
+  const openMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(prev => !prev);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    onEdit?.();
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    setShowDeleteConfirm(true);
+  };
+
   return (
     <div
       data-testid={`card-receipt-${expense.id}`}
       onClick={handleCardClick}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => { setHovered(false); setMenuOpen(false); }}
       style={{
         background: "#1A1A1A",
         border: isSelected
@@ -85,7 +104,7 @@ export function ReceiptCollageCard({
           ? "scale(0.88)"
           : isSelectMode
             ? "rotate(0deg)"
-            : hovered && deleteStep === 0
+            : hovered && !menuOpen && !showDeleteConfirm
               ? "rotate(0deg) scale(1.025)"
               : `rotate(${rotation}deg)`,
         opacity: isExiting ? 0 : 1,
@@ -120,26 +139,87 @@ export function ReceiptCollageCard({
         </div>
       )}
 
-      {/* ✕ delete button — hidden in select mode */}
-      {!isSelectMode && deleteStep === 0 && onDelete && (
-        <button
-          onClick={() => setDeleteStep(1)}
-          data-testid={`button-delete-receipt-${expense.id}`}
-          style={{
-            position: "absolute", top: 10, right: 10,
-            width: 22, height: 22, borderRadius: "50%",
-            background: "rgba(255,255,255,0.07)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            cursor: "pointer", display: "flex",
-            alignItems: "center", justifyContent: "center",
-            transition: "background 0.15s",
-          }}
-          onMouseOver={e => (e.currentTarget.style.background = "rgba(255,82,82,0.25)")}
-          onMouseOut={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
-          title="Delete receipt"
-        >
-          <X style={{ width: 11, height: 11, color: "#8A9099" }} />
-        </button>
+      {/* ⋮ Menu button + dropdown — hidden in select mode */}
+      {!isSelectMode && (
+        <div style={{ position: "absolute", top: 8, right: 8, zIndex: 20 }}>
+          <button
+            onClick={openMenu}
+            data-testid={`button-menu-receipt-${expense.id}`}
+            style={{
+              width: 26, height: 26, borderRadius: 8,
+              background: menuOpen ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.4)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center",
+              transition: "background 0.15s",
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}
+            onMouseOut={e => { if (!menuOpen) e.currentTarget.style.background = "rgba(0,0,0,0.4)"; }}
+          >
+            <MoreVertical style={{ width: 13, height: 13, color: "rgba(255,255,255,0.6)" }} />
+          </button>
+
+          {/* Dropdown */}
+          {menuOpen && (
+            <>
+              {/* Click-outside capture */}
+              <div
+                style={{ position: "fixed", inset: 0, zIndex: 18 }}
+                onClick={() => setMenuOpen(false)}
+              />
+              <div
+                style={{
+                  position: "absolute", top: 30, right: 0,
+                  zIndex: 19,
+                  background: "#1E2128",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 10,
+                  padding: "4px",
+                  minWidth: 130,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                  animation: "slideDown 0.12s ease both",
+                }}
+              >
+                <button
+                  onClick={handleEdit}
+                  data-testid={`button-edit-receipt-${expense.id}`}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center",
+                    gap: 8, padding: "8px 10px", borderRadius: 7,
+                    border: "none", background: "transparent",
+                    color: "#FFFFFF", cursor: "pointer",
+                    fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
+                    transition: "background 0.12s",
+                    textAlign: "left",
+                  }}
+                  onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
+                  onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Pencil style={{ width: 13, height: 13, color: "rgba(255,255,255,0.55)" }} />
+                  Edit
+                </button>
+                <button
+                  onClick={handleDeleteClick}
+                  data-testid={`button-delete-receipt-${expense.id}`}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center",
+                    gap: 8, padding: "8px 10px", borderRadius: 7,
+                    border: "none", background: "transparent",
+                    color: "#FF5252", cursor: "pointer",
+                    fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
+                    transition: "background 0.12s",
+                    textAlign: "left",
+                  }}
+                  onMouseOver={e => (e.currentTarget.style.background = "rgba(255,82,82,0.1)")}
+                  onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Trash2 style={{ width: 13, height: 13 }} />
+                  Delete
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* Emoji + amount */}
@@ -205,66 +285,19 @@ export function ReceiptCollageCard({
         ))}
       </div>
 
-      {/* ── Step 1: First confirm overlay ── */}
-      {!isSelectMode && deleteStep === 1 && (
-        <div style={{
-          position: "absolute", inset: 0, borderRadius: 18,
-          background: "rgba(18,18,18,0.96)", backdropFilter: "blur(4px)",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          padding: 20, gap: 12,
-          animation: "slideUp 0.18s ease both",
-        }}>
-          <X style={{ width: 20, height: 20, color: "#FF5252" }} />
-          <div style={{ textAlign: "center" }}>
-            <p style={{
-              fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800,
-              fontSize: 14, color: "#FFFFFF", margin: "0 0 4px",
-            }}>
-              Delete this receipt?
-            </p>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#4A5060", margin: 0 }}>
-              {expense.description} · {formattedAmount}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 8, width: "100%" }}>
-            <button
-              onClick={() => setDeleteStep(0)}
-              data-testid={`button-collage-cancel-1-${expense.id}`}
-              style={{
-                flex: 1, padding: "9px 0", borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.1)", background: "transparent",
-                color: "#8A9099", fontFamily: "'DM Sans', sans-serif",
-                fontWeight: 600, fontSize: 12, cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => setDeleteStep(2)}
-              data-testid={`button-collage-confirm-1-${expense.id}`}
-              style={{
-                flex: 1, padding: "9px 0", borderRadius: 10, border: "none",
-                background: "rgba(255,82,82,0.15)", color: "#FF5252",
-                fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 12, cursor: "pointer",
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Step 2: Final confirm overlay ── */}
-      {!isSelectMode && deleteStep === 2 && (
-        <div style={{
-          position: "absolute", inset: 0, borderRadius: 18,
-          background: "rgba(18,18,18,0.97)", backdropFilter: "blur(4px)",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          padding: 20, gap: 12,
-          animation: "slideUp 0.18s ease both",
-        }}>
+      {/* Delete confirmation overlay */}
+      {showDeleteConfirm && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: "absolute", inset: 0, borderRadius: 18,
+            background: "rgba(18,18,18,0.97)", backdropFilter: "blur(4px)",
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            padding: 20, gap: 12,
+            animation: "slideUp 0.18s ease both",
+          }}
+        >
           <div style={{
             width: 36, height: 36, borderRadius: 10,
             background: "rgba(255,82,82,0.12)", border: "1px solid rgba(255,82,82,0.3)",
@@ -277,19 +310,19 @@ export function ReceiptCollageCard({
               fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800,
               fontSize: 14, color: "#FFFFFF", margin: "0 0 5px",
             }}>
-              Really delete?
+              Delete this receipt?
             </p>
             <p style={{
               fontFamily: "'DM Sans', sans-serif", fontSize: 11,
               color: "#8A9099", margin: 0, lineHeight: 1.5,
             }}>
-              Permanently removes this receipt. No undo.
+              This cannot be undone.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, width: "100%" }}>
             <button
-              onClick={() => setDeleteStep(0)}
-              data-testid={`button-collage-cancel-2-${expense.id}`}
+              onClick={() => setShowDeleteConfirm(false)}
+              data-testid={`button-collage-cancel-${expense.id}`}
               style={{
                 flex: 1, padding: "9px 0", borderRadius: 10,
                 border: "1px solid rgba(255,255,255,0.1)", background: "transparent",
@@ -297,12 +330,12 @@ export function ReceiptCollageCard({
                 fontWeight: 600, fontSize: 12, cursor: "pointer",
               }}
             >
-              No, keep it
+              Cancel
             </button>
             <button
-              onClick={() => onDelete?.()}
+              onClick={() => { onDelete?.(); setShowDeleteConfirm(false); }}
               disabled={isDeleting}
-              data-testid={`button-collage-confirm-2-${expense.id}`}
+              data-testid={`button-collage-confirm-${expense.id}`}
               style={{
                 flex: 1, padding: "9px 0", borderRadius: 10, border: "none",
                 background: isDeleting ? "rgba(255,82,82,0.1)" : "#FF5252",
@@ -312,7 +345,7 @@ export function ReceiptCollageCard({
                 opacity: isDeleting ? 0.6 : 1,
               }}
             >
-              {isDeleting ? "Deleting…" : "Yes, delete"}
+              {isDeleting ? "Deleting…" : "Delete"}
             </button>
           </div>
         </div>

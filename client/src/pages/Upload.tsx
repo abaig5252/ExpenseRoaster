@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flame, Plus, Receipt, RefreshCw, Lock, Camera, Loader2, Trash2, X } from "lucide-react";
-import { useExpenses, useExpenseSummary, useDeleteExpense, useBulkDeleteExpenses, useMonthlyRoast } from "@/hooks/use-expenses";
+import { useExpenses, useExpenseSummary, useDeleteExpense, useBulkDeleteExpenses, useMonthlyRoast, useUpdateExpense } from "@/hooks/use-expenses";
 import { ReceiptCollageCard } from "@/components/ReceiptCollageCard";
 import { UploadModal } from "@/components/UploadModal";
 import { AppNav } from "@/components/AppNav";
@@ -43,8 +43,37 @@ export default function Upload() {
   const { data: summary } = useExpenseSummary();
   const deleteMutation = useDeleteExpense();
   const bulkDeleteMutation = useBulkDeleteExpenses();
+  const updateMutation = useUpdateExpense();
   const { formatAmount } = useCurrency();
   const { toast } = useToast();
+
+  // ─── Edit Receipt ─────────────────────────────────────────────────
+  const [editingExpense, setEditingExpense] = useState<ExpenseResponse | null>(null);
+  const [editDesc, setEditDesc] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+
+  const openEditDialog = useCallback((expense: ExpenseResponse) => {
+    setEditingExpense(expense);
+    setEditDesc(expense.description);
+    setEditAmount((expense.amount / 100).toFixed(2));
+    setEditCategory(expense.category);
+  }, []);
+
+  const closeEditDialog = useCallback(() => {
+    setEditingExpense(null);
+    updateMutation.reset();
+  }, [updateMutation]);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingExpense) return;
+    const amountCents = Math.round(parseFloat(editAmount) * 100);
+    if (isNaN(amountCents) || amountCents <= 0) return;
+    updateMutation.mutate(
+      { id: editingExpense.id, description: editDesc.trim(), amount: amountCents, category: editCategory },
+      { onSuccess: () => { setEditingExpense(null); } }
+    );
+  }, [editingExpense, editDesc, editAmount, editCategory, updateMutation]);
 
   const isFree = !me || me.tier === "free";
   const uploadsUsed = me?.monthlyUploadCount || 0;
@@ -417,6 +446,7 @@ export default function Upload() {
                     expense={expense}
                     index={i}
                     onDelete={() => deleteMutation.mutate(expense.id)}
+                    onEdit={() => openEditDialog(expense)}
                     isDeleting={deleteMutation.isPending && deleteMutation.variables === expense.id}
                     isSelectMode={selectMode}
                     isSelected={selectedIds.has(expense.id)}
@@ -533,6 +563,123 @@ export default function Upload() {
                 >
                   Delete
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit Receipt Dialog ── */}
+      <AnimatePresence>
+        {editingExpense && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            onClick={closeEditDialog}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              onClick={e => e.stopPropagation()}
+              className="glass-panel w-full max-w-md rounded-[2rem] overflow-hidden flex flex-col border border-white/10 shadow-2xl"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[hsl(var(--primary))]/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[hsl(var(--primary))]/20 flex items-center justify-center">
+                    <Flame className="w-5 h-5 text-[hsl(var(--primary))]" />
+                  </div>
+                  <h2 className="text-xl font-bold text-white">Edit Receipt</h2>
+                </div>
+                <button onClick={closeEditDialog} className="p-2 rounded-xl hover:bg-white/10 transition-colors">
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 flex flex-col gap-5">
+                {/* Merchant */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Merchant</label>
+                  <input
+                    data-testid="input-edit-merchant"
+                    value={editDesc}
+                    onChange={e => setEditDesc(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-base font-semibold focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-1 focus:ring-[hsl(var(--primary))]/30"
+                    placeholder="Merchant name"
+                  />
+                </div>
+
+                {/* Amount */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Amount</label>
+                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:border-[hsl(var(--primary))]/50 focus-within:ring-1 focus-within:ring-[hsl(var(--primary))]/30">
+                    <span className="text-[hsl(var(--primary))] font-bold text-lg select-none">{editingExpense.currency === "GBP" ? "£" : editingExpense.currency === "EUR" ? "€" : "$"}</span>
+                    <input
+                      data-testid="input-edit-amount"
+                      value={editAmount}
+                      onChange={e => setEditAmount(e.target.value)}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="flex-1 bg-transparent text-white text-xl font-bold focus:outline-none"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Category</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["Food & Drink","Groceries","Shopping","Transport","Travel","Entertainment","Health & Fitness","Subscriptions","Other"].map(cat => {
+                      const active = editCategory === cat;
+                      const colors: Record<string,string> = {
+                        "Food & Drink":"#E85D26","Groceries":"#78A856","Shopping":"#C4A832",
+                        "Transport":"#3BB8A0","Travel":"#3B8EB8","Entertainment":"#E8526A",
+                        "Health & Fitness":"#5BA85E","Subscriptions":"#7B6FE8","Other":"#4A5060",
+                      };
+                      const col = colors[cat] ?? "#4A5060";
+                      return (
+                        <button
+                          key={cat}
+                          onClick={() => setEditCategory(cat)}
+                          className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150"
+                          style={{
+                            background: active ? col : "rgba(255,255,255,0.05)",
+                            borderColor: active ? col : "rgba(255,255,255,0.12)",
+                            color: active ? "#fff" : "rgba(255,255,255,0.55)",
+                          }}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 mt-1">
+                  <button
+                    onClick={closeEditDialog}
+                    data-testid="button-edit-cancel"
+                    className="flex-1 py-3 rounded-2xl font-semibold text-muted-foreground border border-white/10 hover:bg-white/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={updateMutation.isPending || !editDesc.trim() || !editAmount}
+                    data-testid="button-edit-save"
+                    className="flex-2 py-3 px-6 rounded-2xl font-bold text-white transition-all disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))", flex: 2 }}
+                  >
+                    {updateMutation.isPending ? "Saving…" : "Save Changes"}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

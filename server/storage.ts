@@ -13,6 +13,7 @@ export interface IStorage {
   incrementMonthlyUpload(userId: string): Promise<User>;
   getExpenses(userId: string): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: number, userId: string, data: { description?: string; amount?: number; category?: string }): Promise<Expense>;
   deleteExpense(id: number, userId: string): Promise<void>;
   bulkDeleteExpenses(userId: string, ids: number[]): Promise<number>;
   getMonthlySummary(userId: string): Promise<{ monthlyTotal: number; recentRoasts: string[] }>;
@@ -93,6 +94,15 @@ export class DatabaseStorage implements IStorage {
   async createExpense(insertExpense: InsertExpense): Promise<Expense> {
     const [expense] = await db.insert(expenses).values(insertExpense).returning();
     return expense;
+  }
+
+  async updateExpense(id: number, userId: string, data: { description?: string; amount?: number; category?: string }): Promise<Expense> {
+    const [updated] = await db
+      .update(expenses)
+      .set(data)
+      .where(and(eq(expenses.id, id), eq(expenses.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async deleteExpense(id: number, userId: string): Promise<void> {

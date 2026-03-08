@@ -194,6 +194,24 @@ export function useAddManualExpense() {
   });
 }
 
+export function useUpdateExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, description, amount, category }: { id: number; description?: string; amount?: number; category?: string }) => {
+      return apiFetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description, amount, category }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.expenses.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.expenses.summary.path] });
+      queryClient.invalidateQueries({ queryKey: [api.expenses.monthlySeries.path] });
+    },
+  });
+}
+
 export function useDeleteExpense() {
   const queryClient = useQueryClient();
   return useMutation({
