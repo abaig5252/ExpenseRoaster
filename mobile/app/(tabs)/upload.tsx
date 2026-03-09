@@ -434,7 +434,7 @@ export default function UploadScreen() {
     }
     setSavingEdit(true);
     try {
-      await apiPost(`/api/expenses/${editingExpense.id}/update`, {
+      await apiPost(`/api/expenses/${editingExpense.id}`, {
         description: editingDesc.trim(),
         amount: amountCents,
         category: editingCategory,

@@ -1,7 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'https://your-app.replit.app';
+export const API_BASE_URL = (
+  process.env.EXPO_PUBLIC_API_URL || 'https://your-app.replit.app'
+).replace(/^http:\/\//, 'https://');
 
 const TOKEN_KEY = 'mobile_auth_token';
 const FETCH_TIMEOUT_MS = 30_000;
@@ -52,12 +53,20 @@ export async function apiGetWithToken<T>(path: string, token: string): Promise<T
   return res.json() as Promise<T>;
 }
 
+function assertJson(res: Response): void {
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    throw new Error(`Server returned non-JSON response (status ${res.status}). Check API_BASE_URL uses https://.`);
+  }
+}
+
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const res = await apiFetch(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `Error ${res.status}` }));
     throw new Error((err as { message?: string }).message || `API error ${res.status}`);
   }
+  assertJson(res);
   return res.json() as Promise<T>;
 }
 
@@ -67,6 +76,7 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
     const err = await res.json().catch(() => ({ message: `Error ${res.status}` }));
     throw new Error((err as { message?: string }).message || `API error ${res.status}`);
   }
+  assertJson(res);
   return res.json() as Promise<T>;
 }
 

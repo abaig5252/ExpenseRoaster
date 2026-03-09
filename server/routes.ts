@@ -1246,7 +1246,11 @@ All content must directly reference their actual spending data and use ${annualC
   }
 
   app.patch("/api/expenses/:id", isAuthenticated, handleExpenseUpdate);
+  app.post("/api/expenses/:id", isAuthenticated, handleExpenseUpdate);
   app.post("/api/expenses/:id/update", isAuthenticated, handleExpenseUpdate);
+  app.get("/api/expenses/:id/update", (_req, res) => {
+    res.status(405).json({ message: "Method Not Allowed — use POST" });
+  });
 
   // ─── Expenses: Delete ────────────────────────────────────────────
   app.delete(buildUrl(api.expenses.delete.path).replace(":id", ":id"), isAuthenticated, async (req: any, res: Response) => {
