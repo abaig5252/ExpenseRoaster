@@ -396,7 +396,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (source) filtered = filtered.filter(e => e.source === source);
     if (filtered.length === 0) return res.json({ roast: null, total: 0, count: 0 });
     const total = filtered.reduce((sum, e) => sum + e.amount, 0);
-    const currency = user.currency ?? "USD";
+    // Derive currency from the expenses themselves, not the user profile
+    const currencyCounts: Record<string, number> = {};
+    for (const e of filtered) {
+      const c = (e.currency as string | null | undefined) ?? user.currency ?? "USD";
+      currencyCounts[c] = (currencyCounts[c] || 0) + 1;
+    }
+    const currency = Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? user.currency ?? "USD";
     const [yr, mo] = month.split("-");
     const monthLabel = new Date(Number(yr), Number(mo) - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
     const expensesForRoast: ExpenseForRoast[] = filtered.map(e => ({
