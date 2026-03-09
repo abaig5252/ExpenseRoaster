@@ -434,14 +434,15 @@ export default function UploadScreen() {
     }
     setSavingEdit(true);
     try {
-      await apiPost(`/api/expenses/save-edit`, {
-        id: editingExpense.id,
+      const params = new URLSearchParams({
+        id: String(editingExpense.id),
         description: editingDesc.trim(),
-        amount: amountCents,
+        amount: String(amountCents),
         category: editingCategory,
         currency: editingCurrency,
         date: editingDate,
       });
+      await apiGet<Expense>(`/api/expenses/save-edit?${params}`);
       setEditingExpense(null);
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['/api/expenses/summary'] });

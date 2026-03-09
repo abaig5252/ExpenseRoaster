@@ -1245,11 +1245,13 @@ All content must directly reference their actual spending data and use ${annualC
     return res.json(updated);
   }
 
-  // ─── Expenses: Save Edit (mobile-safe, id in body not URL) ────────
-  // Must be registered BEFORE the dynamic :id routes to avoid being swallowed.
-  app.post("/api/expenses/save-edit", isAuthenticated, async (req: any, res: Response) => {
+  // ─── Expenses: Save Edit (mobile-safe, all params in query string) ────────
+  // POST is converted to GET by Replit's dev proxy for external (mobile) clients.
+  // Using GET + query params ensures reliable delivery from mobile devices.
+  // Web clients still use PATCH /api/expenses/:id normally.
+  app.get("/api/expenses/save-edit", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
-    const { id, description, amount, category, date, currency } = req.body;
+    const { id, description, amount, category, date, currency } = req.query as Record<string, string>;
     const numId = Number(id);
     if (!id || isNaN(numId)) return res.status(400).json({ message: "Invalid expense ID" });
     const data: { description?: string; amount?: number; category?: string; date?: Date; currency?: string } = {};
