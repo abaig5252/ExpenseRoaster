@@ -1,6 +1,3 @@
-import { createContext, useContext, useState } from "react";
-import { apiRequest } from "@/lib/queryClient";
-
 export const CURRENCIES = [
   { code: "USD", label: "USD — US Dollar" },
   { code: "CAD", label: "CAD — Canadian Dollar" },
@@ -20,49 +17,7 @@ export const CURRENCIES = [
   { code: "DKK", label: "DKK — Danish Krone" },
 ];
 
-interface CurrencyContextValue {
-  currency: string;
-  setCurrency: (code: string) => void;
-  syncFromServer: (code: string) => void;
-  formatAmount: (cents: number) => string;
-}
-
-const CurrencyContext = createContext<CurrencyContextValue>({
-  currency: "USD",
-  setCurrency: () => {},
-  syncFromServer: () => {},
-  formatAmount: (cents) =>
-    (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" }),
-});
-
-export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrencyState] = useState(
-    () => localStorage.getItem("er_currency") || "USD"
-  );
-
-  function setCurrency(code: string) {
-    localStorage.setItem("er_currency", code);
-    setCurrencyState(code);
-    apiRequest("PATCH", "/api/me/profile", { currency: code }).catch(() => {});
-  }
-
-  function syncFromServer(code: string) {
-    if (!code) return;
-    localStorage.setItem("er_currency", code);
-    setCurrencyState(code);
-  }
-
-  function formatAmount(cents: number) {
-    return (cents / 100).toLocaleString(undefined, { style: "currency", currency });
-  }
-
-  return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, syncFromServer, formatAmount }}>
-      {children}
-    </CurrencyContext.Provider>
-  );
-}
-
-export function useCurrency() {
-  return useContext(CurrencyContext);
+export function formatAmount(cents: number, currencyCode: string) {
+  const code = currencyCode || "USD";
+  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: code });
 }

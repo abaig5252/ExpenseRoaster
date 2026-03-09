@@ -4,7 +4,7 @@ import { useDropzone } from "react-dropzone";
 import { UploadCloud, X, Flame, AlertCircle, Camera, Check, ChevronLeft, ScanLine } from "lucide-react";
 import { usePreviewReceipt, useConfirmReceipt } from "@/hooks/use-expenses";
 import { useMe } from "@/hooks/use-subscription";
-import { useCurrency } from "@/hooks/use-currency";
+import { formatAmount } from "@/hooks/use-currency";
 import { Link } from "wouter";
 import { VERDICT_CATEGORY_COLORS } from "@/lib/verdict";
 import type { ExpenseResponse } from "@shared/routes";
@@ -57,7 +57,6 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
   const confirmMutation = useConfirmReceipt();
 
   const { data: me } = useMe();
-  const { formatAmount } = useCurrency();
   const isPremium = me?.tier === "premium";
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -204,7 +203,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                 <div className="flex flex-col items-center text-center gap-6">
                   <div className="w-full bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--secondary))]/10 rounded-3xl p-6 border border-[hsl(var(--primary))]/20">
                     <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Financial Damage</div>
-                    <div className="text-5xl font-amount-card text-white mb-2">{formatAmount(result.amount)}</div>
+                    <div className="text-5xl font-amount-card text-white mb-2">{formatAmount(result.amount, (result as any).currency || "USD")}</div>
                     <div className="text-base text-muted-foreground">{result.description}</div>
                     <div className="inline-flex items-center gap-1 px-3 py-1 bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] rounded-full text-xs font-bold uppercase tracking-wider mt-2">
                       {result.category}

@@ -649,10 +649,9 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
         const jpegBuffer = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer();
         imageUrl = `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
       }
-      const userCurrency = user.currency || "USD";
       const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
-Extract expense data from this receipt image. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert the amount to ${userCurrency} for the JSON output. For the roast field, be specific to this merchant and this amount — not generic. No addresses or neighbourhoods.`;
+Extract expense data from this receipt image. Keep the receipt's native currency — do NOT convert. For the roast field, be specific to this merchant and this amount — not generic. No addresses or neighbourhoods.`;
 
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -669,11 +668,12 @@ FINDING THE TOTAL AMOUNT (most important):
 3. As a sanity check only: if you can clearly read all line items and taxes, sum them. If your sum is MORE THAN 10% different from the printed total, you may have picked the wrong line (e.g., subtotal instead of total) — re-examine and pick the correct FINAL total.
 4. Do NOT substitute your own arithmetic for the printed total. The printed total is always preferred.
 
-Convert the total to ${userCurrency} cents (multiply dollars × 100, round to nearest integer).
+Convert the total to cents in the receipt's own currency (multiply × 100, round to nearest integer).
 
 Respond ONLY with this JSON (no markdown, no extra keys):
 {
-  "amount": <grand total in ${userCurrency} cents, integer>,
+  "amount": <grand total in cents, integer>,
+  "currency": "<3-letter ISO currency code from the receipt, e.g. USD, EUR, GBP, AUD>",
   "description": "<merchant name — short, e.g. 'Walmart', 'Starbucks'>",
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
   "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",
@@ -698,12 +698,15 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       // Increment upload count regardless of tier
       await storage.incrementMonthlyUpload(userId);
 
+      const detectedCurrency = (extracted.currency || "USD").toUpperCase();
+
       // For free users: return roast data but don't store
       if (isFree) {
         return res.status(201).json({
           id: -1,
           userId,
           amount: Math.round(extracted.amount),
+          currency: detectedCurrency,
           description: extracted.description || "Unknown Purchase",
           date: dateToUse.toISOString(),
           category: extracted.category || "Other",
@@ -725,6 +728,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         roast: extracted.roast || "I'm speechless.",
         imageUrl: null,
         source: "receipt",
+        currency: detectedCurrency,
       });
 
       res.status(201).json(expense);
@@ -753,14 +757,13 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         const jpegBuffer = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer();
         imageUrl = `data:image/jpeg;base64,${jpegBuffer.toString("base64")}`;
       }
-      const userCurrency = user.currency || "USD";
-      const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}\n\nExtract expense data from this receipt image. The user's preferred currency is ${userCurrency}. If the receipt shows a different currency, convert to ${userCurrency}. For the roast field, be specific to this merchant and amount. No addresses or neighbourhoods.`;
+      const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}\n\nExtract expense data from this receipt image. Keep the receipt's native currency — do NOT convert. For the roast field, be specific to this merchant and amount. No addresses or neighbourhoods.`;
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: [
-            { type: "text", text: `Carefully read this receipt. Find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Convert to ${userCurrency} cents (dollars × 100).\n\nRespond ONLY with this JSON:\n{\n  "amount": <cents integer>,\n  "description": "<short merchant name>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",\n  "roast": "<1-2 cheeky sentences about this merchant and exact amount>"\n}` },
+            { type: "text", text: `Carefully read this receipt. Find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<short merchant name>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",\n  "roast": "<1-2 cheeky sentences about this merchant and exact amount>"\n}` },
             { type: "image_url", image_url: { url: imageUrl } },
           ]},
         ],
@@ -773,11 +776,11 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       const dateToUse = isNaN(parsedDate.getTime()) || parsedDate.getFullYear() < 1990 ? new Date() : parsedDate;
       res.json({
         amount: Math.round(extracted.amount),
+        currency: (extracted.currency || "USD").toUpperCase(),
         description: extracted.description || "Unknown Purchase",
         date: dateToUse.toISOString(),
         category: extracted.category || "Other",
         roast: extracted.roast || "I'm speechless.",
-        currency: userCurrency,
       });
     } catch (err) {
       console.error("Preview receipt error:", err);
@@ -799,7 +802,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       if (!amount || !description || !date || !category) {
         return res.status(400).json({ message: "Missing required fields" });
       }
-      const confirmCurrency = bodyCurrency || user.currency || "USD";
+      const confirmCurrency = bodyCurrency || "USD";
       await storage.incrementMonthlyUpload(userId);
       if (isFree) {
         return res.status(201).json({
@@ -832,7 +835,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
 
       const input = api.expenses.addManual.input.parse(req.body);
       const tone = (req.body.tone as string) || "savage";
-      const manualCurrency = input.currency || user.currency || "USD";
+      const manualCurrency = input.currency || "USD";
       const roast = await generateRoast(input.description, input.amount, input.category, tone, undefined, manualCurrency, new Date(input.date));
 
       const expense = await storage.createExpense({
@@ -1125,8 +1128,13 @@ Return ONLY valid JSON, no other text.`,
       const avgMonthly = totalSpend / Math.max(Object.keys(monthlyTotals).length, 1);
       const projection5yr = avgMonthly * 12 * 5;
 
-      const annualReportUser = await storage.getUser(userId);
-      const annualCurrency = annualReportUser?.currency || "USD";
+      // Derive currency from the most-spent-in currency across all expenses
+      const currencySpend: Record<string, number> = {};
+      for (const exp of allExpenses) {
+        const c = ((exp as any).currency || "USD").toUpperCase();
+        currencySpend[c] = (currencySpend[c] || 0) + exp.amount;
+      }
+      const annualCurrency = Object.entries(currencySpend).sort((a, b) => b[1] - a[1])[0]?.[0] || "USD";
 
       const summaryText = `
 Currency: ${annualCurrency}
@@ -1157,6 +1165,7 @@ All content must directly reference their actual spending data and use ${annualC
 
       res.json({
         totalSpend,
+        currency: annualCurrency,
         top5Categories: top5Categories.map(([cat, amt]) => ({ category: cat, amount: amt })),
         worstMonth: { month: worstMonth?.[0] || "", amount: worstMonth?.[1] || 0 },
         avgMonthlySpend: Math.round(avgMonthly),

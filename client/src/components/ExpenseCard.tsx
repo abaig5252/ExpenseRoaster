@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Trash2, AlertTriangle, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
-import { useCurrency } from "@/hooks/use-currency";
+import { formatAmount } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
 
 interface ExpenseCardProps {
@@ -48,10 +48,8 @@ const sourceLabels: Record<string, string> = {
 
 export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false, isSelectMode = false, isSelected = false, onSelect, isExiting = false }: ExpenseCardProps) {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
-  const { formatAmount } = useCurrency();
-
   const amountDollars = expense.amount / 100;
-  const formattedAmount = formatAmount(expense.amount);
+  const formattedAmount = formatAmount(expense.amount, (expense as any).currency || "USD");
   const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(parseReceiptDate(expense.date));
 
   const emoji = categoryEmoji[expense.category] || "🧾";

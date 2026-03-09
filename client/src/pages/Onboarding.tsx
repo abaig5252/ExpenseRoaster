@@ -3,18 +3,15 @@ import { useLocation } from "wouter";
 import { AppLogo } from "@/components/AppLogo";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Onboarding() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
-  const { syncFromServer } = useCurrency();
   const { toast } = useToast();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [currency, setCurrencyLocal] = useState("USD");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -28,10 +25,8 @@ export default function Onboarding() {
       await apiRequest("PATCH", "/api/me/profile", {
         firstName: firstName.trim(),
         lastName: lastName.trim() || undefined,
-        currency,
         onboardingComplete: true,
       });
-      syncFromServer(currency);
       await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       navigate("/upload");
     } catch {
@@ -82,23 +77,6 @@ export default function Onboarding() {
               placeholder="Last name"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 text-sm focus:outline-none focus:border-[hsl(var(--primary))]/50 transition-colors"
             />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="onboarding-currency" className="text-sm font-semibold text-white/80">
-              Currency
-            </label>
-            <select
-              id="onboarding-currency"
-              data-testid="select-onboarding-currency"
-              value={currency}
-              onChange={(e) => setCurrencyLocal(e.target.value)}
-              className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm cursor-pointer focus:outline-none focus:border-[hsl(var(--primary))]/50 transition-colors"
-            >
-              {CURRENCIES.map(({ code, label }) => (
-                <option key={code} value={code} className="bg-[#121212] text-white">{label}</option>
-              ))}
-            </select>
           </div>
 
           <button

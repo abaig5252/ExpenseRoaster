@@ -5,7 +5,7 @@ import { useDropzone } from "react-dropzone";
 import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2 } from "lucide-react";
 import { useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
-import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
+import { CURRENCIES } from "@/hooks/use-currency";
 import { AppNav } from "@/components/AppNav";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -25,8 +25,7 @@ const TONES = [
 ];
 
 export default function BankStatement() {
-  const { currency: headerCurrency } = useCurrency();
-  const [importCurrency, setImportCurrency] = useState<string>(headerCurrency || "USD");
+  const [importCurrency, setImportCurrency] = useState<string>("USD");
   const [tone, setTone] = useState("savage");
   const [importData, setImportData] = useState<{ data: string; format: "pdf" | "image"; fileName: string } | null>(null);
   const [converting, setConverting] = useState(false);

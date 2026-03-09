@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { Flame, Wallet, BarChart3, LogOut, Crown, FileText, Download, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
-import { useCurrency } from "@/hooks/use-currency";
 import { AppLogo } from "@/components/AppLogo";
 
 const navLinks = [
@@ -17,14 +16,6 @@ export function AppNav() {
   const { user, logout } = useAuth();
   const { data: me } = useMe();
   const [location] = useLocation();
-  const { syncFromServer } = useCurrency();
-
-  useEffect(() => {
-    if (me?.currency) {
-      syncFromServer(me.currency);
-    }
-  }, [me?.currency]);
-
   const isPremium = me?.tier === "premium";
   const hasAnnualReport = me?.hasAnnualReport;
 

@@ -10,7 +10,7 @@ import { RoastCard } from "@/components/RoastCard";
 import { VerdictText } from "@/components/VerdictText";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
-import { useCurrency, CURRENCIES } from "@/hooks/use-currency";
+import { CURRENCIES } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -45,7 +45,6 @@ export default function Upload() {
   const deleteMutation = useDeleteExpense();
   const bulkDeleteMutation = useBulkDeleteExpenses();
   const updateMutation = useUpdateExpense();
-  const { currency: headerCurrency } = useCurrency();
   const { toast } = useToast();
 
   // ─── Edit Receipt ─────────────────────────────────────────────────
@@ -63,8 +62,8 @@ export default function Upload() {
     setEditCategory(expense.category);
     const d = expense.date instanceof Date ? expense.date : new Date(expense.date as unknown as string);
     setEditDate(d.toISOString().slice(0, 10));
-    setEditCurrency((expense as any).currency || headerCurrency || "USD");
-  }, [headerCurrency]);
+    setEditCurrency((expense as any).currency || "USD");
+  }, []);
 
   const closeEditDialog = useCallback(() => {
     setEditingExpense(null);
@@ -122,8 +121,8 @@ export default function Upload() {
       counts[c] = (counts[c] || 0) + 1;
     });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    return sorted[0]?.[0] || headerCurrency || "USD";
-  }, [filteredReceipts, headerCurrency]);
+    return sorted[0]?.[0] || "USD";
+  }, [filteredReceipts]);
 
   // Display currency — defaults to baseCurrency, user can override to convert
   const [displayCurrency, setDisplayCurrency] = useState<string>(baseCurrency);
