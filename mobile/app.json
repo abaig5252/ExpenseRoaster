@@ -44,9 +44,6 @@
         }
       ]
     ],
-    "runtimeVersion": {
-      "policy": "sdkVersion"
-    },
     "experiments": {
       "typedRoutes": true
     }
