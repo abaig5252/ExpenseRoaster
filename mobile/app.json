@@ -44,7 +44,9 @@
         }
       ]
     ],
-    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "experiments": {
       "typedRoutes": true
     }
