@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
-import { apiGet, apiFetch, API_BASE_URL, getToken } from '../../src/lib/api';
+import { apiGet, apiFetch, apiPost, apiPatch, API_BASE_URL, getToken } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
 import { CurrencyPickerModal } from '../../src/components/CurrencyPickerModal';
 import { colors, spacing, radius, typography } from '../../src/theme';
@@ -434,24 +434,13 @@ export default function UploadScreen() {
     }
     setSavingEdit(true);
     try {
-      const token = await getToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['x-app-token'] = token;
-      const res = await fetch(`${API_BASE_URL}/api/expenses/${editingExpense.id}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({
-          description: editingDesc.trim(),
-          amount: amountCents,
-          category: editingCategory,
-          currency: editingCurrency,
-          date: editingDate,
-        }),
+      await apiPatch(`/api/expenses/${editingExpense.id}`, {
+        description: editingDesc.trim(),
+        amount: amountCents,
+        category: editingCategory,
+        currency: editingCurrency,
+        date: editingDate,
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Update failed' }));
-        throw new Error((err as { message?: string }).message ?? 'Update failed');
-      }
       setEditingExpense(null);
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['/api/expenses/summary'] });
@@ -669,28 +658,17 @@ export default function UploadScreen() {
       const amountCents = Math.round(parseFloat(editAmount) * 100);
       if (isNaN(amountCents) || amountCents <= 0) {
         Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+        setConfirming(false);
         return;
       }
-      const token = await getToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['x-app-token'] = token;
-      const res = await fetch(`${API_BASE_URL}/api/expenses/confirm-receipt`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          amount: amountCents,
-          description: previewData.description,
-          date: previewData.date,
-          category: editCategory,
-          currency: editCurrency,
-          roast: previewData.roast,
-        }),
+      const data = await apiPost<UploadResult>('/api/expenses/confirm-receipt', {
+        amount: amountCents,
+        description: previewData.description,
+        date: previewData.date,
+        category: editCategory,
+        currency: editCurrency,
+        roast: previewData.roast,
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Upload failed' }));
-        throw new Error((err as { message?: string }).message ?? 'Upload failed');
-      }
-      const data = await res.json() as UploadResult;
       setPreviewData(null);
       setResultData(data);
       if (!data.ephemeral) {
