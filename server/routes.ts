@@ -1245,6 +1245,24 @@ All content must directly reference their actual spending data and use ${annualC
     return res.json(updated);
   }
 
+  // ─── Expenses: Save Edit (mobile-safe, id in body not URL) ────────
+  // Must be registered BEFORE the dynamic :id routes to avoid being swallowed.
+  app.post("/api/expenses/save-edit", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const { id, description, amount, category, date, currency } = req.body;
+    const numId = Number(id);
+    if (!id || isNaN(numId)) return res.status(400).json({ message: "Invalid expense ID" });
+    const data: { description?: string; amount?: number; category?: string; date?: Date; currency?: string } = {};
+    if (description !== undefined) data.description = String(description).trim();
+    if (amount !== undefined) data.amount = Number(amount);
+    if (category !== undefined) data.category = String(category);
+    if (date !== undefined) data.date = new Date(date);
+    if (currency !== undefined) data.currency = String(currency);
+    const updated = await storage.updateExpense(numId, userId, data);
+    if (!updated) return res.status(404).json({ message: "Expense not found" });
+    return res.json(updated);
+  });
+
   app.patch("/api/expenses/:id", isAuthenticated, handleExpenseUpdate);
   app.post("/api/expenses/:id", isAuthenticated, handleExpenseUpdate);
   app.post("/api/expenses/:id/update", isAuthenticated, handleExpenseUpdate);
