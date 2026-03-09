@@ -4,7 +4,7 @@ export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || 'https://your-app.replit.app';
 
 const TOKEN_KEY = 'mobile_auth_token';
-const FETCH_TIMEOUT_MS = 10_000;
+const FETCH_TIMEOUT_MS = 30_000;
 
 export async function getToken(): Promise<string | null> {
   return SecureStore.getItemAsync(TOKEN_KEY);

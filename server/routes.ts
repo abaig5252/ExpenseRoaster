@@ -111,9 +111,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.use((req: any, _res: Response, next: Function) => {
     // Mobile clients send the JWT in x-app-token (Authorization header is stripped by proxy)
     const token = (req.headers['x-app-token'] as string) || null;
-    if (req.path === '/api/me') {
-      console.log(`[jwt] /api/me x-app-token=${token ? token.slice(0, 20) + '…' : 'NONE'} isAuth=${req.isAuthenticated?.()}`);
-    }
     if (token && !req.isAuthenticated?.()) {
       try {
         const payload = jwt.verify(token, JWT_SECRET) as { sub: string; exp?: number };
@@ -122,9 +119,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           expires_at: payload.exp ?? Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
         };
         req.isAuthenticated = () => true;
-        console.log(`[jwt] token accepted for ${payload.sub}`);
-      } catch (e: any) {
-        console.log(`[jwt] token rejected: ${e.message}`);
+      } catch (_e: any) {
+        // invalid token — fall through to unauthenticated
       }
     }
     next();
@@ -1233,7 +1229,7 @@ All content must directly reference their actual spending data and use ${annualC
   });
 
   // ─── Expenses: Update ────────────────────────────────────────────
-  app.patch("/api/expenses/:id", isAuthenticated, async (req: any, res: Response) => {
+  async function handleExpenseUpdate(req: any, res: Response) {
     const userId = getUserId(req);
     const id = Number(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid expense ID" });
@@ -1247,7 +1243,10 @@ All content must directly reference their actual spending data and use ${annualC
     const updated = await storage.updateExpense(id, userId, data);
     if (!updated) return res.status(404).json({ message: "Expense not found" });
     return res.json(updated);
-  });
+  }
+
+  app.patch("/api/expenses/:id", isAuthenticated, handleExpenseUpdate);
+  app.post("/api/expenses/:id/update", isAuthenticated, handleExpenseUpdate);
 
   // ─── Expenses: Delete ────────────────────────────────────────────
   app.delete(buildUrl(api.expenses.delete.path).replace(":id", ":id"), isAuthenticated, async (req: any, res: Response) => {
