@@ -23,7 +23,6 @@ import Onboarding from "@/pages/Onboarding";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-subscription";
 import { MobileTabBar } from "@/components/MobileTabBar";
-import { InstallPrompt } from "@/components/InstallPrompt";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -122,7 +121,6 @@ function AppShell() {
     <>
       <Router />
       {isAuthenticated && <MobileTabBar />}
-      {isAuthenticated && <InstallPrompt />}
     </>
   );
 }
