@@ -18,7 +18,8 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
-  window.location.href = "/api/logout";
+  document.cookie = "er_local_token=; path=/; max-age=0; SameSite=Lax";
+  window.location.href = "/login";
 }
 
 export function useAuth() {
