@@ -1,0 +1,37 @@
+env: load .env
+env: export EXPO_PUBLIC_API_URL
+Starting Metro Bundler
+iOS node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.4% ( 891/1006)
+iOS Bundling failed 3885ms node_modules/expo-router/entry.js (1295 modules)
+Unable to resolve module expo-linear-gradient from /Users/expo/workingdir/build/mobile/app/(tabs)/bank.tsx: expo-linear-gradient could not be found within the project or in these directories:
+  node_modules
+[0m [90m  7 |[39m [36mimport[39m [33m*[39m [36mas[39m [33mImagePicker[39m [36mfrom[39m [32m'expo-image-picker'[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m [33m*[39m [36mas[39m [33mFileSystem[39m [36mfrom[39m [32m'expo-file-system'[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mLinearGradient[39m } [36mfrom[39m [32m'expo-linear-gradient'[39m[33m;[39m
+ [90m    |[39m                                 [31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m { [33mIonicons[39m } [36mfrom[39m [32m'@expo/vector-icons'[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { useQuery[33m,[39m useQueryClient } [36mfrom[39m [32m'@tanstack/react-query'[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { useAuth } [36mfrom[39m [32m'../../src/lib/auth'[39m[33m;[39m[0m
+
+Import stack:
+
+ app/(tabs)/bank.tsx
+ | import "expo-linear-gradient"
+
+ app (require.context)
+Error: Unable to resolve module expo-linear-gradient from /Users/expo/workingdir/build/mobile/app/(tabs)/bank.tsx: expo-linear-gradient could not be found within the project or in these directories:
+  node_modules
+[0m [90m  7 |[39m [36mimport[39m [33m*[39m [36mas[39m [33mImagePicker[39m [36mfrom[39m [32m'expo-image-picker'[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m [33m*[39m [36mas[39m [33mFileSystem[39m [36mfrom[39m [32m'expo-file-system'[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mLinearGradient[39m } [36mfrom[39m [32m'expo-linear-gradient'[39m[33m;[39m
+ [90m    |[39m                                 [31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m { [33mIonicons[39m } [36mfrom[39m [32m'@expo/vector-icons'[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { useQuery[33m,[39m useQueryClient } [36mfrom[39m [32m'@tanstack/react-query'[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { useAuth } [36mfrom[39m [32m'../../src/lib/auth'[39m[33m;[39m[0m
+
+Import stack:
+
+ app/(tabs)/bank.tsx
+ | import "expo-linear-gradient"
+
+ app (require.context)
