@@ -1304,52 +1304,73 @@ Return ONLY valid JSON, no other text.`,
       }
       const annualCurrency = Object.entries(currencySpend).sort((a, b) => b[1] - a[1])[0]?.[0] || "USD";
 
-      // Full transaction list for AI deep analysis (cap at 300 to keep prompt reasonable)
-      const txList = allExpenses
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .slice(0, 300)
-        .map(e => `${e.date}|${e.description || "Unknown"}|${(e.amount / 100).toFixed(2)}|${e.category}`)
+      // All merchant aggregates — compact, analytically rich, much smaller than raw rows
+      const allMerchants = Object.entries(merchantSpend)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([name, d]) => `${name}|${(d.total / 100).toFixed(2)}|${d.count}`)
         .join("\n");
 
-      const summaryText = `FULL TRANSACTION LOG (${allExpenses.length} transactions, format: date|merchant|amount|category):
-${txList}
+      // Monthly breakdown
+      const monthlyBreakdown = sortedMonths
+        .map(([m, a]) => `${m}: ${(a / 100).toFixed(2)} ${annualCurrency}`)
+        .join(", ");
 
-AGGREGATED STATS:
-Currency: ${annualCurrency}
-Total spending: ${(totalSpend / 100).toFixed(2)} ${annualCurrency}
-Transaction count: ${allExpenses.length}
-Top categories: ${top5Categories.map(([c, a]) => `${c}: ${(a / 100).toFixed(2)} ${annualCurrency}`).join(", ")}
-Best month: ${bestMonth?.[0]} — ${((bestMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency}
-Worst month: ${worstMonth?.[0]} — ${((worstMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency}
-Average monthly spend: ${(avgMonthly / 100).toFixed(2)} ${annualCurrency}
-Spending trend (first half vs second half): ${trendDir}
-Top 10 merchants by spend: ${top10Merchants.map(([name, d]) => `${name} ${(d.total / 100).toFixed(2)} ${annualCurrency} (${d.count}x)`).join("; ")}`;
+      // Top 25 biggest individual transactions for context
+      const biggestTx = [...allExpenses]
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 25)
+        .map(e => `${e.date} ${e.description || "Unknown"} ${(e.amount / 100).toFixed(2)} ${annualCurrency} [${e.category}]`)
+        .join("\n");
 
-      const aiResponse = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [
-          {
-            role: "system",
-            content: `You are the world's most insightful (and entertainingly savage) financial analyst. The user paid for this premium annual report — make it thorough, specific, fun and genuinely useful. You have access to every single transaction. Research real alternatives and savings strategies specific to ${annualCurrency} users.
+      const summaryText = `SPENDING ANALYSIS (${allExpenses.length} total transactions, currency: ${annualCurrency})
+
+ALL MERCHANTS (name|total_spent|visits):
+${allMerchants}
+
+MONTHLY TOTALS: ${monthlyBreakdown}
+SPENDING TREND: ${trendDir} (comparing first half to second half of transaction history)
+CATEGORIES: ${top5Categories.map(([c, a]) => `${c} ${(a / 100).toFixed(2)} ${annualCurrency}`).join(" | ")}
+BEST MONTH: ${bestMonth?.[0]} (${((bestMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency})
+WORST MONTH: ${worstMonth?.[0]} (${((worstMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency})
+AVG MONTHLY: ${(avgMonthly / 100).toFixed(2)} ${annualCurrency}
+TOTAL: ${(totalSpend / 100).toFixed(2)} ${annualCurrency}
+
+TOP 25 BIGGEST TRANSACTIONS:
+${biggestTx}`;
+
+      const systemPrompt = `You are the world's most insightful (and entertainingly savage) financial analyst. The user paid for this premium annual report — make it thorough, specific, fun and genuinely useful. You have full merchant aggregates and biggest transactions. Research real alternatives and savings strategies specific to ${annualCurrency} users.
 
 Respond ONLY with valid JSON with exactly these keys:
+- "roast": string — 5-6 sentences of savage but accurate annual roast referencing specific merchant names, exact amounts, and patterns.
+- "spendingPersonality": object — { "title": string (fun archetype max 5 words e.g. "The Subscription Hoarder"), "description": string (2 sentences based on actual data) }
+- "behavioralAnalysis": string — 4-5 sentences: what spending patterns reveal about this person's lifestyle, priorities, emotional triggers, habits.
+- "monthlyTrend": string — 1-2 sentences on whether spending improved or worsened and what drove it.
+- "merchantInsights": array of 5 objects — { "merchant": string, "totalSpent": number (cents), "visits": number, "insight": string (funny observation + useful tip for this merchant) }
+- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents), "alternative": string (specific real app/store/habit relevant to ${annualCurrency} users), "potentialAnnualSaving": number (realistic cents), "tip": string (actionable 1-2 sentences with real numbers) }
+- "improvements": array of 5 strings — prioritized improvements with concrete steps and realistic ${annualCurrency} savings amounts.
+- "funFact": string — one surprising or funny statistical observation from the data.
+All monetary values in JSON must be integers in cents.`;
 
-- "roast": string — 5-6 sentences of savage but accurate annual roast. Reference specific merchant names, exact amounts, and patterns you spotted.
-- "spendingPersonality": object — { "title": string (a fun archetype, max 5 words, e.g. "The Subscription Hoarder"), "description": string (2 sentences explaining this type based on actual data) }
-- "behavioralAnalysis": string — 4-5 sentences of deep analysis: what the spending patterns reveal about this person's lifestyle, priorities, emotional triggers, and habits.
-- "monthlyTrend": string — 1-2 sentences on whether spending improved or worsened across the year and what specific categories drove the change.
-- "merchantInsights": array of 5 objects — { "merchant": string, "totalSpent": number (cents), "visits": number, "insight": string (2 sentences: 1 funny observation + 1 genuinely useful tip specific to this merchant) }. Pick the most interesting merchants.
-- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents), "alternative": string (name a specific real app, store, habit or service relevant to ${annualCurrency} users), "potentialAnnualSaving": number (realistic cents estimate), "tip": string (1-2 actionable sentences with real numbers) }
-- "improvements": array of 5 strings — prioritized, specific financial improvements with concrete steps and realistic ${annualCurrency} savings amounts.
-- "funFact": string — one surprising or funny statistical observation (e.g. "You visited Tim Hortons more often than you did laundry — 34 times in 12 months").
-
-All monetary values in the JSON must be integers in cents. Be specific — use actual merchant names, real dates, and exact amounts from the data.`,
-          },
+      const makeAIRequest = (model: string) => openai.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
           { role: "user", content: summaryText },
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 2500,
+        max_completion_tokens: 2000,
       });
+
+      let aiResponse;
+      try {
+        aiResponse = await makeAIRequest("gpt-5.2");
+      } catch (primaryErr: any) {
+        if (primaryErr?.status === 429 || primaryErr?.code === "NoCapacity") {
+          aiResponse = await makeAIRequest("gpt-4o");
+        } else {
+          throw primaryErr;
+        }
+      }
 
       const aiData = JSON.parse(aiResponse.choices[0]?.message?.content || "{}");
 
