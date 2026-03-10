@@ -205,7 +205,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!email) return res.status(400).json({ message: "Email is required" });
       const user = await storage.getUserByEmail(email);
       // Always respond OK to prevent user enumeration
-      if (!user || !user.passwordHash) return res.json({ ok: true });
+      if (!user) return res.json({ ok: true });
       const token = crypto.randomBytes(32).toString("hex");
       const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
       await storage.setPasswordResetToken(user.id, token, expires);
