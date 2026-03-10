@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { setupAuth } from "./replit_integrations/auth/replitAuth";
+import { registerJwtMiddleware } from "./jwtMiddleware";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { WebhookHandlers } from "./stripe/webhookHandlers";
@@ -88,6 +89,7 @@ async function initStripe() {
 
 (async () => {
   await initStripe();
+  registerJwtMiddleware(app);
   await setupAuth(app);
   await registerRoutes(httpServer, app);
 

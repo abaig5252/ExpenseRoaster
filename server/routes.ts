@@ -106,35 +106,8 @@ function getPriceForPlan(plan: string, prices: any[]): string | null {
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   registerAuthRoutes(app);
 
-  // ─── Mobile JWT middleware ─────────────────────────────────────────
-  // Allow mobile clients to authenticate via Bearer token instead of session cookie.
+  // JWT_SECRET used by local auth routes below
   const JWT_SECRET = process.env.SESSION_SECRET || "fallback-dev-secret";
-
-  app.use((req: any, _res: Response, next: Function) => {
-    // Mobile clients send the JWT in x-app-token (Authorization header is stripped by proxy)
-    // Web local-auth clients send the JWT in er_local_token cookie
-    const mobileToken = (req.headers['x-app-token'] as string) || null;
-    const cookieHeader = req.headers.cookie || "";
-    const cookieToken = cookieHeader.split(";").map((c: string) => c.trim()).find((c: string) => c.startsWith("er_local_token="))?.split("=")[1] || null;
-    const token = mobileToken || cookieToken;
-    if (token && !req.isAuthenticated?.()) {
-      try {
-        // Support both { sub } (mobile OAuth) and { userId } (local password auth)
-        const payload = jwt.verify(token, JWT_SECRET) as { sub?: string; userId?: string; exp?: number };
-        const resolvedId = payload.sub || payload.userId;
-        if (resolvedId) {
-          req.user = {
-            claims: { sub: resolvedId },
-            expires_at: payload.exp ?? Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
-          };
-          req.isAuthenticated = () => true;
-        }
-      } catch (_e: any) {
-        // invalid token — fall through to unauthenticated
-      }
-    }
-    next();
-  });
 
   // ─── Mobile token issuance ─────────────────────────────────────────
   // Fallback endpoint — mobile app normally gets a JWT via the OAuth callback redirect.
