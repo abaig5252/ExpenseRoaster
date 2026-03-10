@@ -66,6 +66,16 @@ export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true 
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expenses.$inferSelect;
 
+export const categoryRules = pgTable("category_rules", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  merchantPattern: text("merchant_pattern").notNull(),
+  category: text("category").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type CategoryRule = typeof categoryRules.$inferSelect;
+
 export const contactSubmissions = pgTable("contact_submissions", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),

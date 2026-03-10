@@ -1019,14 +1019,26 @@ Respond ONLY with this JSON (no markdown, no extra keys):
     currency = "USD"
   ) {
     const created: Expense[] = [];
+    const userRules = await storage.getCategoryRules(userId);
+    const rulesContext = userRules.length > 0
+      ? `\n\nThis user's learned category corrections (apply these when the description matches):\n${userRules.map(r => `- "${r.merchantPattern}" → ${r.category}`).join("\n")}`
+      : "";
     for (const tx of transactions.slice(0, 100)) {
       if (!tx.amount || tx.amount <= 0) continue;
       const parsedDate = new Date(tx.date);
       const date = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-      const aiCat = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [
-          { role: "system", content: `Categorize this bank transaction. Reply with ONLY one of these exact values — pick the best match:
+      const matchedRule = userRules.find(r =>
+        tx.description.toLowerCase().includes(r.merchantPattern.toLowerCase()) ||
+        r.merchantPattern.toLowerCase().includes(tx.description.toLowerCase())
+      );
+      let category: string;
+      if (matchedRule) {
+        category = matchedRule.category;
+      } else {
+        const aiCat = await openai.chat.completions.create({
+          model: "gpt-5.2",
+          messages: [
+            { role: "system", content: `Categorize this bank transaction. Reply with ONLY one of these exact values — pick the best match:
 - Food & Drink: restaurants, cafes, bars, takeout, food delivery, fast food
 - Groceries: supermarkets, Walmart, Costco, grocery stores, bulk food
 - Shopping: clothing, retail, electronics, department stores, Amazon, general merchandise
@@ -1035,12 +1047,13 @@ Respond ONLY with this JSON (no markdown, no extra keys):
 - Entertainment: movies, concerts, events, gaming, theme parks, sports, nightlife
 - Health & Fitness: pharmacy, gym, doctor, dentist, spa, beauty salon, personal care
 - Subscriptions: recurring monthly/annual services, streaming, software, apps, memberships
-- Other: only if nothing above clearly fits` },
-          { role: "user", content: tx.description },
-        ],
-        max_completion_tokens: 10,
-      });
-      const category = aiCat.choices[0]?.message?.content?.trim() || "Other";
+- Other: only if nothing above clearly fits${rulesContext}` },
+            { role: "user", content: tx.description },
+          ],
+          max_completion_tokens: 10,
+        });
+        category = aiCat.choices[0]?.message?.content?.trim() || "Other";
+      }
       const roast = await generateRoast(tx.description, Math.round(tx.amount * 100), category, tone, location, currency, date);
       const expense = await storage.createExpense({
         userId,
@@ -1267,20 +1280,36 @@ Return ONLY valid JSON, no other text.`,
 
       const categoryTotals: Record<string, number> = {};
       const monthlyTotals: Record<string, number> = {};
+      const merchantSpend: Record<string, { total: number; count: number }> = {};
 
       for (const exp of allExpenses) {
         categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
         const month = new Date(exp.date).toISOString().slice(0, 7);
         monthlyTotals[month] = (monthlyTotals[month] || 0) + exp.amount;
+        const merchant = exp.description || "Unknown";
+        if (!merchantSpend[merchant]) merchantSpend[merchant] = { total: 0, count: 0 };
+        merchantSpend[merchant].total += exp.amount;
+        merchantSpend[merchant].count += 1;
       }
 
       const totalSpend = allExpenses.reduce((s, e) => s + e.amount, 0);
       const top5Categories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      const worstMonth = Object.entries(monthlyTotals).sort((a, b) => b[1] - a[1])[0];
-      const avgMonthly = totalSpend / Math.max(Object.keys(monthlyTotals).length, 1);
+      const sortedMonths = Object.entries(monthlyTotals).sort((a, b) => a[0].localeCompare(b[0]));
+      const worstMonth = [...sortedMonths].sort((a, b) => b[1] - a[1])[0];
+      const bestMonth = [...sortedMonths].sort((a, b) => a[1] - b[1])[0];
+      const avgMonthly = totalSpend / Math.max(sortedMonths.length, 1);
       const projection5yr = avgMonthly * 12 * 5;
+      const top10Merchants = Object.entries(merchantSpend)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 10);
 
-      // Derive currency from the most-spent-in currency across all expenses
+      // Spending trend: compare first vs second half of months
+      const half = Math.floor(sortedMonths.length / 2);
+      const firstHalfAvg = half > 0 ? sortedMonths.slice(0, half).reduce((s, [, v]) => s + v, 0) / half : avgMonthly;
+      const secondHalfAvg = half > 0 ? sortedMonths.slice(-half).reduce((s, [, v]) => s + v, 0) / half : avgMonthly;
+      const trendDir = secondHalfAvg > firstHalfAvg * 1.05 ? "increasing" : secondHalfAvg < firstHalfAvg * 0.95 ? "decreasing" : "flat";
+
+      // Derive currency from most-spent-in currency
       const currencySpend: Record<string, number> = {};
       for (const exp of allExpenses) {
         const c = ((exp as any).currency || "USD").toUpperCase();
@@ -1288,43 +1317,94 @@ Return ONLY valid JSON, no other text.`,
       }
       const annualCurrency = Object.entries(currencySpend).sort((a, b) => b[1] - a[1])[0]?.[0] || "USD";
 
-      const summaryText = `
-Currency: ${annualCurrency}
-Total spending: ${(totalSpend / 100).toFixed(2)} ${annualCurrency}
-Top categories: ${top5Categories.map(([c, a]) => `${c} ${(a / 100).toFixed(2)} ${annualCurrency}`).join(", ")}
-Worst month: ${worstMonth?.[0]} with ${((worstMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency}
-Average monthly spend: ${(avgMonthly / 100).toFixed(2)} ${annualCurrency}
-      `.trim();
+      // All merchant aggregates — compact, analytically rich, much smaller than raw rows
+      const allMerchants = Object.entries(merchantSpend)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([name, d]) => `${name}|${(d.total / 100).toFixed(2)}|${d.count}`)
+        .join("\n");
 
-      const aiResponse = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [
-          {
-            role: "system",
-            content: `You are generating a brutal, honest annual financial roast report. The user paid for this, so make it count. Be specific, savage, insightful, and ultimately motivating. Structure your response as JSON with these exact keys:
-- roast: string (3-4 sentences of brutal honesty about their year of spending)
-- behavioralAnalysis: string (2-3 sentences analyzing their spending patterns and what it says about them as a person)
-- improvements: array of 3 strings (specific, actionable financial improvement suggestions using local alternatives and prices relevant to ${annualCurrency} users)
-All content must directly reference their actual spending data and use ${annualCurrency} when mentioning amounts.`,
-          },
-          { role: "user", content: summaryText },
-        ],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 600,
-      });
+      // Monthly breakdown
+      const monthlyBreakdown = sortedMonths
+        .map(([m, a]) => `${m}: ${(a / 100).toFixed(2)} ${annualCurrency}`)
+        .join(", ");
+
+      // Top 25 biggest individual transactions for context
+      const biggestTx = [...allExpenses]
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 25)
+        .map(e => `${e.date} ${e.description || "Unknown"} ${(e.amount / 100).toFixed(2)} ${annualCurrency} [${e.category}]`)
+        .join("\n");
+
+      const summaryText = `SPENDING ANALYSIS (${allExpenses.length} total transactions, currency: ${annualCurrency})
+
+ALL MERCHANTS (name|total_spent|visits):
+${allMerchants}
+
+MONTHLY TOTALS: ${monthlyBreakdown}
+SPENDING TREND: ${trendDir} (comparing first half to second half of transaction history)
+CATEGORIES: ${top5Categories.map(([c, a]) => `${c} ${(a / 100).toFixed(2)} ${annualCurrency}`).join(" | ")}
+BEST MONTH: ${bestMonth?.[0]} (${((bestMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency})
+WORST MONTH: ${worstMonth?.[0]} (${((worstMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency})
+AVG MONTHLY: ${(avgMonthly / 100).toFixed(2)} ${annualCurrency}
+TOTAL: ${(totalSpend / 100).toFixed(2)} ${annualCurrency}
+
+TOP 25 BIGGEST TRANSACTIONS:
+${biggestTx}`;
+
+      const systemPrompt = `You are the world's most insightful (and entertainingly savage) financial analyst. The user paid for this premium annual report — make it thorough, specific, fun and genuinely useful. You have full merchant aggregates and biggest transactions. Research real alternatives and savings strategies specific to ${annualCurrency} users.
+
+Respond ONLY with valid JSON with exactly these keys:
+- "roast": string — 5-6 sentences of savage but accurate annual roast referencing specific merchant names, exact amounts, and patterns.
+- "spendingPersonality": object — { "title": string (fun archetype max 5 words e.g. "The Subscription Hoarder"), "description": string (2 sentences based on actual data) }
+- "behavioralAnalysis": string — 4-5 sentences: what spending patterns reveal about this person's lifestyle, priorities, emotional triggers, habits.
+- "monthlyTrend": string — 1-2 sentences on whether spending improved or worsened and what drove it.
+- "merchantInsights": array of 5 objects — { "merchant": string, "totalSpent": number (cents), "visits": number, "insight": string (funny observation + useful tip for this merchant) }
+- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents), "alternative": string (specific real app/store/habit relevant to ${annualCurrency} users), "potentialAnnualSaving": number (realistic cents), "tip": string (actionable 1-2 sentences with real numbers) }
+- "improvements": array of 5 strings — prioritized improvements with concrete steps and realistic ${annualCurrency} savings amounts.
+- "funFact": string — one surprising or funny statistical observation from the data.
+All monetary values in JSON must be integers in cents.`;
+
+      const makeAIRequest = (model: string, timeoutMs?: number) => openai.chat.completions.create(
+        {
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: summaryText },
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 2000,
+        },
+        timeoutMs ? { timeout: timeoutMs } : undefined,
+      );
+
+      let aiResponse;
+      try {
+        aiResponse = await makeAIRequest("gpt-5.2", 30000);
+      } catch (primaryErr: any) {
+        console.log("Annual report: gpt-5.2 failed, falling back to gpt-4o:", primaryErr?.code || primaryErr?.message);
+        aiResponse = await makeAIRequest("gpt-4o", 90000);
+      }
 
       const aiData = JSON.parse(aiResponse.choices[0]?.message?.content || "{}");
 
       res.json({
         totalSpend,
         currency: annualCurrency,
+        transactionCount: allExpenses.length,
         top5Categories: top5Categories.map(([cat, amt]) => ({ category: cat, amount: amt })),
         worstMonth: { month: worstMonth?.[0] || "", amount: worstMonth?.[1] || 0 },
+        bestMonth: { month: bestMonth?.[0] || "", amount: bestMonth?.[1] || 0 },
         avgMonthlySpend: Math.round(avgMonthly),
         projection5yr: Math.round(projection5yr),
+        monthlyTotals: sortedMonths.map(([month, amount]) => ({ month, amount })),
         roast: aiData.roast || "Your spending is a masterpiece of questionable decisions.",
+        spendingPersonality: aiData.spendingPersonality || { title: "The Mystery Spender", description: "Your spending defies categorization." },
         behavioralAnalysis: aiData.behavioralAnalysis || "The data reveals a complex relationship with money.",
+        monthlyTrend: aiData.monthlyTrend || "Your spending trend remained consistent throughout the year.",
+        merchantInsights: aiData.merchantInsights || [],
+        savingsOpportunities: aiData.savingsOpportunities || [],
         improvements: aiData.improvements || ["Save more", "Spend less", "Touch grass"],
+        funFact: aiData.funFact || "",
       });
     } catch (err) {
       console.error("Annual report error:", err);
@@ -1437,6 +1517,20 @@ All content must directly reference their actual spending data and use ${annualC
   app.post("/api/expenses/:id/update", isAuthenticated, handleExpenseUpdate);
   app.get("/api/expenses/:id/update", (_req, res) => {
     res.status(405).json({ message: "Method Not Allowed — use POST" });
+  });
+
+  // ─── Expenses: Update category + teach AI ────────────────────────
+  app.patch("/api/expenses/:id/category", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const expenseId = Number(req.params.id);
+    const { category } = req.body;
+    if (!category || typeof category !== "string") {
+      return res.status(400).json({ message: "category is required" });
+    }
+    const updated = await storage.updateExpense(expenseId, userId, { category });
+    if (!updated) return res.status(404).json({ message: "Expense not found" });
+    await storage.upsertCategoryRule(userId, updated.description, category);
+    return res.json(updated);
   });
 
   // ─── Expenses: Delete ────────────────────────────────────────────

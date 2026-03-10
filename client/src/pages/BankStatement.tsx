@@ -1,15 +1,15 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { parseReceiptDate } from "@/lib/dates";
 import { motion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2 } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown } from "lucide-react";
 import { useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
 import { CURRENCIES } from "@/hooks/use-currency";
 import { AppNav } from "@/components/AppNav";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 type PreviewResult = {
   transactions: { description: string; amount: number; date: string }[];
@@ -23,6 +23,127 @@ const TONES = [
   { value: "playful", label: "Playful 😄" },
   { value: "supportive", label: "Supportive 💛" },
 ];
+
+const ALL_CATEGORIES = [
+  "Food & Drink",
+  "Groceries",
+  "Shopping",
+  "Transport",
+  "Travel",
+  "Entertainment",
+  "Health & Fitness",
+  "Subscriptions",
+  "Other",
+];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "Food & Drink": "#E85D26",
+  "Groceries": "#C4A832",
+  "Shopping": "#C4A832",
+  "Transport": "#3BB8A0",
+  "Travel": "#4A9FE8",
+  "Entertainment": "#E8526A",
+  "Health & Fitness": "#5BA85E",
+  "Subscriptions": "#7B6FE8",
+  "Coffee": "#7B6FE8",
+  "Other": "#4A5060",
+};
+
+function EditableCategoryPill({ expenseId, category }: { expenseId: number; category: string }) {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(category);
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const pillColor = CATEGORY_COLORS[current] || "#4A5060";
+
+  async function selectCategory(cat: string) {
+    if (cat === current) { setOpen(false); return; }
+    setSaving(true);
+    setOpen(false);
+    try {
+      await apiRequest("PATCH", `/api/expenses/${expenseId}/category`, { category: cat });
+      setCurrent(cat);
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      toast({ title: "Category updated", description: "AI will remember this for future imports." });
+    } catch {
+      toast({ title: "Failed to update category", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+      <button
+        data-testid={`pill-category-${expenseId}`}
+        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
+        disabled={saving}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 3,
+          background: pillColor, borderRadius: 6,
+          padding: "3px 7px 3px 7px",
+          fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 800,
+          letterSpacing: "0.08em", textTransform: "uppercase",
+          color: "#FFFFFF", border: "none", cursor: saving ? "wait" : "pointer",
+          opacity: saving ? 0.7 : 1, transition: "opacity 0.15s",
+        }}
+      >
+        {saving ? "..." : current}
+        <ChevronDown style={{ width: 9, height: 9, opacity: 0.8, flexShrink: 0 }} />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+            background: "#1E1E1E", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 10, padding: "4px 0", minWidth: 160,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+            maxHeight: 220, overflowY: "auto",
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          {ALL_CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              data-testid={`option-category-${expenseId}-${cat.replace(/\s+/g, "-").toLowerCase()}`}
+              onClick={() => selectCategory(cat)}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                width: "100%", padding: "7px 12px", background: "none",
+                border: "none", cursor: "pointer", textAlign: "left",
+                transition: "background 0.1s",
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+              onMouseOut={e => (e.currentTarget.style.background = "none")}
+            >
+              <span style={{
+                display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+                background: CATEGORY_COLORS[cat] || "#4A5060", flexShrink: 0,
+              }} />
+              <span style={{
+                fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: cat === current ? 700 : 500,
+                color: cat === current ? "#FFFFFF" : "#8A9099",
+              }}>
+                {cat}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function BankStatement() {
   const [importCurrency, setImportCurrency] = useState<string>("USD");
@@ -314,24 +435,38 @@ export default function BankStatement() {
                 </div>
               ) : manualExpenses.map((exp, i) => (
                 <motion.div key={exp.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                  data-testid={`card-manual-${exp.id}`} className="glass-panel rounded-2xl p-4 flex items-start gap-4 group relative">
-                  <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0">
-                    <Wallet className="w-4 h-4 text-[hsl(var(--secondary))]" />
+                  data-testid={`card-manual-${exp.id}`}
+                  className="glass-panel rounded-2xl group relative"
+                  style={{ padding: "10px 14px 12px 14px" }}
+                >
+                  {/* Category pill — top left */}
+                  <div style={{ marginBottom: 8 }}>
+                    <EditableCategoryPill expenseId={exp.id} category={exp.category} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-2">
-                      <p className="font-bold text-white text-sm truncate">{exp.description}</p>
-                      <span className="text-base font-amount-card text-white shrink-0">
-                        {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
-                      </span>
+
+                  {/* Scrollable content area */}
+                  <div style={{ maxHeight: 120, overflowY: "auto", paddingRight: 4 }}>
+                    <div className="flex items-start gap-3">
+                      {/* Wallet icon — sits below pill */}
+                      <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0 mt-0.5">
+                        <Wallet className="w-4 h-4 text-[hsl(var(--secondary))]" />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="font-bold text-white text-sm truncate">{exp.description}</p>
+                          <span className="text-base font-amount-card text-white shrink-0">
+                            {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                        </div>
+                        {exp.roast && <p className="text-xs italic text-muted-foreground mt-2">"{exp.roast}"</p>}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">{exp.category}</span>
-                      <span className="text-muted-foreground/30">·</span>
-                      <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                    </div>
-                    {exp.roast && <p className="text-xs italic text-muted-foreground mt-2 line-clamp-2">"{exp.roast}"</p>}
                   </div>
+
                   <button onClick={() => deleteMutation.mutate(exp.id)} disabled={deleteMutation.isPending} data-testid={`button-delete-manual-${exp.id}`}
                     className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all">
                     <Trash2 className="w-3.5 h-3.5" />

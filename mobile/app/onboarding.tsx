@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/lib/auth';
-import { apiPost } from '../src/lib/api';
+import { apiPatch } from '../src/lib/api';
 import { AppLogo } from '../src/components/AppLogo';
 import { colors, spacing, radius, typography } from '../src/theme';
 
@@ -24,7 +24,7 @@ export default function OnboardingScreen() {
   async function complete() {
     setSaving(true);
     try {
-      await apiPost('/api/me/profile', {
+      await apiPatch('/api/me/profile', {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         currency,

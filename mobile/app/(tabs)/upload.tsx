@@ -1253,8 +1253,8 @@ export default function UploadScreen() {
   );
 }
 
-// ── Per-flame flicker timings ────────────────────────────────────────
-const FLICKER_DURATIONS = [840, 1120, 740, 1000, 1220];
+// ── Shared flicker timing (all flames animate in unison) ─────────────
+const FLICKER_DURATION = 1800;
 
 // ── Receipt card ─────────────────────────────────────────────────────
 interface ReceiptCardProps {
@@ -1302,8 +1302,7 @@ function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelecte
   }, [isExiting]);
 
   function startFlicker(i: number) {
-    const dur = FLICKER_DURATIONS[i];
-    const half = Math.round(dur / 2);
+    const half = FLICKER_DURATION;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.parallel([

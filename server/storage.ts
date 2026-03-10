@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { expenses, users, contactSubmissions, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact } from "@shared/schema";
+import { expenses, users, contactSubmissions, categoryRules, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact, type CategoryRule } from "@shared/schema";
 import { eq, desc, gte, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -26,6 +26,8 @@ export interface IStorage {
   updateUserProfile(userId: string, data: { firstName?: string; lastName?: string; currency?: string; onboardingComplete?: boolean }): Promise<User>;
   setEmailVerificationCode(userId: string, code: string, expires: Date): Promise<void>;
   verifyEmailCode(userId: string, code: string): Promise<'valid' | 'expired' | 'invalid'>;
+  getCategoryRules(userId: string): Promise<CategoryRule[]>;
+  upsertCategoryRule(userId: string, merchantPattern: string, category: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -215,6 +217,25 @@ export class DatabaseStorage implements IStorage {
       updatedAt: new Date(),
     }).where(eq(users.id, userId));
     return 'valid';
+  }
+
+  async getCategoryRules(userId: string): Promise<CategoryRule[]> {
+    return db.select().from(categoryRules)
+      .where(eq(categoryRules.userId, userId))
+      .orderBy(desc(categoryRules.createdAt))
+      .limit(50);
+  }
+
+  async upsertCategoryRule(userId: string, merchantPattern: string, category: string): Promise<void> {
+    const existing = await db.select().from(categoryRules)
+      .where(and(eq(categoryRules.userId, userId), eq(categoryRules.merchantPattern, merchantPattern)));
+    if (existing.length > 0) {
+      await db.update(categoryRules)
+        .set({ category })
+        .where(and(eq(categoryRules.userId, userId), eq(categoryRules.merchantPattern, merchantPattern)));
+    } else {
+      await db.insert(categoryRules).values({ userId, merchantPattern, category });
+    }
   }
 }
 
