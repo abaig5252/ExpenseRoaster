@@ -49,7 +49,7 @@ export default function PrivacyPolicy() {
                 <p className="mb-2">When you use Expense Roaster, you may upload:</p>
                 <BulletList items={[
                   "Receipt images",
-                  "Bank statement CSV files",
+                  "Bank statement files",
                   "Transaction data",
                   "Spending records",
                 ]} />
