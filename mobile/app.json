@@ -7,9 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "expenseroaster",
     "userInterfaceStyle": "dark",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/5e4350cb-7c61-4f77-a146-c95595cdc9f4",
       "enabled": true,
