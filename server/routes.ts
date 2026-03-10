@@ -6,6 +6,8 @@ import { z } from "zod";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import sharp from "sharp";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { isAuthenticated } from "./replit_integrations/auth/replitAuth";
 import { registerAuthRoutes } from "./replit_integrations/auth/routes";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripe/stripeClient";
@@ -110,15 +112,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.use((req: any, _res: Response, next: Function) => {
     // Mobile clients send the JWT in x-app-token (Authorization header is stripped by proxy)
-    const token = (req.headers['x-app-token'] as string) || null;
+    // Web local-auth clients send the JWT in er_local_token cookie
+    const mobileToken = (req.headers['x-app-token'] as string) || null;
+    const cookieHeader = req.headers.cookie || "";
+    const cookieToken = cookieHeader.split(";").map((c: string) => c.trim()).find((c: string) => c.startsWith("er_local_token="))?.split("=")[1] || null;
+    const token = mobileToken || cookieToken;
     if (token && !req.isAuthenticated?.()) {
       try {
-        const payload = jwt.verify(token, JWT_SECRET) as { sub: string; exp?: number };
-        req.user = {
-          claims: { sub: payload.sub },
-          expires_at: payload.exp ?? Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
-        };
-        req.isAuthenticated = () => true;
+        // Support both { sub } (mobile OAuth) and { userId } (local password auth)
+        const payload = jwt.verify(token, JWT_SECRET) as { sub?: string; userId?: string; exp?: number };
+        const resolvedId = payload.sub || payload.userId;
+        if (resolvedId) {
+          req.user = {
+            claims: { sub: resolvedId },
+            expires_at: payload.exp ?? Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
+          };
+          req.isAuthenticated = () => true;
+        }
       } catch (_e: any) {
         // invalid token — fall through to unauthenticated
       }
@@ -152,6 +162,103 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return false;
     }
   }
+
+  // ─── Local Auth: Register ────────────────────────────────────────
+  app.post("/api/auth/local/register", async (req: any, res: Response) => {
+    try {
+      const { email, password, firstName } = req.body;
+      if (!email || !password || !firstName) return res.status(400).json({ message: "Email, password and first name are required" });
+      if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
+      const existing = await storage.getUserByEmail(email);
+      if (existing) return res.status(409).json({ message: "An account with this email already exists" });
+      const passwordHash = await bcrypt.hash(password, 12);
+      const user = await storage.createLocalUser({ email, passwordHash, firstName: firstName.trim() });
+      const token = jwt.sign({ userId: user.id }, process.env.SESSION_SECRET || "secret", { expiresIn: "30d" });
+      res.status(201).json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, tier: user.tier, emailVerified: user.emailVerified, onboardingComplete: user.onboardingComplete } });
+    } catch (err) {
+      console.error("Register error:", err);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  // ─── Local Auth: Login ───────────────────────────────────────────
+  app.post("/api/auth/local/login", async (req: any, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ message: "Email and password are required" });
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.passwordHash) return res.status(401).json({ message: "Invalid email or password" });
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return res.status(401).json({ message: "Invalid email or password" });
+      const token = jwt.sign({ userId: user.id }, process.env.SESSION_SECRET || "secret", { expiresIn: "30d" });
+      res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, tier: user.tier, emailVerified: user.emailVerified, onboardingComplete: user.onboardingComplete } });
+    } catch (err) {
+      console.error("Login error:", err);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // ─── Local Auth: Forgot password ────────────────────────────────
+  app.post("/api/auth/local/forgot-password", async (req: any, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "Email is required" });
+      const user = await storage.getUserByEmail(email);
+      // Always respond OK to prevent user enumeration
+      if (!user || !user.passwordHash) return res.json({ ok: true });
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await storage.setPasswordResetToken(user.id, token, expires);
+      const resetUrl = `${process.env.APP_URL || `https://${req.headers.host}`}/reset-password?token=${token}`;
+      const { getUncachableResendClient } = await import("./resend/resendClient");
+      const resend = await getUncachableResendClient();
+      await resend.emails.send({
+        from: "Expense Roaster <admin@expenseroaster.com>",
+        to: user.email!,
+        subject: "Reset your Expense Roaster password",
+        html: `
+          <div style="background:#0A0A0A;color:#F0F0F0;font-family:sans-serif;padding:40px;max-width:480px;margin:0 auto;border-radius:16px;border:1px solid rgba(255,255,255,0.06)">
+            <h2 style="color:#00E676;margin-top:0;font-size:22px">Expense Roaster 🔥</h2>
+            <p style="margin:0 0 16px">You requested a password reset. Click the button below to set a new password.</p>
+            <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#E91E8C,#00E676);color:#fff;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;margin:0 0 24px">Reset Password</a>
+            <p style="color:#8A9099;font-size:13px;margin:0">This link expires in 1 hour. If you didn't request a reset, ignore this email.</p>
+          </div>
+        `,
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      res.status(500).json({ message: "Failed to send reset email" });
+    }
+  });
+
+  // ─── Local Auth: Reset password ─────────────────────────────────
+  app.post("/api/auth/local/reset-password", async (req: any, res: Response) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) return res.status(400).json({ message: "Token and password are required" });
+      if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
+      const user = await storage.getUserByResetToken(token);
+      if (!user) return res.status(400).json({ message: "Invalid or expired reset link" });
+      if (user.passwordResetExpires && user.passwordResetExpires < new Date()) return res.status(400).json({ message: "Reset link has expired" });
+      const passwordHash = await bcrypt.hash(password, 12);
+      await storage.updatePassword(user.id, passwordHash);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Reset password error:", err);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // ─── Local Auth: Validate reset token ───────────────────────────
+  app.get("/api/auth/local/validate-reset-token", async (req: any, res: Response) => {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ valid: false });
+    const user = await storage.getUserByResetToken(token as string);
+    if (!user) return res.json({ valid: false });
+    if (user.passwordResetExpires && user.passwordResetExpires < new Date()) return res.json({ valid: false });
+    res.json({ valid: true });
+  });
 
   app.post("/api/auth/send-verification", isAuthenticated, async (req: any, res: Response) => {
     const { captchaToken } = req.body;

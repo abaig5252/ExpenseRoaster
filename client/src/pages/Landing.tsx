@@ -51,7 +51,7 @@ export default function Landing() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <motion.a
-              href="/api/login"
+              href="/login"
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               className="group relative px-10 py-5 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] rounded-2xl font-display font-bold text-xl text-white btn-glow transition-all duration-300 flex items-center gap-3"
@@ -144,7 +144,7 @@ export default function Landing() {
             Join thousands of people who've discovered their spending sins and (sometimes) fixed them.
           </p>
           <a
-            href="/api/login"
+            href="/login"
             className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] rounded-2xl font-display font-bold text-xl text-white btn-glow transition-all duration-300"
             data-testid="button-cta-login"
           >

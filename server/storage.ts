@@ -3,6 +3,11 @@ import { expenses, users, contactSubmissions, type Expense, type InsertExpense, 
 import { eq, desc, gte, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createLocalUser(data: { email: string; passwordHash: string; firstName: string }): Promise<User>;
+  setPasswordResetToken(userId: string, token: string, expires: Date): Promise<void>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  updatePassword(userId: string, passwordHash: string): Promise<void>;
   createContactSubmission(data: InsertContact): Promise<void>;
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
@@ -24,6 +29,35 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim()));
+    return user;
+  }
+
+  async createLocalUser(data: { email: string; passwordHash: string; firstName: string }): Promise<User> {
+    const [user] = await db.insert(users).values({
+      email: data.email.toLowerCase().trim(),
+      passwordHash: data.passwordHash,
+      firstName: data.firstName,
+      emailVerified: false,
+      onboardingComplete: false,
+    }).returning();
+    return user;
+  }
+
+  async setPasswordResetToken(userId: string, token: string, expires: Date): Promise<void> {
+    await db.update(users).set({ passwordResetToken: token, passwordResetExpires: expires, updatedAt: new Date() }).where(eq(users.id, userId));
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.passwordResetToken, token));
+    return user;
+  }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await db.update(users).set({ passwordHash, passwordResetToken: null, passwordResetExpires: null, updatedAt: new Date() }).where(eq(users.id, userId));
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;

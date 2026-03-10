@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
+import LocalAuth from "@/pages/LocalAuth";
+import ResetPassword from "@/pages/ResetPassword";
 import Upload from "@/pages/Upload";
 import BankStatement from "@/pages/BankStatement";
 import MonthlyTracker from "@/pages/MonthlyTracker";
@@ -95,6 +97,8 @@ function Router() {
         );
         return isAuthenticated ? <Redirect to="/upload" /> : <Landing />;
       }} />
+      <Route path="/login" component={LocalAuth} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/verify" component={VerifyEmail} />
       <Route path="/onboarding" component={OnboardingRoute} />
       <Route path="/upload" component={() => <ProtectedRoute component={Upload} />} />
