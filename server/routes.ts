@@ -1351,25 +1351,25 @@ Respond ONLY with valid JSON with exactly these keys:
 - "funFact": string — one surprising or funny statistical observation from the data.
 All monetary values in JSON must be integers in cents.`;
 
-      const makeAIRequest = (model: string) => openai.chat.completions.create({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: summaryText },
-        ],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 2000,
-      });
+      const makeAIRequest = (model: string, timeoutMs?: number) => openai.chat.completions.create(
+        {
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: summaryText },
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 2000,
+        },
+        timeoutMs ? { timeout: timeoutMs } : undefined,
+      );
 
       let aiResponse;
       try {
-        aiResponse = await makeAIRequest("gpt-5.2");
+        aiResponse = await makeAIRequest("gpt-5.2", 30000);
       } catch (primaryErr: any) {
-        if (primaryErr?.status === 429 || primaryErr?.code === "NoCapacity") {
-          aiResponse = await makeAIRequest("gpt-4o");
-        } else {
-          throw primaryErr;
-        }
+        console.log("Annual report: gpt-5.2 failed, falling back to gpt-4o:", primaryErr?.code || primaryErr?.message);
+        aiResponse = await makeAIRequest("gpt-4o", 90000);
       }
 
       const aiData = JSON.parse(aiResponse.choices[0]?.message?.content || "{}");
