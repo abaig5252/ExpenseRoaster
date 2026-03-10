@@ -8,8 +8,8 @@
     "ios": "expo run:ios",
     "build:ios": "eas build --platform ios",
     "build:android": "eas build --platform android",
-    "update:preview": "npx eas update --channel preview --message",
-    "update:production": "npx eas update --channel production --message"
+    "update:preview": "npx eas-cli update --channel preview --message",
+    "update:production": "npx eas-cli update --channel production --message"
   },
   "dependencies": {
     "expo": "~55.0.0",
