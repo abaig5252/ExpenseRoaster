@@ -10,7 +10,7 @@ function parseDates(data: any) {
 
 async function apiFetch(url: string, options?: RequestInit) {
   const res = await fetch(url, { credentials: "include", ...options });
-  if (res.status === 401) { window.location.href = "/api/login"; throw new Error("Unauthorized"); }
+  if (res.status === 401) { window.location.href = "/login"; throw new Error("Unauthorized"); }
   if (!res.ok) {
     const ct = res.headers.get("content-type") ?? "";
     if (ct.includes("application/json")) {

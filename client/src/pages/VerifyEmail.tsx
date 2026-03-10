@@ -61,7 +61,7 @@ export default function VerifyEmail() {
 
   useEffect(() => {
     if (authLoading || meLoading) return;
-    if (!isAuthenticated) { window.location.href = "/api/login"; return; }
+    if (!isAuthenticated) { window.location.href = "/login"; return; }
     if (me && me.emailVerified !== false) navigate("/upload");
   }, [authLoading, meLoading, isAuthenticated, me]);
 

@@ -41,8 +41,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!isAuthenticated) {
-    window.location.href = "/api/login";
-    return null;
+    return <Redirect to="/login" />;
   }
 
   if (me && me.emailVerified === false) {
@@ -69,8 +68,7 @@ function OnboardingRoute() {
   }
 
   if (!isAuthenticated) {
-    window.location.href = "/api/login";
-    return null;
+    return <Redirect to="/login" />;
   }
 
   if (me && me.emailVerified === false) {
