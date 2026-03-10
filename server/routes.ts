@@ -1019,14 +1019,26 @@ Respond ONLY with this JSON (no markdown, no extra keys):
     currency = "USD"
   ) {
     const created: Expense[] = [];
+    const userRules = await storage.getCategoryRules(userId);
+    const rulesContext = userRules.length > 0
+      ? `\n\nThis user's learned category corrections (apply these when the description matches):\n${userRules.map(r => `- "${r.merchantPattern}" → ${r.category}`).join("\n")}`
+      : "";
     for (const tx of transactions.slice(0, 100)) {
       if (!tx.amount || tx.amount <= 0) continue;
       const parsedDate = new Date(tx.date);
       const date = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-      const aiCat = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [
-          { role: "system", content: `Categorize this bank transaction. Reply with ONLY one of these exact values — pick the best match:
+      const matchedRule = userRules.find(r =>
+        tx.description.toLowerCase().includes(r.merchantPattern.toLowerCase()) ||
+        r.merchantPattern.toLowerCase().includes(tx.description.toLowerCase())
+      );
+      let category: string;
+      if (matchedRule) {
+        category = matchedRule.category;
+      } else {
+        const aiCat = await openai.chat.completions.create({
+          model: "gpt-5.2",
+          messages: [
+            { role: "system", content: `Categorize this bank transaction. Reply with ONLY one of these exact values — pick the best match:
 - Food & Drink: restaurants, cafes, bars, takeout, food delivery, fast food
 - Groceries: supermarkets, Walmart, Costco, grocery stores, bulk food
 - Shopping: clothing, retail, electronics, department stores, Amazon, general merchandise
@@ -1035,12 +1047,13 @@ Respond ONLY with this JSON (no markdown, no extra keys):
 - Entertainment: movies, concerts, events, gaming, theme parks, sports, nightlife
 - Health & Fitness: pharmacy, gym, doctor, dentist, spa, beauty salon, personal care
 - Subscriptions: recurring monthly/annual services, streaming, software, apps, memberships
-- Other: only if nothing above clearly fits` },
-          { role: "user", content: tx.description },
-        ],
-        max_completion_tokens: 10,
-      });
-      const category = aiCat.choices[0]?.message?.content?.trim() || "Other";
+- Other: only if nothing above clearly fits${rulesContext}` },
+            { role: "user", content: tx.description },
+          ],
+          max_completion_tokens: 10,
+        });
+        category = aiCat.choices[0]?.message?.content?.trim() || "Other";
+      }
       const roast = await generateRoast(tx.description, Math.round(tx.amount * 100), category, tone, location, currency, date);
       const expense = await storage.createExpense({
         userId,
@@ -1504,6 +1517,20 @@ All monetary values in JSON must be integers in cents.`;
   app.post("/api/expenses/:id/update", isAuthenticated, handleExpenseUpdate);
   app.get("/api/expenses/:id/update", (_req, res) => {
     res.status(405).json({ message: "Method Not Allowed — use POST" });
+  });
+
+  // ─── Expenses: Update category + teach AI ────────────────────────
+  app.patch("/api/expenses/:id/category", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const expenseId = Number(req.params.id);
+    const { category } = req.body;
+    if (!category || typeof category !== "string") {
+      return res.status(400).json({ message: "category is required" });
+    }
+    const updated = await storage.updateExpense(expenseId, userId, { category });
+    if (!updated) return res.status(404).json({ message: "Expense not found" });
+    await storage.upsertCategoryRule(userId, updated.description, category);
+    return res.json(updated);
   });
 
   // ─── Expenses: Delete ────────────────────────────────────────────
