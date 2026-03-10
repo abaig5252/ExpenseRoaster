@@ -171,6 +171,78 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // ─── Mobile Auth: GET-based endpoints for Replit dev proxy compatibility ──────
+  // The Replit dev proxy rewrites POST/PATCH from external devices (Expo Go) to GET,
+  // dropping the body. These GET endpoints read credentials from custom headers instead.
+
+  app.get("/api/auth/mobile/register", async (req: any, res: Response) => {
+    try {
+      const email = req.headers["x-auth-email"] as string;
+      const password = req.headers["x-auth-password"] as string;
+      const firstName = req.headers["x-auth-firstname"] as string;
+      if (!email || !password || !firstName) return res.status(400).json({ message: "Email, password and first name are required" });
+      if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
+      const existing = await storage.getUserByEmail(email);
+      if (existing) return res.status(409).json({ message: "An account with this email already exists" });
+      const passwordHash = await bcrypt.hash(password, 12);
+      const user = await storage.createLocalUser({ email, passwordHash, firstName: firstName.trim() });
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
+      res.status(201).json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, tier: user.tier, emailVerified: user.emailVerified, onboardingComplete: user.onboardingComplete } });
+    } catch (err) {
+      console.error("Mobile register error:", err);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  app.get("/api/auth/mobile/login", async (req: any, res: Response) => {
+    try {
+      const email = req.headers["x-auth-email"] as string;
+      const password = req.headers["x-auth-password"] as string;
+      if (!email || !password) return res.status(400).json({ message: "Email and password are required" });
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.passwordHash) return res.status(401).json({ message: "Invalid email or password" });
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return res.status(401).json({ message: "Invalid email or password" });
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
+      res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, tier: user.tier, emailVerified: user.emailVerified, onboardingComplete: user.onboardingComplete } });
+    } catch (err) {
+      console.error("Mobile login error:", err);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.get("/api/auth/mobile/forgot-password", async (req: any, res: Response) => {
+    try {
+      const email = req.headers["x-auth-email"] as string;
+      if (!email) return res.json({ ok: true });
+      const user = await storage.getUserByEmail(email);
+      if (!user) return res.json({ ok: true });
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 60 * 60 * 1000);
+      await storage.setPasswordResetToken(user.id, token, expires);
+      const resetUrl = `${process.env.APP_URL || `https://${req.headers.host}`}/reset-password?token=${token}`;
+      const { getUncachableResendClient } = await import("./resend/resendClient");
+      const resend = await getUncachableResendClient();
+      await resend.emails.send({
+        from: "Expense Roaster <admin@expenseroaster.com>",
+        to: user.email!,
+        subject: "Reset your Expense Roaster password",
+        html: `
+          <div style="background:#0A0A0A;color:#F0F0F0;font-family:sans-serif;padding:40px;max-width:480px;margin:0 auto;border-radius:16px;border:1px solid rgba(255,255,255,0.06)">
+            <h2 style="color:#00E676;margin-top:0;font-size:22px">Expense Roaster 🔥</h2>
+            <p style="margin:0 0 16px">You requested a password reset. Click the button below to set a new password.</p>
+            <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#E91E8C,#00E676);color:#fff;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;margin:0 0 24px">Reset Password</a>
+            <p style="color:#8A9099;font-size:13px;margin:0">This link expires in 1 hour. If you didn't request a reset, ignore this email.</p>
+          </div>
+        `,
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Mobile forgot-password error:", err);
+      res.status(500).json({ message: "Failed to send reset email" });
+    }
+  });
+
   // ─── Local Auth: Forgot password ────────────────────────────────
   app.post("/api/auth/local/forgot-password", async (req: any, res: Response) => {
     try {

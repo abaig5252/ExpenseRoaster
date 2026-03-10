@@ -25,15 +25,17 @@ export default function LoginScreen() {
 
   function reset() { setError(null); }
 
+  // Mobile auth uses GET endpoints with credentials in headers.
+  // The Replit dev proxy converts POST requests from external devices to GET,
+  // dropping the body. Custom headers are preserved, so we use those instead.
   async function handleLogin() {
     reset();
     if (!email || !password) { setError('Email and password are required'); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/local/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const res = await fetch(`${API_BASE_URL}/api/auth/mobile/login`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'x-auth-email': email, 'x-auth-password': password },
       });
       const data = await res.json();
       if (!res.ok) { setError(data.message || 'Login failed'); return; }
@@ -53,10 +55,9 @@ export default function LoginScreen() {
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/local/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, firstName }),
+      const res = await fetch(`${API_BASE_URL}/api/auth/mobile/register`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'x-auth-email': email, 'x-auth-password': password, 'x-auth-firstname': firstName },
       });
       const data = await res.json();
       if (!res.ok) { setError(data.message || 'Registration failed'); return; }
@@ -73,10 +74,9 @@ export default function LoginScreen() {
     if (!email) { setError('Email is required'); return; }
     setLoading(true);
     try {
-      await fetch(`${API_BASE_URL}/api/auth/local/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      await fetch(`${API_BASE_URL}/api/auth/mobile/forgot-password`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'x-auth-email': email },
       });
       setView('forgot-sent');
     } catch {
