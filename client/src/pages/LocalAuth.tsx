@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { Eye, EyeOff, Flame, ArrowLeft, Loader2, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle } from "lucide-react";
 import { AppLogo } from "@/components/AppLogo";
-import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 
 type View = "login" | "register" | "forgot" | "forgot-sent";
@@ -125,15 +124,6 @@ export default function LocalAuth() {
                   Sign In
                 </button>
               </form>
-              <div className="mt-5 flex items-center gap-3">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-white/30 text-xs">or</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-              <a href="/api/login" data-testid="button-replit-login" className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                <Flame className="w-4 h-4 text-[hsl(var(--primary))]" />
-                Sign in with Replit
-              </a>
               <p className="mt-5 text-center text-white/40 text-xs">
                 Don't have an account?{" "}
                 <button onClick={() => { reset(); setView("register"); }} className="text-[hsl(var(--primary))] hover:opacity-80 font-semibold">Create one</button>
@@ -166,15 +156,6 @@ export default function LocalAuth() {
                   Create Account
                 </button>
               </form>
-              <div className="mt-5 flex items-center gap-3">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-white/30 text-xs">or</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-              <a href="/api/login" className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                <Flame className="w-4 h-4 text-[hsl(var(--primary))]" />
-                Sign in with Replit
-              </a>
               <p className="mt-5 text-center text-white/40 text-xs">
                 Already have an account?{" "}
                 <button onClick={() => { reset(); setView("login"); }} className="text-[hsl(var(--primary))] hover:opacity-80 font-semibold">Sign in</button>
