@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileText, Flame, TrendingUp, Calendar, Target, Download, AlertTriangle, Loader2, Lock } from "lucide-react";
+import { FileText, Flame, TrendingUp, TrendingDown, Calendar, Target, Download, AlertTriangle, Loader2, Lock, Sparkles, Lightbulb, BarChart2, Users, Zap } from "lucide-react";
 import { AppNav } from "@/components/AppNav";
 import { useMe, useAnnualReport } from "@/hooks/use-subscription";
 import { useCheckout, useStripeProducts } from "@/hooks/use-subscription";
@@ -12,6 +12,10 @@ function fmtMonth(ym: string) {
   return new Date(Number(year), Number(month) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
+function fmtAmt(cents: number, currency: string) {
+  return formatAmount(cents, currency);
+}
+
 export default function AnnualReport() {
   const { data: me } = useMe();
   const { data: products } = useStripeProducts();
@@ -20,7 +24,7 @@ export default function AnnualReport() {
   const reportRef = useRef<HTMLDivElement>(null);
   const [reportData, setReportData] = useState<any>(null);
   const reportCurrency = reportData?.currency || "USD";
-  const fmtCurrency = (cents: number) => formatAmount(cents, reportCurrency);
+  const fmt = (cents: number) => fmtAmt(cents, reportCurrency);
 
   const canAccess = me?.hasAnnualReport || me?.tier === "premium";
   const annualPrice = products?.find((p: any) => p.price_metadata?.plan === "annual_report" || p.metadata?.plan === "annual_report");
@@ -54,7 +58,19 @@ export default function AnnualReport() {
               <div className="text-5xl font-amount-card text-white mb-1">$29.99</div>
               <div className="text-muted-foreground mb-6">One-time payment</div>
               <ul className="flex flex-col gap-3 mb-8">
-                {["Brutal full-year roast", "Behavioral spending analysis", "Top 5 spending categories", "Worst month identified", "5-year projection if you don't change", "3 custom improvement suggestions", "Downloadable PDF"].map(f => (
+                {[
+                  "Brutal full-year roast",
+                  "Your personal spending personality type",
+                  "Deep behavioral analysis",
+                  "Top 5 categories with spending bars",
+                  "Best & worst month comparison",
+                  "Per-merchant insights & tips",
+                  "5 savings opportunities with real alternatives",
+                  "Monthly spending trend",
+                  "5-year projection if you don't change",
+                  "Fun facts from your transaction history",
+                  "Downloadable PDF",
+                ].map(f => (
                   <li key={f} className="flex items-center gap-3 text-sm text-white">
                     <Flame className="w-4 h-4 text-[hsl(var(--primary))] shrink-0" />{f}
                   </li>
@@ -109,7 +125,7 @@ export default function AnnualReport() {
             </div>
             <h2 className="text-3xl font-bold text-white mb-3">Ready to face the truth?</h2>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              This will analyze all your saved expenses and generate a comprehensive financial roast. Requires at least a few transactions.
+              This analyzes every single transaction you've uploaded — merchants, patterns, habits — and generates a comprehensive financial deep-dive. Give it 20–30 seconds.
             </p>
             {reportMutation.isError && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 mb-6 max-w-md mx-auto">
@@ -124,18 +140,19 @@ export default function AnnualReport() {
               className="px-10 py-5 rounded-2xl font-display font-bold text-xl text-white bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] btn-glow hover:opacity-90 transition-all flex items-center gap-3 mx-auto"
             >
               {reportMutation.isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <Flame className="w-6 h-6" />}
-              {reportMutation.isPending ? "Analyzing your financial sins..." : "Generate My Annual Report"}
+              {reportMutation.isPending ? "Digging through every receipt…" : "Generate My Annual Report"}
             </button>
           </motion.div>
         ) : (
           <div ref={reportRef} className="flex flex-col gap-6">
+
             {/* Stats grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: "Total Spent", value: fmtCurrency(reportData.totalSpend), icon: TrendingUp, color: "primary" },
-                { label: "Monthly Avg", value: fmtCurrency(reportData.avgMonthlySpend), icon: Calendar, color: "secondary" },
-                { label: "5-Year Projection", value: fmtCurrency(reportData.projection5yr), icon: Target, color: "destructive" },
-                { label: "Worst Month", value: reportData.worstMonth?.month ? fmtMonth(reportData.worstMonth.month) : "N/A", icon: Flame, color: "accent" },
+                { label: "Total Spent", value: fmt(reportData.totalSpend), icon: TrendingUp, color: "primary" },
+                { label: "Monthly Avg", value: fmt(reportData.avgMonthlySpend), icon: Calendar, color: "secondary" },
+                { label: "5-Year Projection", value: fmt(reportData.projection5yr), icon: Target, color: "destructive" },
+                { label: "Transactions", value: reportData.transactionCount?.toLocaleString() ?? "—", icon: BarChart2, color: "accent" },
               ].map((stat, i) => (
                 <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
                   className="glass-panel rounded-2xl p-5">
@@ -147,6 +164,39 @@ export default function AnnualReport() {
                 </motion.div>
               ))}
             </div>
+
+            {/* Best vs worst month */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid grid-cols-2 gap-4">
+              <div className="glass-panel rounded-2xl p-5 border border-green-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingDown className="w-4 h-4 text-green-400" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-green-400">Best Month</span>
+                </div>
+                <div className="text-lg font-bold text-white">{reportData.bestMonth?.month ? fmtMonth(reportData.bestMonth.month) : "—"}</div>
+                <div className="text-sm text-muted-foreground">{fmt(reportData.bestMonth?.amount || 0)}</div>
+              </div>
+              <div className="glass-panel rounded-2xl p-5 border border-destructive/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-destructive" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-destructive">Worst Month</span>
+                </div>
+                <div className="text-lg font-bold text-white">{reportData.worstMonth?.month ? fmtMonth(reportData.worstMonth.month) : "—"}</div>
+                <div className="text-sm text-muted-foreground">{fmt(reportData.worstMonth?.amount || 0)}</div>
+              </div>
+            </motion.div>
+
+            {/* Spending Personality */}
+            {reportData.spendingPersonality && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+                className="glass-panel rounded-3xl p-8 border border-[hsl(var(--accent))]/30 bg-[hsl(var(--accent))]/5">
+                <div className="flex items-center gap-3 mb-4">
+                  <Users className="w-6 h-6 text-[hsl(var(--accent))]" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--accent))]">Your Spending Personality</span>
+                </div>
+                <div className="text-3xl font-bold text-white mb-3">{reportData.spendingPersonality.title}</div>
+                <p className="text-muted-foreground leading-relaxed">{reportData.spendingPersonality.description}</p>
+              </motion.div>
+            )}
 
             {/* Top categories */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="glass-panel rounded-3xl p-6">
@@ -164,7 +214,7 @@ export default function AnnualReport() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">{pct}%</span>
-                          <span className="text-sm font-bold text-white">{fmtCurrency(cat.amount)}</span>
+                          <span className="text-sm font-bold text-white">{fmt(cat.amount)}</span>
                         </div>
                       </div>
                       <div className="h-2 bg-white/5 rounded-full overflow-hidden">
@@ -187,6 +237,15 @@ export default function AnnualReport() {
               <p className="font-roast text-white text-lg leading-relaxed">"{reportData.roast}"</p>
             </motion.div>
 
+            {/* Fun Fact */}
+            {reportData.funFact && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
+                className="glass-panel rounded-2xl px-6 py-5 flex items-start gap-4 border border-yellow-500/20 bg-yellow-500/5">
+                <Sparkles className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+                <p className="text-white leading-relaxed text-sm">{reportData.funFact}</p>
+              </motion.div>
+            )}
+
             {/* Behavioral Analysis */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
               className="glass-panel rounded-3xl p-8">
@@ -194,19 +253,94 @@ export default function AnnualReport() {
               <p className="text-muted-foreground leading-relaxed">{reportData.behavioralAnalysis}</p>
             </motion.div>
 
+            {/* Monthly Trend */}
+            {reportData.monthlyTrend && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.52 }}
+                className="glass-panel rounded-2xl px-6 py-5 flex items-start gap-4">
+                <TrendingUp className="w-5 h-5 text-[hsl(var(--secondary))] shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--secondary))] mb-1">Spending Trend</div>
+                  <p className="text-white text-sm leading-relaxed">{reportData.monthlyTrend}</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Merchant Insights */}
+            {reportData.merchantInsights?.length > 0 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
+                className="glass-panel rounded-3xl p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <Zap className="w-6 h-6 text-[hsl(var(--accent))]" />
+                  <h2 className="text-xl font-bold text-white">Merchant Insights</h2>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {reportData.merchantInsights.map((m: any, i: number) => (
+                    <div key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="w-9 h-9 rounded-xl bg-[hsl(var(--accent))]/15 border border-[hsl(var(--accent))]/25 flex items-center justify-center shrink-0 font-bold text-[hsl(var(--accent))] text-sm">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-4 mb-1 flex-wrap">
+                          <span className="font-bold text-white text-sm">{m.merchant}</span>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{fmt(m.totalSpent)}</span>
+                            <span>·</span>
+                            <span>{m.visits} visit{m.visits !== 1 ? "s" : ""}</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{m.insight}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Savings Opportunities */}
+            {reportData.savingsOpportunities?.length > 0 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+                className="glass-panel rounded-3xl p-8 border border-green-500/20">
+                <div className="flex items-center gap-3 mb-6">
+                  <Lightbulb className="w-6 h-6 text-green-400" />
+                  <h2 className="text-xl font-bold text-white">Savings Opportunities</h2>
+                  <span className="text-xs text-muted-foreground ml-auto">Real alternatives with estimated annual savings</span>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {reportData.savingsOpportunities.map((opp: any, i: number) => (
+                    <div key={i} className="rounded-2xl bg-white/5 border border-white/10 p-5">
+                      <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
+                        <div>
+                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{opp.category}</span>
+                          <div className="text-sm font-bold text-white mt-0.5">Currently spending {fmt(opp.currentAnnualSpend)}/yr</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-xs text-muted-foreground">Potential saving</div>
+                          <div className="text-lg font-bold text-green-400">{fmt(opp.potentialAnnualSaving)}/yr</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 font-medium">Try instead: {opp.alternative}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{opp.tip}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
             {/* 5-Year Warning */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}
               className="glass-panel rounded-3xl p-8 border border-destructive/30 bg-destructive/5">
               <h2 className="text-xl font-bold text-white mb-2">5-Year Projection</h2>
               <p className="text-muted-foreground mb-4 text-sm">If your spending habits remain completely unchanged:</p>
-              <div className="text-5xl font-amount-card text-destructive">{fmtCurrency(reportData.projection5yr)}</div>
+              <div className="text-5xl font-amount-card text-destructive">{fmt(reportData.projection5yr)}</div>
               <p className="text-muted-foreground mt-2 text-sm">spent over the next 5 years at your current rate.</p>
             </motion.div>
 
             {/* Improvements */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
               className="glass-panel rounded-3xl p-8 border border-[hsl(var(--secondary))]/30">
-              <h2 className="text-xl font-bold text-white mb-5">3 Ways to Save Your Financial Life</h2>
+              <h2 className="text-xl font-bold text-white mb-5">5 Ways to Save Your Financial Life</h2>
               <div className="flex flex-col gap-4">
                 {reportData.improvements?.map((tip: string, i: number) => (
                   <div key={i} className="flex items-start gap-4">
@@ -220,7 +354,7 @@ export default function AnnualReport() {
             </motion.div>
 
             <button onClick={handleGenerate} disabled={reportMutation.isPending} className="text-center text-sm text-muted-foreground hover:text-white transition-colors mt-2">
-              Regenerate report
+              {reportMutation.isPending ? <span className="flex items-center gap-2 justify-center"><Loader2 className="w-3 h-3 animate-spin" /> Regenerating…</span> : "Regenerate report"}
             </button>
           </div>
         )}
