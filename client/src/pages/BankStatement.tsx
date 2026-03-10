@@ -109,6 +109,7 @@ function EditableCategoryPill({ expenseId, category }: { expenseId: number; cate
             background: "#1E1E1E", border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: 10, padding: "4px 0", minWidth: 160,
             boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+            maxHeight: 220, overflowY: "auto",
           }}
           onClick={e => e.stopPropagation()}
         >
@@ -443,24 +444,26 @@ export default function BankStatement() {
                     <EditableCategoryPill expenseId={exp.id} category={exp.category} />
                   </div>
 
-                  {/* Main row */}
-                  <div className="flex items-start gap-3">
-                    {/* Wallet icon — sits below pill */}
-                    <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0 mt-0.5">
-                      <Wallet className="w-4 h-4 text-[hsl(var(--secondary))]" />
-                    </div>
+                  {/* Scrollable content area */}
+                  <div style={{ maxHeight: 120, overflowY: "auto", paddingRight: 4 }}>
+                    <div className="flex items-start gap-3">
+                      {/* Wallet icon — sits below pill */}
+                      <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0 mt-0.5">
+                        <Wallet className="w-4 h-4 text-[hsl(var(--secondary))]" />
+                      </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start gap-2">
-                        <p className="font-bold text-white text-sm truncate">{exp.description}</p>
-                        <span className="text-base font-amount-card text-white shrink-0">
-                          {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="font-bold text-white text-sm truncate">{exp.description}</p>
+                          <span className="text-base font-amount-card text-white shrink-0">
+                            {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                        </div>
+                        {exp.roast && <p className="text-xs italic text-muted-foreground mt-2">"{exp.roast}"</p>}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                      </div>
-                      {exp.roast && <p className="text-xs italic text-muted-foreground mt-2 line-clamp-2">"{exp.roast}"</p>}
                     </div>
                   </div>
 
