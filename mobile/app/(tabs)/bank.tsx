@@ -5,6 +5,7 @@ import {
   ActionSheetIOS,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,6 +58,8 @@ export default function BankScreen() {
   const [importImageUri, setImportImageUri] = useState<string | null>(null);
   const [importCurrency, setImportCurrency] = useState(currency);
   const [importCurrencyPickerVisible, setImportCurrencyPickerVisible] = useState(false);
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importFileType, setImportFileType] = useState<'image' | 'pdf' | 'csv'>('image');
   const [previewResult, setPreviewResult] = useState<{
     transactions: { description: string; amount: number; date: string }[];
     detectedMonth: string;
@@ -79,17 +82,19 @@ export default function BankScreen() {
   async function pickStatementImage() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        { options: ['Cancel', 'Take Photo', 'Choose from Library', 'Choose File (PDF, CSV)'], cancelButtonIndex: 0 },
         async (idx) => {
           if (idx === 1) await doPickImage('camera');
           if (idx === 2) await doPickImage('gallery');
+          if (idx === 3) await doPickFile();
         },
       );
     } else {
       Alert.alert('Import Statement', 'Choose source', [
-        { text: 'Camera',  onPress: () => doPickImage('camera') },
-        { text: 'Photos',  onPress: () => doPickImage('gallery') },
-        { text: 'Cancel',  style: 'cancel' },
+        { text: 'Camera',         onPress: () => doPickImage('camera') },
+        { text: 'Photos',         onPress: () => doPickImage('gallery') },
+        { text: 'File (PDF/CSV)', onPress: () => doPickFile() },
+        { text: 'Cancel',         style: 'cancel' },
       ]);
     }
   }
@@ -108,6 +113,28 @@ export default function BankScreen() {
       }
       if (!res.canceled && res.assets[0]) {
         setImportImageUri(res.assets[0].uri);
+        setImportFileName(null);
+        setImportFileType('image');
+        setPreviewResult(null);
+      }
+    } catch (e: unknown) {
+      Alert.alert('Error', (e as Error).message);
+    }
+  }
+
+  async function doPickFile() {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'text/csv', 'text/plain', 'text/comma-separated-values', '*/*'],
+        copyToCacheDirectory: true,
+      });
+      if (!res.canceled && res.assets?.[0]) {
+        const asset = res.assets[0];
+        const mime = asset.mimeType ?? '';
+        const type: 'pdf' | 'csv' = mime.includes('pdf') ? 'pdf' : 'csv';
+        setImportImageUri(asset.uri);
+        setImportFileName(asset.name ?? 'document');
+        setImportFileType(type);
         setPreviewResult(null);
       }
     } catch (e: unknown) {
@@ -120,14 +147,25 @@ export default function BankScreen() {
     setScanning(true);
     try {
       const base64 = await FileSystem.readAsStringAsync(importImageUri, { encoding: FileSystem.EncodingType.Base64 });
-      const imageDataUrl = `data:image/jpeg;base64,${base64}`;
+      let dataUrl: string;
+      let format: string;
+      if (importFileType === 'pdf') {
+        dataUrl = `data:application/pdf;base64,${base64}`;
+        format = 'pdf';
+      } else if (importFileType === 'csv') {
+        dataUrl = `data:text/plain;base64,${base64}`;
+        format = 'csv';
+      } else {
+        dataUrl = `data:image/jpeg;base64,${base64}`;
+        format = 'image';
+      }
       const token = await getToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['x-app-token'] = token;
       const res = await fetch(`${API_BASE_URL}/api/expenses/preview-statement`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ data: imageDataUrl, format: 'image', currency: importCurrency }),
+        body: JSON.stringify({ data: dataUrl, format, currency: importCurrency }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: 'Scan failed' }));
@@ -166,6 +204,8 @@ export default function BankScreen() {
       const data = await res.json() as { imported?: number };
       Alert.alert('Imported!', `${data.imported ?? 0} transactions imported and roasted.`);
       setImportImageUri(null);
+      setImportFileName(null);
+      setImportFileType('image');
       setPreviewResult(null);
       qc.invalidateQueries({ queryKey: ['/api/expenses'] });
     } catch (e: unknown) {
@@ -239,15 +279,28 @@ export default function BankScreen() {
         {/* ── Import card ── */}
         <View style={s.card}>
           <Text style={s.cardTitle}>Import Statement</Text>
-          <Text style={s.cardSub}>Take a photo or screenshot of your bank or credit card statement</Text>
+          <Text style={s.cardSub}>Photo, PDF or CSV — tap to choose from camera, photos, or your files</Text>
 
           <TouchableOpacity style={s.importZone} onPress={pickStatementImage} activeOpacity={0.8}>
             {importImageUri ? (
-              <Image source={{ uri: importImageUri }} style={s.importPreview} resizeMode="cover" />
+              importFileType === 'image' ? (
+                <Image source={{ uri: importImageUri }} style={s.importPreview} resizeMode="cover" />
+              ) : (
+                <View style={s.importFilePlaceholder}>
+                  <Ionicons
+                    name={importFileType === 'pdf' ? 'document' : 'grid'}
+                    size={38}
+                    color={colors.primary}
+                  />
+                  <Text style={s.importFileNameText} numberOfLines={2}>{importFileName}</Text>
+                  <Text style={s.importFileReadyText}>Ready to scan · tap to change</Text>
+                </View>
+              )
             ) : (
               <View style={s.importPlaceholder}>
-                <Ionicons name="document-text-outline" size={36} color={colors.textDim} />
-                <Text style={s.importPlaceholderText}>Tap to select image</Text>
+                <Ionicons name="cloud-upload-outline" size={36} color={colors.textDim} />
+                <Text style={s.importPlaceholderText}>Tap to upload</Text>
+                <Text style={s.importPlaceholderSub}>Camera · Photos · PDF · CSV</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -492,6 +545,10 @@ const s = StyleSheet.create({
   importPreview: { width: '100%', height: '100%' },
   importPlaceholder: { alignItems: 'center', gap: spacing.sm },
   importPlaceholderText: { ...typography.bodyMuted },
+  importPlaceholderSub: { fontSize: 11, color: colors.textDim, letterSpacing: 0.5 },
+  importFilePlaceholder: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md },
+  importFileNameText: { fontSize: 13, fontWeight: '600', color: colors.text, textAlign: 'center' },
+  importFileReadyText: { fontSize: 11, color: colors.textMuted },
 
   previewBox: {
     backgroundColor: 'rgba(0,230,118,0.05)', borderRadius: radius.lg,
