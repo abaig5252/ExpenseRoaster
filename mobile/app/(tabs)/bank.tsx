@@ -59,7 +59,7 @@ export default function BankScreen() {
   const [importCurrency, setImportCurrency] = useState(currency);
   const [importCurrencyPickerVisible, setImportCurrencyPickerVisible] = useState(false);
   const [importFileName, setImportFileName] = useState<string | null>(null);
-  const [importFileType, setImportFileType] = useState<'image' | 'pdf' | 'csv'>('image');
+  const [importFileType, setImportFileType] = useState<'image' | 'pdf'>('image');
   const [previewResult, setPreviewResult] = useState<{
     transactions: { description: string; amount: number; date: string }[];
     detectedMonth: string;
@@ -82,7 +82,7 @@ export default function BankScreen() {
   async function pickStatementImage() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancel', 'Take Photo', 'Choose from Library', 'Choose File (PDF, CSV)'], cancelButtonIndex: 0 },
+        { options: ['Cancel', 'Take Photo', 'Choose from Library', 'Choose PDF File'], cancelButtonIndex: 0 },
         async (idx) => {
           if (idx === 1) await doPickImage('camera');
           if (idx === 2) await doPickImage('gallery');
@@ -93,7 +93,7 @@ export default function BankScreen() {
       Alert.alert('Import Statement', 'Choose source', [
         { text: 'Camera',         onPress: () => doPickImage('camera') },
         { text: 'Photos',         onPress: () => doPickImage('gallery') },
-        { text: 'File (PDF/CSV)', onPress: () => doPickFile() },
+        { text: 'PDF File',        onPress: () => doPickFile() },
         { text: 'Cancel',         style: 'cancel' },
       ]);
     }
@@ -125,16 +125,14 @@ export default function BankScreen() {
   async function doPickFile() {
     try {
       const res = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'text/csv', 'text/plain', 'text/comma-separated-values', '*/*'],
+        type: ['application/pdf'],
         copyToCacheDirectory: true,
       });
       if (!res.canceled && res.assets?.[0]) {
         const asset = res.assets[0];
-        const mime = asset.mimeType ?? '';
-        const type: 'pdf' | 'csv' = mime.includes('pdf') ? 'pdf' : 'csv';
         setImportImageUri(asset.uri);
-        setImportFileName(asset.name ?? 'document');
-        setImportFileType(type);
+        setImportFileName(asset.name ?? 'document.pdf');
+        setImportFileType('pdf');
         setPreviewResult(null);
       }
     } catch (e: unknown) {
@@ -152,9 +150,6 @@ export default function BankScreen() {
       if (importFileType === 'pdf') {
         dataUrl = `data:application/pdf;base64,${base64}`;
         format = 'pdf';
-      } else if (importFileType === 'csv') {
-        dataUrl = `data:text/plain;base64,${base64}`;
-        format = 'csv';
       } else {
         dataUrl = `data:image/jpeg;base64,${base64}`;
         format = 'image';
@@ -279,7 +274,7 @@ export default function BankScreen() {
         {/* ── Import card ── */}
         <View style={s.card}>
           <Text style={s.cardTitle}>Import Statement</Text>
-          <Text style={s.cardSub}>Photo, PDF or CSV — tap to choose from camera, photos, or your files</Text>
+          <Text style={s.cardSub}>Take a photo of your statement or upload a PDF — tap to choose</Text>
 
           <TouchableOpacity style={s.importZone} onPress={pickStatementImage} activeOpacity={0.8}>
             {importImageUri ? (
@@ -287,11 +282,7 @@ export default function BankScreen() {
                 <Image source={{ uri: importImageUri }} style={s.importPreview} resizeMode="cover" />
               ) : (
                 <View style={s.importFilePlaceholder}>
-                  <Ionicons
-                    name={importFileType === 'pdf' ? 'document' : 'grid'}
-                    size={38}
-                    color={colors.primary}
-                  />
+                  <Ionicons name="document" size={38} color={colors.primary} />
                   <Text style={s.importFileNameText} numberOfLines={2}>{importFileName}</Text>
                   <Text style={s.importFileReadyText}>Ready to scan · tap to change</Text>
                 </View>
@@ -300,7 +291,7 @@ export default function BankScreen() {
               <View style={s.importPlaceholder}>
                 <Ionicons name="cloud-upload-outline" size={36} color={colors.textDim} />
                 <Text style={s.importPlaceholderText}>Tap to upload</Text>
-                <Text style={s.importPlaceholderSub}>Camera · Photos · PDF · CSV</Text>
+                <Text style={s.importPlaceholderSub}>Camera · Photos · PDF</Text>
               </View>
             )}
           </TouchableOpacity>
