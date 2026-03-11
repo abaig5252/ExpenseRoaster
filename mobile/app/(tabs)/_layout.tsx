@@ -6,30 +6,28 @@ import { colors } from '../../src/theme';
 
 // Flame icon with organic flicker loop when Roast tab is active
 function FlameTabIcon({ color, size, focused }: { color: string; size: number; focused: boolean }) {
-  const flickerOpacity = useRef(new Animated.Value(1)).current;
-  const flickerScale   = useRef(new Animated.Value(1)).current;
-  const flickerAnim    = useRef<Animated.CompositeAnimation | null>(null);
+  const flickerOpacity   = useRef(new Animated.Value(1)).current;
+  const flickerScale     = useRef(new Animated.Value(1)).current;
+  const flickerTranslateY = useRef(new Animated.Value(0)).current;
+  const flickerAnim      = useRef<Animated.CompositeAnimation | null>(null);
+
+  const step = (opacity: number, scale: number, y: number, duration: number) =>
+    Animated.parallel([
+      Animated.timing(flickerOpacity,    { toValue: opacity,  duration, easing: Easing.sin, useNativeDriver: true }),
+      Animated.timing(flickerScale,      { toValue: scale,    duration, easing: Easing.sin, useNativeDriver: true }),
+      Animated.timing(flickerTranslateY, { toValue: y,        duration, easing: Easing.sin, useNativeDriver: true }),
+    ]);
 
   useEffect(() => {
     if (focused) {
       flickerAnim.current = Animated.loop(
         Animated.sequence([
-          Animated.parallel([
-            Animated.timing(flickerOpacity, { toValue: 0.7,  duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            Animated.timing(flickerScale,   { toValue: 0.92, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(flickerOpacity, { toValue: 1,    duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            Animated.timing(flickerScale,   { toValue: 1.07, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(flickerOpacity, { toValue: 0.85, duration: 200, useNativeDriver: true }),
-            Animated.timing(flickerScale,   { toValue: 0.97, duration: 200, useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(flickerOpacity, { toValue: 1,    duration: 300, useNativeDriver: true }),
-            Animated.timing(flickerScale,   { toValue: 1,    duration: 300, useNativeDriver: true }),
-          ]),
+          step(0.65, 0.90, 1.5,  110),
+          step(1.0,  1.11, -2.5, 150),
+          step(0.78, 0.94, 0.5,  95),
+          step(0.96, 1.07, -1.5, 130),
+          step(0.70, 0.92, 1.0,  100),
+          step(1.0,  1.0,  0,    115),
         ])
       );
       flickerAnim.current.start();
@@ -37,12 +35,13 @@ function FlameTabIcon({ color, size, focused }: { color: string; size: number; f
       flickerAnim.current?.stop();
       flickerOpacity.setValue(1);
       flickerScale.setValue(1);
+      flickerTranslateY.setValue(0);
     }
     return () => flickerAnim.current?.stop();
   }, [focused]);
 
   return (
-    <Animated.View style={{ opacity: flickerOpacity, transform: [{ scale: flickerScale }] }}>
+    <Animated.View style={{ opacity: flickerOpacity, transform: [{ scale: flickerScale }, { translateY: flickerTranslateY }] }}>
       <Ionicons name="flame" size={size} color={color} />
     </Animated.View>
   );
