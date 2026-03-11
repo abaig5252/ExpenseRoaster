@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/auth';
-import { apiPost, API_BASE_URL } from '../../src/lib/api';
+import { apiGet } from '../../src/lib/api';
 import { colors, spacing, radius, typography } from '../../src/theme';
 
 interface MerchantInsight {
@@ -73,10 +73,16 @@ export default function AnnualScreen() {
   async function purchaseReport() {
     setPurchasing(true);
     try {
-      const data = await apiPost<{ url?: string }>('/api/stripe/checkout', {
-        plan: 'annual_report',
-        mode: 'payment',
-      });
+      const products = await apiGet<any[]>('/api/stripe/products');
+      const annualProduct = products.find(
+        (p: any) => p.price_metadata?.plan === 'annual_report' || p.metadata?.plan === 'annual_report'
+      );
+      if (!annualProduct?.price_id) {
+        throw new Error('Annual report product not found. Please try again later.');
+      }
+      const data = await apiGet<{ url?: string }>(
+        `/api/stripe/checkout?priceId=${encodeURIComponent(annualProduct.price_id)}&mode=payment`
+      );
       if (data.url) await Linking.openURL(data.url);
     } catch (e: unknown) {
       Alert.alert('Error', (e as Error).message);
@@ -89,7 +95,7 @@ export default function AnnualScreen() {
     setGenerating(true);
     setError(null);
     try {
-      const data = await apiPost<AnnualReportData>('/api/expenses/annual-report');
+      const data = await apiGet<AnnualReportData>('/api/expenses/annual-report');
       setReport(data);
     } catch (e: unknown) {
       setError((e as Error).message || 'Failed to generate report');

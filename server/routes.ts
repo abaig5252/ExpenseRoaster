@@ -433,6 +433,41 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // ─── Stripe: Checkout — GET alias for mobile proxy compatibility ──
+  // Replit dev proxy rewrites POST→GET for external (mobile) devices.
+  app.get("/api/stripe/checkout", isAuthenticated, async (req: any, res) => {
+    const priceId = (req.query.priceId || req.query.price_id) as string | undefined;
+    const mode = (req.query.mode as string) || "subscription";
+    if (!priceId) return res.status(400).json({ message: "priceId required" });
+    try {
+      const userId = getUserId(req);
+      let user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const stripe = await getUncachableStripeClient();
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({ email: user.email || undefined, metadata: { userId } });
+        user = await storage.updateUserStripeCustomer(userId, customer.id);
+        customerId = customer.id;
+      }
+      const host = `${req.protocol}://${req.get("host")}`;
+      const checkoutMode = mode === "payment" ? "payment" : "subscription";
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: checkoutMode,
+        success_url: `${host}/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${host}/pricing`,
+        metadata: { userId },
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error("Checkout error (GET):", err);
+      res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  });
+
   // ─── Stripe: Customer portal ─────────────────────────────────────
   app.post("/api/stripe/portal", isAuthenticated, async (req: any, res) => {
     const userId = getUserId(req);
@@ -1410,6 +1445,14 @@ All monetary values in JSON must be integers in cents.`;
       console.error("Annual report error:", err);
       res.status(500).json({ message: "Failed to generate annual report" });
     }
+  });
+
+  // GET alias for mobile proxy compatibility (Replit rewrites POST→GET for external devices)
+  app.get("/api/expenses/annual-report", isAuthenticated, (req: any, res: Response) => {
+    // Reuse the POST handler by treating this as a POST internally
+    req.method = "POST";
+    req.body = req.body || {};
+    req.app._router.handle(req, res, () => res.status(500).json({ message: "Route error" }));
   });
 
   // ─── Contact Form ─────────────────────────────────────────────────
