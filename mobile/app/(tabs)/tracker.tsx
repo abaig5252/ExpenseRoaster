@@ -469,42 +469,73 @@ export default function TrackerScreen() {
         {/* Advice — filtered */}
         {advice && (
           <View style={s.adviceCard}>
+            {/* Fixed header */}
             <View style={s.adviceHeader}>
               <Ionicons name="bulb-outline" size={18} color={colors.primary} />
               <Text style={s.adviceTitle}>
                 {isFiltered ? 'Category Advice' : 'AI Financial Advice'}
               </Text>
+              {advice.savingsPotential > 0 && (
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Text style={s.savingsPotentialLabel}>SAVE UP TO</Text>
+                  <Text style={s.savingsPotentialAmount}>{fmt(advice.savingsPotential)}/mo</Text>
+                </View>
+              )}
             </View>
 
-            {!isFiltered && (
-              <Text style={s.adviceText}>{advice.advice}</Text>
-            )}
+            {/* Scrollable body — same height as card, swipe to read */}
+            <ScrollView
+              style={s.adviceScroll}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+            >
+              {!isFiltered && advice.advice ? (
+                <View style={s.adviceSummaryBox}>
+                  <Ionicons name="flash" size={14} color={colors.primary} />
+                  <Text style={s.adviceText}>{advice.advice}</Text>
+                </View>
+              ) : null}
 
-            {filteredBreakdown.length > 0 ? (
-              filteredBreakdown.map((b, i) => (
-                <View key={b.category} style={[s.breakdownCard, i > 0 && { marginTop: spacing.sm }]}>
-                  <View style={s.breakdownHeader}>
-                    <View style={s.catChip}>
-                      <Text style={s.catChipText}>{b.category}</Text>
+              {filteredBreakdown.length > 0 ? (
+                filteredBreakdown.map((b, i) => (
+                  <View key={b.category} style={[s.breakdownCard, i > 0 && { marginTop: spacing.sm }]}>
+                    <View style={s.breakdownHeader}>
+                      <View style={s.catChip}>
+                        <Text style={s.catChipText}>{b.category}</Text>
+                      </View>
+                      {b.potentialSaving > 0 && (
+                        <Text style={s.savingText}>save ~{fmt(b.potentialSaving)}/mo</Text>
+                      )}
                     </View>
-                    {b.potentialSaving > 0 && (
-                      <Text style={s.savingText}>save ~{fmt(b.potentialSaving)}/mo</Text>
+                    {b.roast ? (
+                      <View style={s.roastBox}>
+                        <Ionicons name="flame" size={12} color="#FFB800" />
+                        <Text style={s.roastText}>"{b.roast}"</Text>
+                      </View>
+                    ) : null}
+                    <Text style={s.insightText}>{b.insight}</Text>
+                    {b.alternatives && b.alternatives.length > 0 && (
+                      <View style={s.altRow}>
+                        {b.alternatives.map((alt, ai) => (
+                          <View key={ai} style={s.altTag}>
+                            <Text style={s.altTagText}>{alt}</Text>
+                          </View>
+                        ))}
+                      </View>
                     )}
                   </View>
-                  {b.roast ? (
-                    <View style={s.roastBox}>
-                      <Ionicons name="flame" size={12} color="#FFB800" />
-                      <Text style={s.roastText}>"{b.roast}"</Text>
-                    </View>
-                  ) : null}
-                  <Text style={s.insightText}>{b.insight}</Text>
-                </View>
-              ))
-            ) : isFiltered ? (
-              <Text style={[typography.bodyMuted, { textAlign: 'center', paddingVertical: spacing.md }]}>
-                No advice available for selected categories.
-              </Text>
-            ) : null}
+                ))
+              ) : isFiltered ? (
+                <Text style={[typography.bodyMuted, { textAlign: 'center', paddingVertical: spacing.md }]}>
+                  No advice available for selected categories.
+                </Text>
+              ) : null}
+
+              <View style={s.adviceDisclaimer}>
+                <Ionicons name="alert-circle-outline" size={12} color={colors.textDim} />
+                <Text style={s.adviceDisclaimerText}>For guidance only — consult a financial advisor for major decisions.</Text>
+              </View>
+            </ScrollView>
           </View>
         )}
 
@@ -672,12 +703,27 @@ const s = StyleSheet.create({
 
   adviceCard: {
     backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.lg, gap: spacing.sm,
+    padding: spacing.lg, paddingBottom: 0,
     borderWidth: 1, borderColor: 'rgba(0,230,118,0.15)',
+    maxHeight: 360,
   },
-  adviceHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  adviceHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   adviceTitle: { ...typography.h3, color: colors.primary },
-  adviceText: { ...typography.body, lineHeight: 24 },
+  savingsPotentialLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.2, color: colors.textMuted, textTransform: 'uppercase' },
+  savingsPotentialAmount: { fontSize: 14, fontWeight: '800', color: '#7B6FE8' },
+  adviceScroll: { flex: 1 },
+  adviceSummaryBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs,
+    backgroundColor: colors.primaryDim, borderRadius: radius.md,
+    padding: spacing.md, borderWidth: 1, borderColor: colors.primaryBorder,
+    marginBottom: spacing.sm,
+  },
+  adviceText: { ...typography.body, lineHeight: 22, flex: 1 },
+  adviceDisclaimer: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs,
+    paddingVertical: spacing.md, paddingBottom: spacing.lg,
+  },
+  adviceDisclaimerText: { fontSize: 11, color: colors.textDim, flex: 1, lineHeight: 16 },
   breakdownCard: {
     backgroundColor: colors.background, borderRadius: radius.md,
     padding: spacing.md, gap: spacing.sm,
@@ -698,6 +744,13 @@ const s = StyleSheet.create({
   },
   roastText: { ...typography.caption, fontStyle: 'italic', flex: 1, lineHeight: 18 },
   insightText: { ...typography.bodyMuted, fontSize: 13, lineHeight: 20 },
+  altRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  altTag: {
+    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radius.full,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  altTagText: { fontSize: 11, color: colors.textMuted },
 
   section: { gap: spacing.sm },
   txItem: {

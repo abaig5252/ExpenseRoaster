@@ -558,7 +558,7 @@ export default function MonthlyTracker() {
           )}
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6" data-testid="tracker-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:items-start" data-testid="tracker-grid">
           {/* Category breakdown — clickable */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
             className="glass-panel rounded-3xl p-6 flex flex-col min-h-0">
@@ -634,7 +634,7 @@ export default function MonthlyTracker() {
 
           {/* Financial Advice — context-aware */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}
-            className="glass-panel rounded-3xl p-6 flex flex-col min-h-0">
+            className="glass-panel rounded-3xl p-6 flex flex-col min-h-0 md:max-h-[480px]">
             {/* Fixed header */}
             <div className="flex items-center justify-between mb-5 shrink-0">
               <div className="flex items-center gap-3">
