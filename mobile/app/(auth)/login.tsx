@@ -86,12 +86,12 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={s.root}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         style={{ flex: 1 }}
       >
         <View style={s.screen}>
 
-          {/* ── Logo area ── */}
+          {/* ── Logo area — fixed height so keyboard never causes a layout shift ── */}
           <View style={s.logoSection}>
             <AppLogo size="sm" />
             <Text style={s.logoName}>EXPENSE ROASTER</Text>
@@ -99,9 +99,9 @@ export default function LoginScreen() {
 
           {/* ── Bottom card ── */}
           <ScrollView
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1 }}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
             scrollEnabled={isRegister}
           >
             <View style={s.card}>
@@ -370,10 +370,9 @@ const s = StyleSheet.create({
   screen: { flex: 1 },
 
   logoSection: {
-    flex: 1,
+    height: 220,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 180,
   },
   logoName: {
     color: '#fff',
