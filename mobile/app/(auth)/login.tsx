@@ -1,33 +1,37 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
+  SafeAreaView, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/auth';
 import { API_BASE_URL } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
-import { colors, spacing, radius, typography } from '../../src/theme';
+import { colors } from '../../src/theme';
 
-type View = 'login' | 'register' | 'forgot' | 'forgot-sent';
+type ViewType = 'login' | 'register' | 'forgot' | 'forgot-sent';
+
+const GREEN       = colors.primary;
+const GREEN_GLOW  = colors.primaryGlow;
+const GREEN_FOCUS = colors.primaryBorder;
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
-  const [view, setView] = useState<View>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [view, setView]                     = useState<ViewType>('login');
+  const [email, setEmail]                   = useState('');
+  const [password, setPassword]             = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [firstName, setFirstName]           = useState('');
+  const [showPass, setShowPass]             = useState(false);
+  const [showConfirm, setShowConfirm]       = useState(false);
+  const [loading, setLoading]               = useState(false);
+  const [error, setError]                   = useState<string | null>(null);
+  const [focused, setFocused]               = useState<string | null>(null);
 
   function reset() { setError(null); }
 
-  // Mobile auth uses GET endpoints with credentials in headers.
-  // The Replit dev proxy converts POST requests from external devices to GET,
-  // dropping the body. Custom headers are preserved, so we use those instead.
+  const inp = (name: string) => [s.input, focused === name && s.inputFocused];
+
   async function handleLogin() {
     reset();
     if (!email || !password) { setError('Email and password are required'); return; }
@@ -40,19 +44,16 @@ export default function LoginScreen() {
       const data = await res.json();
       if (!res.ok) { setError(data.message || 'Login failed'); return; }
       await signIn(data.token);
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Network error. Please try again.'); }
+    finally { setLoading(false); }
   }
 
   async function handleRegister() {
     reset();
-    if (!firstName) { setError('First name is required'); return; }
-    if (!email) { setError('Email is required'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
-    if (password !== confirmPassword) { setError('Passwords do not match'); return; }
+    if (!firstName)                       { setError('First name is required'); return; }
+    if (!email)                           { setError('Email is required'); return; }
+    if (password.length < 8)              { setError('Password must be at least 8 characters'); return; }
+    if (password !== confirmPassword)     { setError('Passwords do not match'); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/mobile/register`, {
@@ -62,11 +63,8 @@ export default function LoginScreen() {
       const data = await res.json();
       if (!res.ok) { setError(data.message || 'Registration failed'); return; }
       await signIn(data.token);
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Network error. Please try again.'); }
+    finally { setLoading(false); }
   }
 
   async function handleForgot() {
@@ -79,222 +77,371 @@ export default function LoginScreen() {
         headers: { 'Content-Type': 'application/json', 'x-auth-email': email },
       });
       setView('forgot-sent');
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Network error. Please try again.'); }
+    finally { setLoading(false); }
   }
+
+  const isRegister = view === 'register';
 
   return (
     <SafeAreaView style={s.root}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          <View style={s.logoWrap}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <View style={s.screen}>
+
+          {/* ── Logo area ── */}
+          <View style={s.logoSection}>
+            <View style={s.glowCircle} />
             <AppLogo size="lg" />
+            <Text style={s.logoSubtitle}>
+              {isRegister ? 'Get started' : 'Welcome back'}
+            </Text>
           </View>
 
-          <View style={s.card}>
-            {view === 'login' && (
-              <>
-                <Text style={s.title}>Sign in</Text>
-                <Text style={s.subtitle}>Enter your email and password to continue.</Text>
+          {/* ── Bottom card ── */}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1 }}
+            scrollEnabled={isRegister}
+          >
+            <View style={s.card}>
 
-                <TextInput
-                  style={s.input}
-                  placeholder="Email"
-                  placeholderTextColor={colors.textDim}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+              {/* ── Sign In ── */}
+              {view === 'login' && (
+                <>
+                  <Text style={s.cardTitle}>Sign In</Text>
+                  <Text style={s.cardSub}>Enter your details to continue</Text>
 
-                <View style={s.passwordRow}>
                   <TextInput
-                    style={[s.input, { flex: 1 }]}
-                    placeholder="Password"
-                    placeholderTextColor={colors.textDim}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPass}
+                    style={inp('email')}
+                    placeholder="Email"
+                    placeholderTextColor="#555"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onFocus={() => setFocused('email')}
+                    onBlur={() => setFocused(null)}
                   />
-                  <TouchableOpacity onPress={() => setShowPass(v => !v)} style={s.eyeBtn}>
-                    <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textDim} />
+
+                  <View style={s.inputWrapper}>
+                    <TextInput
+                      style={[...inp('password'), s.inputWithIcon]}
+                      placeholder="Password"
+                      placeholderTextColor="#555"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPass}
+                      onFocus={() => setFocused('password')}
+                      onBlur={() => setFocused(null)}
+                    />
+                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)}>
+                      <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {error ? <Text style={s.error}>{error}</Text> : null}
+
+                  <TouchableOpacity onPress={() => { reset(); setView('forgot'); }}>
+                    <Text style={s.forgotLink}>Forgot password?</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.btn, loading && s.btnDisabled]}
+                    onPress={handleLogin}
+                    disabled={loading}
+                    activeOpacity={0.85}
+                  >
+                    {loading
+                      ? <ActivityIndicator size="small" color="#000" />
+                      : <Text style={s.btnText}>Continue →</Text>}
+                  </TouchableOpacity>
+
+                  <View style={s.dividerRow}>
+                    <View style={s.dividerLine} />
+                    <Text style={s.dividerText}>or continue with</Text>
+                    <View style={s.dividerLine} />
+                  </View>
+
+                  <View style={s.socialRow}>
+                    <TouchableOpacity style={s.socialBtn} activeOpacity={0.7}>
+                      <Ionicons name="logo-google" size={19} color="#fff" />
+                      <Text style={s.socialBtnText}>Google</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.socialBtn} activeOpacity={0.7}>
+                      <Ionicons name="logo-apple" size={19} color="#fff" />
+                      <Text style={s.socialBtnText}>Apple</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={s.switchRow}>
+                    <Text style={s.switchText}>Don't have an account? </Text>
+                    <TouchableOpacity onPress={() => { reset(); setView('register'); }}>
+                      <Text style={s.switchLink}>Create one</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+
+              {/* ── Register ── */}
+              {view === 'register' && (
+                <>
+                  <Text style={s.cardTitle}>Create Account</Text>
+                  <Text style={s.cardSub}>Fill in your details to get started</Text>
+
+                  <TextInput
+                    style={inp('firstName')}
+                    placeholder="First Name"
+                    placeholderTextColor="#555"
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    autoCapitalize="words"
+                    onFocus={() => setFocused('firstName')}
+                    onBlur={() => setFocused(null)}
+                  />
+
+                  <TextInput
+                    style={inp('email')}
+                    placeholder="Email"
+                    placeholderTextColor="#555"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onFocus={() => setFocused('email')}
+                    onBlur={() => setFocused(null)}
+                  />
+
+                  <View style={s.inputWrapper}>
+                    <TextInput
+                      style={[...inp('password'), s.inputWithIcon]}
+                      placeholder="Password (min 8 chars)"
+                      placeholderTextColor="#555"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPass}
+                      onFocus={() => setFocused('password')}
+                      onBlur={() => setFocused(null)}
+                    />
+                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)}>
+                      <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={s.inputWrapper}>
+                    <TextInput
+                      style={[...inp('confirm'), s.inputWithIcon]}
+                      placeholder="Confirm Password"
+                      placeholderTextColor="#555"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry={!showConfirm}
+                      onFocus={() => setFocused('confirm')}
+                      onBlur={() => setFocused(null)}
+                    />
+                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowConfirm(v => !v)}>
+                      <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {error ? <Text style={s.error}>{error}</Text> : null}
+
+                  <TouchableOpacity
+                    style={[s.btn, loading && s.btnDisabled]}
+                    onPress={handleRegister}
+                    disabled={loading}
+                    activeOpacity={0.85}
+                  >
+                    {loading
+                      ? <ActivityIndicator size="small" color="#000" />
+                      : <Text style={s.btnText}>Create Account →</Text>}
+                  </TouchableOpacity>
+
+                  <View style={s.switchRow}>
+                    <Text style={s.switchText}>Already have an account? </Text>
+                    <TouchableOpacity onPress={() => { reset(); setView('login'); }}>
+                      <Text style={s.switchLink}>Sign in</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+
+              {/* ── Forgot password ── */}
+              {view === 'forgot' && (
+                <>
+                  <TouchableOpacity onPress={() => { reset(); setView('login'); }} style={s.backBtn}>
+                    <Ionicons name="arrow-back" size={16} color="#666" />
+                    <Text style={s.backText}>Back to sign in</Text>
+                  </TouchableOpacity>
+
+                  <Text style={s.cardTitle}>Reset Password</Text>
+                  <Text style={s.cardSub}>Enter your email and we'll send a reset link.</Text>
+
+                  <TextInput
+                    style={inp('email')}
+                    placeholder="Email"
+                    placeholderTextColor="#555"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onFocus={() => setFocused('email')}
+                    onBlur={() => setFocused(null)}
+                  />
+
+                  {error ? <Text style={s.error}>{error}</Text> : null}
+
+                  <TouchableOpacity
+                    style={[s.btn, loading && s.btnDisabled]}
+                    onPress={handleForgot}
+                    disabled={loading}
+                    activeOpacity={0.85}
+                  >
+                    {loading
+                      ? <ActivityIndicator size="small" color="#000" />
+                      : <Text style={s.btnText}>Send Reset Link →</Text>}
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* ── Forgot sent ── */}
+              {view === 'forgot-sent' && (
+                <View style={s.sentWrap}>
+                  <Ionicons name="checkmark-circle" size={56} color={GREEN} />
+                  <Text style={s.cardTitle}>Check Your Email</Text>
+                  <Text style={[s.cardSub, { textAlign: 'center' }]}>
+                    If an account with that email exists, we've sent a reset link. It expires in 1 hour.
+                  </Text>
+                  <TouchableOpacity onPress={() => { reset(); setView('login'); }}>
+                    <Text style={s.switchLink}>Back to sign in</Text>
                   </TouchableOpacity>
                 </View>
+              )}
 
-                {error && <Text style={s.error}>{error}</Text>}
+            </View>
+          </ScrollView>
 
-                <TouchableOpacity onPress={() => { reset(); setView('forgot'); }}>
-                  <Text style={s.forgotLink}>Forgot password?</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[s.btn, loading && s.btnDisabled]} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
-                  {loading ? <ActivityIndicator size="small" color="#0D0D0D" /> : <Text style={s.btnText}>Sign In</Text>}
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => { reset(); setView('register'); }}>
-                  <Text style={s.switchText}>Don't have an account? <Text style={s.switchLink}>Create one</Text></Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {view === 'register' && (
-              <>
-                <Text style={s.title}>Create account</Text>
-                <Text style={s.subtitle}>Join Expense Roaster and face your financial reality.</Text>
-
-                <TextInput
-                  style={s.input}
-                  placeholder="First name"
-                  placeholderTextColor={colors.textDim}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  autoCapitalize="words"
-                />
-                <TextInput
-                  style={s.input}
-                  placeholder="Email"
-                  placeholderTextColor={colors.textDim}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-
-                <View style={s.passwordRow}>
-                  <TextInput
-                    style={[s.input, { flex: 1 }]}
-                    placeholder="Password (min 8 chars)"
-                    placeholderTextColor={colors.textDim}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPass}
-                  />
-                  <TouchableOpacity onPress={() => setShowPass(v => !v)} style={s.eyeBtn}>
-                    <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textDim} />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={s.passwordRow}>
-                  <TextInput
-                    style={[s.input, { flex: 1 }]}
-                    placeholder="Confirm password"
-                    placeholderTextColor={colors.textDim}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showConfirm}
-                  />
-                  <TouchableOpacity onPress={() => setShowConfirm(v => !v)} style={s.eyeBtn}>
-                    <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textDim} />
-                  </TouchableOpacity>
-                </View>
-
-                {error && <Text style={s.error}>{error}</Text>}
-
-                <TouchableOpacity style={[s.btn, loading && s.btnDisabled]} onPress={handleRegister} disabled={loading} activeOpacity={0.85}>
-                  {loading ? <ActivityIndicator size="small" color="#0D0D0D" /> : <Text style={s.btnText}>Create Account</Text>}
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => { reset(); setView('login'); }}>
-                  <Text style={s.switchText}>Already have an account? <Text style={s.switchLink}>Sign in</Text></Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {view === 'forgot' && (
-              <>
-                <TouchableOpacity onPress={() => { reset(); setView('login'); }} style={s.backBtn}>
-                  <Ionicons name="arrow-back" size={16} color={colors.textDim} />
-                  <Text style={s.backText}>Back to sign in</Text>
-                </TouchableOpacity>
-
-                <Text style={s.title}>Reset password</Text>
-                <Text style={s.subtitle}>Enter your email and we'll send a reset link.</Text>
-
-                <TextInput
-                  style={s.input}
-                  placeholder="Email"
-                  placeholderTextColor={colors.textDim}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-
-                {error && <Text style={s.error}>{error}</Text>}
-
-                <TouchableOpacity style={[s.btn, loading && s.btnDisabled]} onPress={handleForgot} disabled={loading} activeOpacity={0.85}>
-                  {loading ? <ActivityIndicator size="small" color="#0D0D0D" /> : <Text style={s.btnText}>Send Reset Link</Text>}
-                </TouchableOpacity>
-              </>
-            )}
-
-            {view === 'forgot-sent' && (
-              <View style={s.sentWrap}>
-                <Ionicons name="checkmark-circle" size={56} color={colors.primary} />
-                <Text style={s.title}>Check your email</Text>
-                <Text style={[s.subtitle, { textAlign: 'center' }]}>
-                  If an account with that email exists, we've sent a reset link. It expires in 1 hour.
-                </Text>
-                <TouchableOpacity onPress={() => { reset(); setView('login'); }}>
-                  <Text style={s.switchLink}>Back to sign in</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  scroll: { flexGrow: 1, padding: spacing.lg, gap: spacing.xl, justifyContent: 'center' },
-  logoWrap: { alignItems: 'center', paddingVertical: spacing.lg },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
-  },
-  title: { ...typography.h2, color: colors.text },
-  subtitle: { ...typography.bodyMuted, marginBottom: spacing.xs },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    color: colors.text,
-    fontSize: 15,
-  },
-  passwordRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  eyeBtn: { padding: spacing.sm },
-  error: { color: '#ff6b6b', fontSize: 13, textAlign: 'center' },
-  forgotLink: { color: colors.primary, fontSize: 13, textAlign: 'right', marginTop: -spacing.xs },
-  btn: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
+  root:   { flex: 1, backgroundColor: '#000' },
+  screen: { flex: 1 },
+
+  logoSection: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
-    marginTop: spacing.xs,
+    minHeight: 180,
+  },
+  glowCircle: {
+    position: 'absolute',
+    width: 220, height: 220, borderRadius: 110,
+    backgroundColor: GREEN_GLOW,
+    shadowColor: GREEN,
+    shadowRadius: 55,
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  logoSubtitle: {
+    color: '#888',
+    fontSize: 15,
+    marginTop: 12,
+  },
+
+  card: {
+    backgroundColor: '#161616',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: '#2a2a2a',
+    paddingTop: 32,
+    paddingHorizontal: 28,
+    paddingBottom: 40,
+    gap: 14,
+  },
+  cardTitle: { fontSize: 26, fontWeight: '700', color: '#fff' },
+  cardSub:   { fontSize: 14, color: '#888', marginTop: -4 },
+
+  input: {
+    backgroundColor: '#1f1f1f',
+    borderWidth: 1.5,
+    borderColor: '#2a2a2a',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    color: '#F0F0F0',
+    fontSize: 15,
+  },
+  inputFocused: {
+    borderColor: GREEN_FOCUS,
+    shadowColor: GREEN,
+    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  inputWrapper:  { position: 'relative' },
+  inputWithIcon: { paddingRight: 52 },
+  eyeBtn: {
+    position: 'absolute',
+    right: 16,
+    top: 0, bottom: 0,
+    justifyContent: 'center',
+  },
+
+  error:      { color: '#FF5252', fontSize: 13, textAlign: 'center' },
+  forgotLink: { color: GREEN, fontSize: 13, textAlign: 'right', marginTop: -4 },
+
+  btn: {
+    backgroundColor: GREEN,
+    borderRadius: 50,
+    paddingVertical: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: GREEN,
+    shadowRadius: 12,
+    shadowOpacity: 0.30,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#0D0D0D' },
-  switchText: { ...typography.caption, textAlign: 'center', color: colors.textMuted },
-  switchLink: { color: colors.primary, fontWeight: '600' },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs },
-  backText: { ...typography.caption, color: colors.textDim },
-  sentWrap: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
+  btnText: { fontSize: 16, fontWeight: '700', color: '#000' },
+
+  dividerRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#2a2a2a' },
+  dividerText: { fontSize: 13, color: '#555' },
+
+  socialRow: { flexDirection: 'row', gap: 12 },
+  socialBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1f1f1f',
+    borderWidth: 1.5,
+    borderColor: '#2a2a2a',
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  socialBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+
+  switchRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' },
+  switchText: { fontSize: 14, color: '#666' },
+  switchLink: { color: GREEN, fontSize: 14, fontWeight: '600' },
+
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  backText: { fontSize: 13, color: '#666' },
+
+  sentWrap: { alignItems: 'center', gap: 16, paddingVertical: 24 },
 });

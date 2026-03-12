@@ -1,0 +1,16 @@
+Update both the existing Sign In and Sign Up / Create Account pages to match this design direction. For all green color values, do not hardcode any hex — use whatever green is already defined in the app's existing theme (CSS variable, Tailwind config, design token, or theme file).
+Apply the following to both pages:
+Background: Pure black. Add a radial gradient glow behind the logo using the theme green at 18% opacity fading to transparent, centered above the card.
+Logo: Keep the existing flame logo as-is on both pages. Below it, add a small subtitle in muted gray (#888), font-size 15px — "Welcome back" on the Sign In page and "Get started" on the Sign Up page.
+Card: Anchored to the bottom of the screen, border-radius: 32px 32px 0 0, background #161616, top border 1px solid #2a2a2a, padding 32px 28px 40px.
+Input fields (all fields on both pages): Background #1f1f1f, border 1.5px solid #2a2a2a, border-radius 14px, padding 16px 18px, full width. On focus, border becomes the theme green with box-shadow: 0 0 0 3px <theme-green at 10% opacity>. Placeholder text #555.
+Password and Confirm Password fields: Replace any existing eye toggle with this SVG eye icon (no emoji): <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>. Positioned absolutely inside the field on the right, vertically centered. On click, toggle to a closed-eye SVG (diagonal slash across the eye). Apply this to both the password field and the confirm password field independently.
+CTA buttons: Full width, background is the theme green, text #000, border-radius: 50px, padding 17px, font-weight 700, font-size 16px. Box shadow uses the theme green at 30% opacity. Label is "Continue →" on Sign In and "Create Account →" on Sign Up.
+
+Sign In page specifically:
+Card heading: "Sign In" bold 26px. Subtitle paragraph: "Enter your details to continue" in #888, 14px. Fields in order: Email, Password. Add "Forgot password?" right-aligned in the theme green, 13px, below the password field. Below the CTA, add a divider ("or continue with") and two social buttons side by side — Google and Apple — background #1f1f1f, border 1.5px solid #2a2a2a, border-radius 14px, padding 14px, each with brand SVG icon + white label. Bottom line: "Don't have an account?" in #666 + "Create one" in the theme green, centered, 14px.
+
+Sign Up / Create Account page specifically:
+Card heading: "Create Account" bold 26px. Subtitle paragraph: "Fill in your details to get started" in #888, 14px. Fields in order: First Name, Email, Password, Confirm Password. No "Forgot password?" link on this page. Below the CTA, add a bottom line: "Already have an account?" in #666 + "Sign in" in the theme green, centered, 14px. No social login buttons on this page.
+
+Do not change any backend logic, routing, validation, or authentication code — only update the visual styles and layout of both screens.
