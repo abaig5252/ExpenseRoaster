@@ -275,6 +275,23 @@ export default function LoginScreen() {
                     </LinearGradient>
                   </TouchableOpacity>
 
+                  <View style={s.dividerRow}>
+                    <View style={s.dividerLine} />
+                    <Text style={s.dividerText}>or continue with</Text>
+                    <View style={s.dividerLine} />
+                  </View>
+
+                  <View style={s.socialRow}>
+                    <TouchableOpacity style={s.socialBtn} activeOpacity={0.7}>
+                      <Ionicons name="logo-google" size={19} color="#fff" />
+                      <Text style={s.socialBtnText}>Google</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.socialBtn} activeOpacity={0.7}>
+                      <Ionicons name="logo-apple" size={19} color="#fff" />
+                      <Text style={s.socialBtnText}>Apple</Text>
+                    </TouchableOpacity>
+                  </View>
+
                   <View style={s.switchRow}>
                     <Text style={s.switchText}>Already have an account? </Text>
                     <TouchableOpacity onPress={() => { reset(); setView('login'); }}>
