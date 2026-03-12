@@ -95,7 +95,8 @@ export default function LoginScreen() {
           {/* ── Logo area ── */}
           <View style={s.logoSection}>
             <View style={s.glowCircle} />
-            <AppLogo size="lg" />
+            <AppLogo size="sm" />
+            <Text style={s.logoName}>EXPENSE ROASTER</Text>
             <Text style={s.logoSubtitle}>
               {isRegister ? 'Get started' : 'Welcome back'}
             </Text>
@@ -388,10 +389,18 @@ const s = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowOffset: { width: 0, height: 0 },
   },
+  logoName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 2.8,
+    textTransform: 'uppercase',
+    marginTop: 6,
+  },
   logoSubtitle: {
     color: '#888',
-    fontSize: 15,
-    marginTop: 12,
+    fontSize: 13,
+    marginTop: 4,
   },
 
   card: {
