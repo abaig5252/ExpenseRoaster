@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   SafeAreaView, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/auth';
 import { API_BASE_URL } from '../../src/lib/api';
@@ -151,14 +152,20 @@ export default function LoginScreen() {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[s.btn, loading && s.btnDisabled]}
+                    style={[s.btnWrap, loading && s.btnDisabled]}
                     onPress={handleLogin}
                     disabled={loading}
                     activeOpacity={0.85}
                   >
-                    {loading
-                      ? <ActivityIndicator size="small" color="#000" />
-                      : <Text style={s.btnText}>Continue →</Text>}
+                    <LinearGradient
+                      colors={['#00E676', '#6BFF9C']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={s.btn}
+                    >
+                      {loading
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={s.btnText}>Continue →</Text>}
+                    </LinearGradient>
                   </TouchableOpacity>
 
                   <View style={s.dividerRow}>
@@ -252,14 +259,20 @@ export default function LoginScreen() {
                   {error ? <Text style={s.error}>{error}</Text> : null}
 
                   <TouchableOpacity
-                    style={[s.btn, loading && s.btnDisabled]}
+                    style={[s.btnWrap, loading && s.btnDisabled]}
                     onPress={handleRegister}
                     disabled={loading}
                     activeOpacity={0.85}
                   >
-                    {loading
-                      ? <ActivityIndicator size="small" color="#000" />
-                      : <Text style={s.btnText}>Create Account →</Text>}
+                    <LinearGradient
+                      colors={['#00E676', '#6BFF9C']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={s.btn}
+                    >
+                      {loading
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={s.btnText}>Create Account →</Text>}
+                    </LinearGradient>
                   </TouchableOpacity>
 
                   <View style={s.switchRow}>
@@ -298,14 +311,20 @@ export default function LoginScreen() {
                   {error ? <Text style={s.error}>{error}</Text> : null}
 
                   <TouchableOpacity
-                    style={[s.btn, loading && s.btnDisabled]}
+                    style={[s.btnWrap, loading && s.btnDisabled]}
                     onPress={handleForgot}
                     disabled={loading}
                     activeOpacity={0.85}
                   >
-                    {loading
-                      ? <ActivityIndicator size="small" color="#000" />
-                      : <Text style={s.btnText}>Send Reset Link →</Text>}
+                    <LinearGradient
+                      colors={['#00E676', '#6BFF9C']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={s.btn}
+                    >
+                      {loading
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={s.btnText}>Send Reset Link →</Text>}
+                    </LinearGradient>
                   </TouchableOpacity>
                 </>
               )}
@@ -402,20 +421,22 @@ const s = StyleSheet.create({
   error:      { color: '#FF5252', fontSize: 13, textAlign: 'center' },
   forgotLink: { color: GREEN, fontSize: 13, textAlign: 'right', marginTop: -4 },
 
-  btn: {
-    backgroundColor: GREEN,
+  btnWrap: {
     borderRadius: 50,
+    overflow: 'hidden',
+    shadowColor: GREEN,
+    shadowRadius: 14,
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  btn: {
     paddingVertical: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: GREEN,
-    shadowRadius: 12,
-    shadowOpacity: 0.30,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#000' },
+  btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 
   dividerRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#2a2a2a' },
