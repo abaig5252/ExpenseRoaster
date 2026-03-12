@@ -129,9 +129,9 @@ export default function LoginScreen() {
                     onBlur={() => setFocused(null)}
                   />
 
-                  <View style={s.inputWrapper}>
+                  <View style={[s.inputRow, focused === 'password' && s.inputFocused]}>
                     <TextInput
-                      style={[...inp('password'), s.inputWithIcon]}
+                      style={s.inputFlex}
                       placeholder="Password"
                       placeholderTextColor="#555"
                       value={password}
@@ -140,7 +140,7 @@ export default function LoginScreen() {
                       onFocus={() => setFocused('password')}
                       onBlur={() => setFocused(null)}
                     />
-                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)}>
+                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
                     </TouchableOpacity>
                   </View>
@@ -224,9 +224,9 @@ export default function LoginScreen() {
                     onBlur={() => setFocused(null)}
                   />
 
-                  <View style={s.inputWrapper}>
+                  <View style={[s.inputRow, focused === 'password' && s.inputFocused]}>
                     <TextInput
-                      style={[...inp('password'), s.inputWithIcon]}
+                      style={s.inputFlex}
                       placeholder="Password (min 8 chars)"
                       placeholderTextColor="#555"
                       value={password}
@@ -235,14 +235,14 @@ export default function LoginScreen() {
                       onFocus={() => setFocused('password')}
                       onBlur={() => setFocused(null)}
                     />
-                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)}>
+                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
                     </TouchableOpacity>
                   </View>
 
-                  <View style={s.inputWrapper}>
+                  <View style={[s.inputRow, focused === 'confirm' && s.inputFocused]}>
                     <TextInput
-                      style={[...inp('confirm'), s.inputWithIcon]}
+                      style={s.inputFlex}
                       placeholder="Confirm Password"
                       placeholderTextColor="#555"
                       value={confirmPassword}
@@ -251,7 +251,7 @@ export default function LoginScreen() {
                       onFocus={() => setFocused('confirm')}
                       onBlur={() => setFocused(null)}
                     />
-                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowConfirm(v => !v)}>
+                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowConfirm(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
                     </TouchableOpacity>
                   </View>
@@ -402,6 +402,22 @@ const s = StyleSheet.create({
     color: '#F0F0F0',
     fontSize: 15,
   },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1f1f1f',
+    borderWidth: 1.5,
+    borderColor: '#2a2a2a',
+    borderRadius: 14,
+    paddingLeft: 18,
+    paddingRight: 12,
+  },
+  inputFlex: {
+    flex: 1,
+    paddingVertical: 16,
+    color: '#F0F0F0',
+    fontSize: 15,
+  },
   inputFocused: {
     borderColor: GREEN_FOCUS,
     shadowColor: GREEN,
@@ -409,13 +425,8 @@ const s = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 0 },
   },
-  inputWrapper:  { position: 'relative' },
-  inputWithIcon: { paddingRight: 52 },
   eyeBtn: {
-    position: 'absolute',
-    right: 16,
-    top: 0, bottom: 0,
-    justifyContent: 'center',
+    padding: 6,
   },
 
   error:      { color: '#FF5252', fontSize: 13, textAlign: 'center' },
