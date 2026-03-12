@@ -13,7 +13,6 @@ import { colors } from '../../src/theme';
 type ViewType = 'login' | 'register' | 'forgot' | 'forgot-sent';
 
 const GREEN       = colors.primary;
-const GREEN_GLOW  = colors.primaryGlow;
 const GREEN_FOCUS = colors.primaryBorder;
 
 export default function LoginScreen() {
@@ -94,12 +93,8 @@ export default function LoginScreen() {
 
           {/* ── Logo area ── */}
           <View style={s.logoSection}>
-            <View style={s.glowCircle} />
             <AppLogo size="sm" />
             <Text style={s.logoName}>EXPENSE ROASTER</Text>
-            <Text style={s.logoSubtitle}>
-              {isRegister ? 'Get started' : 'Welcome back'}
-            </Text>
           </View>
 
           {/* ── Bottom card ── */}
@@ -380,15 +375,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 180,
   },
-  glowCircle: {
-    position: 'absolute',
-    width: 220, height: 220, borderRadius: 110,
-    backgroundColor: GREEN_GLOW,
-    shadowColor: GREEN,
-    shadowRadius: 55,
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 0 },
-  },
   logoName: {
     color: '#fff',
     fontSize: 15,
@@ -397,12 +383,6 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 6,
   },
-  logoSubtitle: {
-    color: '#888',
-    fontSize: 13,
-    marginTop: 4,
-  },
-
   card: {
     backgroundColor: '#161616',
     borderTopLeftRadius: 32,
