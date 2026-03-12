@@ -5,6 +5,7 @@ import {
   ActionSheetIOS,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { requestCameraPermission, requestPhotoLibraryPermission } from '../../src/lib/permissions';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -103,12 +104,12 @@ export default function BankScreen() {
     try {
       let res;
       if (from === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission Denied', 'Camera access required.'); return; }
+        const result = await requestCameraPermission();
+        if (result === 'denied') return;
         res = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
       } else {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission Denied', 'Photo library access required.'); return; }
+        const result = await requestPhotoLibraryPermission();
+        if (result === 'denied') return;
         res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
       }
       if (!res.canceled && res.assets[0]) {

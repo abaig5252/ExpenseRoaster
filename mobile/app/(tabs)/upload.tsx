@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 
 import * as ImagePicker from 'expo-image-picker';
+import { requestCameraPermission, requestPhotoLibraryPermission } from '../../src/lib/permissions';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -598,12 +599,12 @@ export default function UploadScreen() {
         base64: true,
       };
       if (from === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission Denied', 'Camera access is required.'); return; }
+        const result = await requestCameraPermission();
+        if (result === 'denied') return;
         res = await ImagePicker.launchCameraAsync(pickerOptions);
       } else {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission Denied', 'Photo library access is required.'); return; }
+        const result = await requestPhotoLibraryPermission();
+        if (result === 'denied') return;
         res = await ImagePicker.launchImageLibraryAsync(pickerOptions);
       }
       if (!res.canceled && res.assets[0]) {
