@@ -164,7 +164,7 @@ export default function LoginScreen() {
                     >
                       {loading
                         ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={s.btnText}>Continue →</Text>}
+                        : <Text style={s.btnText}>Sign In</Text>}
                     </LinearGradient>
                   </TouchableOpacity>
 
@@ -271,7 +271,7 @@ export default function LoginScreen() {
                     >
                       {loading
                         ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={s.btnText}>Create Account →</Text>}
+                        : <Text style={s.btnText}>Create Account</Text>}
                     </LinearGradient>
                   </TouchableOpacity>
 
@@ -323,7 +323,7 @@ export default function LoginScreen() {
                     >
                       {loading
                         ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={s.btnText}>Send Reset Link →</Text>}
+                        : <Text style={s.btnText}>Send Reset Link</Text>}
                     </LinearGradient>
                   </TouchableOpacity>
                 </>
@@ -422,7 +422,7 @@ const s = StyleSheet.create({
   forgotLink: { color: GREEN, fontSize: 13, textAlign: 'right', marginTop: -4 },
 
   btnWrap: {
-    borderRadius: 50,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: GREEN,
     shadowRadius: 14,
@@ -431,12 +431,12 @@ const s = StyleSheet.create({
     elevation: 5,
   },
   btn: {
-    paddingVertical: 17,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  btnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   dividerRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#2a2a2a' },
