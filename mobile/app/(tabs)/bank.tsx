@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, Platform,
-  ActionSheetIOS,
+  ActionSheetIOS, Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { requestCameraPermission, requestPhotoLibraryPermission } from '../../src/lib/permissions';
@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
-import { apiGet, apiDelete, API_BASE_URL, getToken } from '../../src/lib/api';
+import { apiGet, apiDelete, apiPatch, API_BASE_URL, getToken } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
 import { CurrencyPickerModal } from '../../src/components/CurrencyPickerModal';
 import { colors, spacing, radius, typography } from '../../src/theme';
@@ -34,6 +34,24 @@ const TONES = [
   { value: 'playful',    label: 'Playful 😄' },
   { value: 'supportive', label: 'Supportive 💛' },
 ];
+
+const ALL_CATEGORIES = [
+  'Food & Drink', 'Groceries', 'Shopping', 'Transport',
+  'Travel', 'Entertainment', 'Health & Fitness', 'Subscriptions', 'Other',
+];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Food & Drink':    '#E85D26',
+  'Groceries':       '#C4A832',
+  'Shopping':        '#C4A832',
+  'Transport':       '#3BB8A0',
+  'Travel':          '#4A9FE8',
+  'Entertainment':   '#E8526A',
+  'Health & Fitness':'#5BA85E',
+  'Subscriptions':   '#7B6FE8',
+  'Coffee':          '#7B6FE8',
+  'Other':           '#4A5060',
+};
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$', GBP: '£', EUR: '€', CAD: 'CA$', AUD: 'A$',
@@ -69,6 +87,9 @@ export default function BankScreen() {
   const [editMonth, setEditMonth] = useState('');
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [catPicker, setCatPicker] = useState<{ id: number; current: string } | null>(null);
+  const [savingCatId, setSavingCatId] = useState<number | null>(null);
+  const [catOverrides, setCatOverrides] = useState<Record<number, string>>({});
 
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ['/api/expenses'],
@@ -217,6 +238,38 @@ export default function BankScreen() {
       qc.invalidateQueries({ queryKey: ['/api/expenses'] });
     } catch (e: unknown) {
       Alert.alert('Error', (e as Error).message);
+    }
+  }
+
+  async function editCategory(id: number, category: string) {
+    setCatPicker(null);
+    setSavingCatId(id);
+    setCatOverrides(prev => ({ ...prev, [id]: category }));
+    try {
+      await apiPatch(`/api/expenses/${id}/category`, { category });
+      qc.invalidateQueries({ queryKey: ['/api/expenses'] });
+      Alert.alert('Category Updated', `AI will remember "${category}" for this merchant on future imports.`);
+    } catch (e: unknown) {
+      setCatOverrides(prev => { const n = { ...prev }; delete n[id]; return n; });
+      Alert.alert('Error', (e as Error).message);
+    } finally {
+      setSavingCatId(null);
+    }
+  }
+
+  function openCategoryPicker(exp: Expense) {
+    const current = catOverrides[exp.id] ?? exp.category;
+    if (Platform.OS === 'ios') {
+      const options = ['Cancel', ...ALL_CATEGORIES.map(c => c === current ? `✓ ${c}` : c)];
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: 0, title: 'Edit Category' },
+        (idx) => {
+          if (idx === 0) return;
+          editCategory(exp.id, ALL_CATEGORIES[idx - 1]);
+        },
+      );
+    } else {
+      setCatPicker({ id: exp.id, current });
     }
   }
 
@@ -398,6 +451,9 @@ export default function BankScreen() {
             <Text style={s.historyTitle}>Imported Expenses ({loggedExpenses.length})</Text>
             {pageExpenses.map(exp => {
               const isExpanded = expandedId === exp.id;
+              const displayCat = catOverrides[exp.id] ?? exp.category;
+              const catColor = CATEGORY_COLORS[displayCat] ?? '#4A5060';
+              const isSavingCat = savingCatId === exp.id;
               return (
                 <TouchableOpacity
                   key={exp.id}
@@ -412,9 +468,22 @@ export default function BankScreen() {
                     <Text style={s.expAmount}>{formatMoney(exp.amount, exp.currency ?? currency)}</Text>
                   </View>
                   <View style={s.expMeta}>
-                    <View style={s.catPill}>
-                      <Text style={s.catPillText}>{exp.category.toUpperCase()}</Text>
-                    </View>
+                    {/* Tappable category pill */}
+                    <TouchableOpacity
+                      style={[s.catPill, { backgroundColor: `${catColor}22`, borderColor: `${catColor}55` }]}
+                      onPress={() => openCategoryPicker(exp)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                    >
+                      {isSavingCat
+                        ? <ActivityIndicator size="small" color={catColor} style={{ width: 40 }} />
+                        : <>
+                            <View style={[s.catDot, { backgroundColor: catColor }]} />
+                            <Text style={[s.catPillText, { color: catColor }]}>{displayCat}</Text>
+                            <Ionicons name="chevron-down" size={10} color={catColor} />
+                          </>
+                      }
+                    </TouchableOpacity>
                     {(exp.date ?? exp.createdAt) && (
                       <Text style={s.expDate}>{new Date(exp.date ?? exp.createdAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                     )}
@@ -464,6 +533,50 @@ export default function BankScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Android category picker Modal ── */}
+      <Modal
+        visible={!!catPicker}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCatPicker(null)}
+      >
+        <TouchableOpacity style={s.catModalBackdrop} activeOpacity={1} onPress={() => setCatPicker(null)} />
+        <View style={s.catSheet}>
+          <View style={s.catSheetHandle} />
+          <View style={s.catSheetHeader}>
+            <View style={s.catSheetIconWrap}>
+              <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.catSheetTitle}>Edit Category</Text>
+              <Text style={s.catSheetSub}>AI will remember this for future imports</Text>
+            </View>
+            <TouchableOpacity onPress={() => setCatPicker(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <View style={s.catGrid}>
+            {ALL_CATEGORIES.map(cat => {
+              const color = CATEGORY_COLORS[cat] ?? '#4A5060';
+              const isCurrent = catPicker?.current === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[s.catGridItem, { backgroundColor: `${color}22`, borderColor: isCurrent ? color : `${color}44` }]}
+                  onPress={() => catPicker && editCategory(catPicker.id, cat)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[s.catDot, { backgroundColor: color }]} />
+                  <Text style={[s.catGridText, { color }]}>{cat}</Text>
+                  {isCurrent && <Ionicons name="checkmark-circle" size={14} color={color} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -589,11 +702,12 @@ const s = StyleSheet.create({
   expAmount: { fontSize: 15, fontWeight: '700', color: colors.text },
   expMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   catPill: {
-    backgroundColor: colors.surface, borderRadius: radius.full,
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1,
   },
-  catPillText: { fontSize: 10, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5 },
+  catDot: { width: 6, height: 6, borderRadius: 3 },
+  catPillText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
   expDate: { ...typography.caption, color: colors.textMuted },
   expRoast: { ...typography.caption, fontStyle: 'italic', color: colors.textMuted, lineHeight: 18 },
 
@@ -619,4 +733,42 @@ const s = StyleSheet.create({
   locked: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
   lockedTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
   lockedSub: { ...typography.body, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+
+  catModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  catSheet: {
+    backgroundColor: '#161616',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#2a2a2a',
+    paddingBottom: 36, position: 'absolute', bottom: 0, left: 0, right: 0,
+  },
+  catSheetHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignSelf: 'center', marginTop: 12, marginBottom: 4,
+  },
+  catSheetHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  catSheetIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: colors.primaryDim, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.primaryBorder,
+  },
+  catSheetTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  catSheetSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  catGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm,
+  },
+  catGridItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 1.5,
+  },
+  catGridText: { fontSize: 13, fontWeight: '700' },
 });
