@@ -85,25 +85,24 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={s.root}>
+
+      {/* ── Logo — outside KAV so keyboard events never reach it ── */}
+      <View style={s.logoSection}>
+        <AppLogo size="sm" />
+        <Text style={s.logoName}>EXPENSE ROASTER</Text>
+      </View>
+
+      {/* ── KAV only wraps the form — TextInput ancestors are never touched by keyboard layout ── */}
       <KeyboardAvoidingView
-        behavior="padding"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <View style={s.screen}>
-
-          {/* ── Logo area — fixed height so keyboard never causes a layout shift ── */}
-          <View style={s.logoSection}>
-            <AppLogo size="sm" />
-            <Text style={s.logoName}>EXPENSE ROASTER</Text>
-          </View>
-
-          {/* ── Bottom card ── */}
-          <ScrollView
-            keyboardShouldPersistTaps="always"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
-            scrollEnabled={isRegister}
-          >
+        <ScrollView
+          keyboardShouldPersistTaps="always"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+          scrollEnabled={isRegister}
+        >
             <View style={s.card}>
 
               {/* ── Sign In ── */}
@@ -359,7 +358,6 @@ export default function LoginScreen() {
             </View>
           </ScrollView>
 
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -367,7 +365,6 @@ export default function LoginScreen() {
 
 const s = StyleSheet.create({
   root:   { flex: 1, backgroundColor: '#000' },
-  screen: { flex: 1 },
 
   logoSection: {
     height: 220,
