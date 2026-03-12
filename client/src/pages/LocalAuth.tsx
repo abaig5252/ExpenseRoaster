@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle } from "lucide-react";
+import { SiGoogle, SiApple } from "react-icons/si";
 import { AppLogo } from "@/components/AppLogo";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -124,7 +125,20 @@ export default function LocalAuth() {
                   Sign In
                 </button>
               </form>
-              <p className="mt-5 text-center text-white/40 text-xs">
+              <div className="flex items-center gap-3 mt-5">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-white/30 text-xs">or continue with</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+              <div className="flex gap-3 mt-3">
+                <button type="button" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-semibold hover:bg-white/10 transition-colors cursor-not-allowed opacity-60" title="Coming soon — requires Google OAuth credentials">
+                  <SiGoogle className="w-4 h-4" /> Google
+                </button>
+                <button type="button" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-semibold hover:bg-white/10 transition-colors cursor-not-allowed opacity-60" title="Coming soon — requires Apple Developer credentials">
+                  <SiApple className="w-4 h-4" /> Apple
+                </button>
+              </div>
+              <p className="mt-4 text-center text-white/40 text-xs">
                 Don't have an account?{" "}
                 <button onClick={() => { reset(); setView("register"); }} className="text-[hsl(var(--primary))] hover:opacity-80 font-semibold">Create one</button>
               </p>
@@ -156,7 +170,20 @@ export default function LocalAuth() {
                   Create Account
                 </button>
               </form>
-              <p className="mt-5 text-center text-white/40 text-xs">
+              <div className="flex items-center gap-3 mt-5">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-white/30 text-xs">or continue with</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+              <div className="flex gap-3 mt-3">
+                <button type="button" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-semibold hover:bg-white/10 transition-colors cursor-not-allowed opacity-60" title="Coming soon — requires Google OAuth credentials">
+                  <SiGoogle className="w-4 h-4" /> Google
+                </button>
+                <button type="button" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-semibold hover:bg-white/10 transition-colors cursor-not-allowed opacity-60" title="Coming soon — requires Apple Developer credentials">
+                  <SiApple className="w-4 h-4" /> Apple
+                </button>
+              </div>
+              <p className="mt-4 text-center text-white/40 text-xs">
                 Already have an account?{" "}
                 <button onClick={() => { reset(); setView("login"); }} className="text-[hsl(var(--primary))] hover:opacity-80 font-semibold">Sign in</button>
               </p>
