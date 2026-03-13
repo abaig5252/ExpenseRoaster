@@ -506,8 +506,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ─── Stripe: Checkout — GET alias for mobile proxy compatibility ──
   // Replit dev proxy rewrites POST→GET for external (mobile) devices.
   app.get("/api/stripe/checkout", isAuthenticated, async (req: any, res) => {
-    const priceId = (req.query.priceId || req.query.price_id) as string | undefined;
+    let priceId = (req.query.priceId || req.query.price_id) as string | undefined;
     const mode = (req.query.mode as string) || "subscription";
+    const plan = req.query.plan as string | undefined;
+
+    // If no priceId provided but a plan name was given, resolve it from the DB
+    if (!priceId && plan) {
+      try {
+        const rows = await db.execute(sql`
+          SELECT pr.id as price_id
+          FROM stripe.products p
+          LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
+          WHERE p.active = true
+          ORDER BY pr.unit_amount ASC
+          LIMIT 1
+        `);
+        const row = rows.rows[0] as { price_id?: string } | undefined;
+        priceId = row?.price_id;
+      } catch {
+        // fall through to error below
+      }
+    }
+
     if (!priceId) return res.status(400).json({ message: "priceId required" });
     try {
       const userId = getUserId(req);

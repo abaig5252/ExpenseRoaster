@@ -7,7 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../src/lib/auth';
-import { apiPost, API_BASE_URL } from '../../src/lib/api';
+import { apiPost, apiGet, API_BASE_URL } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
 import { colors, spacing, radius, typography } from '../../src/theme';
 
@@ -64,10 +64,7 @@ export default function ProfileScreen() {
 
   async function upgradeToPremiun() {
     try {
-      const data = await apiPost<{ url: string }>('/api/stripe/checkout', {
-        plan: 'premium',
-        mode: 'subscription',
-      });
+      const data = await apiGet<{ url: string }>('/api/stripe/checkout?plan=premium&mode=subscription');
       if (data.url) await Linking.openURL(data.url);
     } catch (e: unknown) {
       Alert.alert('Error', (e as Error).message);
