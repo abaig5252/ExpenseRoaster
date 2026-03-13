@@ -19,9 +19,9 @@ type PreviewResult = {
 };
 
 const TONES = [
-  { value: "hells_kitchen", label: "Hell's Kitchen 🔪" },
-  { value: "medium_rare",   label: "Medium Rare 🥩" },
-  { value: "gentle_nudge",  label: "Gentle Nudge 🌱" },
+  { value: "gentle_nudge",  label: "Accountant 🌱" },
+  { value: "medium_rare",   label: "No Filter 🔥" },
+  { value: "hells_kitchen", label: "Ramsay Mode 💀" },
 ];
 
 const ALL_CATEGORIES = [
