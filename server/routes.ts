@@ -81,7 +81,7 @@ async function generateStatementRoast(
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
-      { role: "system", content: prompt },
+      { role: "system", content: `${prompt} Do not use em dashes (—).` },
       {
         role: "user",
         content: `Monthly bank statement — ${transactions.length} transactions, total spent: ${total.toFixed(2)} ${currency}.\n\nTop merchants by spend:\n${merchantLines}`,
@@ -130,7 +130,8 @@ Rules:
 - No exclamation marks — the humor comes from the deadpan serious tone
 - No trailing off, no ellipsis, no consolation prizes
 - Maximum 4 sentences. Each one a field note.
-- The last sentence should sound like it belongs in a textbook about financial self destruction`,
+- The last sentence should sound like it belongs in a textbook about financial self destruction
+- Do not use em dashes (—) anywhere in your response`,
       },
       {
         role: "user",
@@ -160,7 +161,7 @@ async function generateRoast(description: string, amountCents: number, category:
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
-      { role: "system", content: `${prompt} Currency: ${currency}. Use the local currency symbol. Make any comparisons specific to real things that cost similar amounts in the ${currency} region. NEVER mention city names, street addresses, or neighbourhoods.` },
+      { role: "system", content: `${prompt} Currency: ${currency}. Use the local currency symbol. Make any comparisons specific to real things that cost similar amounts in the ${currency} region. NEVER mention city names, street addresses, or neighbourhoods. Do not use em dashes (—).` },
       { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}. Roast this. 1-2 sentences, no filler.` },
     ],
     max_completion_tokens: 150,
@@ -907,7 +908,7 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
       }
       const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
-Extract expense data from this receipt image. Keep the receipt's native currency — do NOT convert. For the roast field, be specific to this merchant and this amount — not generic. No addresses or neighbourhoods.`;
+Extract expense data from this receipt image. Keep the receipt's native currency — do NOT convert. For the roast field, be specific to this merchant and this amount — not generic. No addresses or neighbourhoods. Do not use em dashes (—).`;
 
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -1026,7 +1027,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         const jpegBuffer = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer();
         imageUrl = `data:image/jpeg;base64,${jpegBuffer.toString("base64")}`;
       }
-      const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}\n\nExtract expense data from this receipt image. Keep the receipt's native currency — do NOT convert. For the roast field, be specific to this merchant and amount. No addresses or neighbourhoods.`;
+      const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}\n\nExtract expense data from this receipt image. Keep the receipt's native currency — do NOT convert. For the roast field, be specific to this merchant and amount. No addresses or neighbourhoods. Do not use em dashes (—).`;
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
