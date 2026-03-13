@@ -20,16 +20,14 @@ function FlameTabIcon({ color, size, focused }: { color: string; size: number; f
 
   useEffect(() => {
     if (focused) {
-      flickerAnim.current = Animated.loop(
-        Animated.sequence([
-          step(0.65, 0.90, 1.5,  110),
-          step(1.0,  1.11, -2.5, 150),
-          step(0.78, 0.94, 0.5,  95),
-          step(0.96, 1.07, -1.5, 130),
-          step(0.70, 0.92, 1.0,  100),
-          step(1.0,  1.0,  0,    115),
-        ])
-      );
+      flickerAnim.current = Animated.sequence([
+        step(0.65, 0.90, 1.5,  110),
+        step(1.0,  1.11, -2.5, 150),
+        step(0.78, 0.94, 0.5,  95),
+        step(0.96, 1.07, -1.5, 130),
+        step(0.70, 0.92, 1.0,  100),
+        step(1.0,  1.0,  0,    115),
+      ]);
       flickerAnim.current.start();
     } else {
       flickerAnim.current?.stop();
