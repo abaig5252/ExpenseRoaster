@@ -155,9 +155,9 @@ if (Platform.OS === 'android') {
 }
 
 const TONES = [
-  { value: 'hells_kitchen', label: "🔪 Hell's Kitchen" },
-  { value: 'medium_rare',   label: '🥩 Medium Rare' },
-  { value: 'gentle_nudge',  label: '🌱 Gentle Nudge' },
+  { value: 'hells_kitchen', label: "🔪 Hell's Kitchen", desc: 'Gordon Ramsay mode' },
+  { value: 'medium_rare',   label: '🥩 Medium Rare',   desc: 'Between friends' },
+  { value: 'gentle_nudge',  label: '🌱 Gentle Nudge',  desc: 'Light jab' },
 ];
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -830,6 +830,7 @@ export default function UploadScreen() {
                     onPress={() => setTone(t.value)}
                   >
                     <Text style={[s.toneText, tone === t.value && s.toneTextActive]}>{t.label}</Text>
+                    <Text style={[s.toneDesc, tone === t.value && s.toneDescActive]}>{t.desc}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1641,8 +1642,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   toneChipActive: { backgroundColor: colors.primaryDim, borderColor: colors.primary },
-  toneText: { ...typography.caption, color: colors.textMuted },
+  toneText: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
   toneTextActive: { color: colors.primary, fontWeight: '700' },
+  toneDesc: { fontSize: 10, color: colors.textMuted, opacity: 0.65, marginTop: 2, textAlign: 'center' },
+  toneDescActive: { color: colors.primary, opacity: 0.8 },
   roastBtnWrap: { margin: spacing.lg, marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' },
   roastBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

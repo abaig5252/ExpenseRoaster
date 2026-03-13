@@ -30,9 +30,9 @@ interface Expense {
 }
 
 const TONES = [
-  { value: 'hells_kitchen', label: "Hell's Kitchen 🔪" },
-  { value: 'medium_rare',   label: 'Medium Rare 🥩' },
-  { value: 'gentle_nudge',  label: 'Gentle Nudge 🌱' },
+  { value: 'hells_kitchen', label: "Hell's Kitchen 🔪", desc: 'Gordon Ramsay mode' },
+  { value: 'medium_rare',   label: 'Medium Rare 🥩',   desc: 'Between friends' },
+  { value: 'gentle_nudge',  label: 'Gentle Nudge 🌱',  desc: 'Light jab' },
 ];
 
 const ALL_CATEGORIES = [
@@ -320,6 +320,7 @@ export default function BankScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={[s.toneText, tone === t.value && s.toneTextActive]}>{t.label}</Text>
+                <Text style={[s.toneDesc, tone === t.value && s.toneDescActive]}>{t.desc}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -611,8 +612,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   toneChipActive: { borderColor: colors.primary, backgroundColor: colors.primaryDim },
-  toneText: { ...typography.caption, color: colors.textMuted, fontWeight: '600' },
+  toneText: { ...typography.caption, color: colors.textMuted, fontWeight: '600', textAlign: 'center' },
   toneTextActive: { color: colors.primary, fontWeight: '700' },
+  toneDesc: { fontSize: 10, color: colors.textMuted, opacity: 0.65, marginTop: 2, textAlign: 'center' },
+  toneDescActive: { color: colors.primary, opacity: 0.8 },
 
   card: {
     backgroundColor: CARD_BG, borderRadius: radius.xl,
