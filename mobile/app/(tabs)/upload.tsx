@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, ActionSheetIOS, Platform,
   Animated, Easing, LayoutAnimation, UIManager, Modal, TextInput, KeyboardAvoidingView,
+  Share,
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
@@ -949,7 +950,18 @@ export default function UploadScreen() {
                     <Ionicons name="flame" size={16} color="#00E676" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.verdictLabel}>{fmtMonth(selectedMonth)} Verdict</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={s.verdictLabel}>{fmtMonth(selectedMonth)} Verdict</Text>
+                      {monthlyRoastData?.roast && (
+                        <TouchableOpacity
+                          onPress={() => Share.share({ message: `🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData.roast}"\n\n— Expense Roaster` })}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="share-outline" size={16} color="rgba(0,230,118,0.65)" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     {roastLoading ? (
                       <Text style={s.verdictLoading}>Generating your monthly roast…</Text>
                     ) : monthlyRoastData?.roast ? (
@@ -1069,6 +1081,17 @@ export default function UploadScreen() {
                   </View>
                   <Text style={s.resultRoastText}>"{resultData.expense.roast}"</Text>
                 </View>
+
+                <TouchableOpacity
+                  onPress={() => Share.share({
+                    message: `🔥 I just got financially roasted:\n\n"${resultData.expense.roast}"\n\n— ${formatMoney(resultData.expense.amount, resultData.expense.currency)} at ${resultData.expense.description} · Expense Roaster`,
+                  })}
+                  style={s.shareRoastBtn}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="share-outline" size={16} color="rgba(0,230,118,0.8)" />
+                  <Text style={s.shareRoastBtnText}>Share My Shame</Text>
+                </TouchableOpacity>
 
                 {resultData.ephemeral && (
                   <View style={s.resultFreeNote}>
@@ -1491,7 +1514,7 @@ function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelecte
           </View>
         ) : null}
 
-        {/* Severity flames + chevron */}
+        {/* Severity flames + share + chevron */}
         {!isSelectMode && (
           <View style={rc.footer}>
             <View style={rc.flames}>
@@ -1504,6 +1527,18 @@ function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelecte
                 </Animated.Text>
               ))}
             </View>
+            {expanded && expense.roast && (
+              <TouchableOpacity
+                onPress={() => Share.share({
+                  message: `🔥 "${expense.roast}"\n\n— ${formatMoney(expense.amount, expense.currency ?? currency)} at ${expense.description} · Expense Roaster`,
+                })}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+                style={rc.shareBtn}
+              >
+                <Ionicons name="share-outline" size={14} color="rgba(0,230,118,0.75)" />
+              </TouchableOpacity>
+            )}
             <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
               <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.35)" />
             </Animated.View>
@@ -1580,6 +1615,10 @@ const rc = StyleSheet.create({
     position: 'absolute', top: 8, right: 8, zIndex: 10,
     padding: 5, borderRadius: 7,
     backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  shareBtn: {
+    padding: 4, borderRadius: 6,
+    backgroundColor: 'rgba(0,230,118,0.08)',
   },
 });
 
@@ -1873,4 +1912,11 @@ const s = StyleSheet.create({
   resultDismissWrap: { borderRadius: radius.lg, overflow: 'hidden' },
   resultDismissGrad: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
   resultDismissText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  shareRoastBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 13, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.25)',
+    backgroundColor: 'rgba(0,230,118,0.06)',
+  },
+  shareRoastBtnText: { fontSize: 14, fontWeight: '700', color: 'rgba(0,230,118,0.85)' },
 });

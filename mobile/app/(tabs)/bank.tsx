@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, Platform,
-  ActionSheetIOS, Modal,
+  ActionSheetIOS, Modal, Share,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { requestCameraPermission, requestPhotoLibraryPermission } from '../../src/lib/permissions';
@@ -496,19 +496,33 @@ export default function BankScreen() {
                   </View>
                   {exp.roast && <Text style={s.expRoast} numberOfLines={isExpanded ? undefined : 2}>"{exp.roast}"</Text>}
                   {isExpanded && (
-                    <TouchableOpacity
-                      style={s.deleteBtn}
-                      onPress={() => {
-                        Alert.alert('Delete Expense', 'Remove this transaction?', [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(exp.id) },
-                        ]);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="trash-outline" size={14} color="rgba(255,82,82,0.7)" />
-                      <Text style={s.deleteBtnText}>Delete</Text>
-                    </TouchableOpacity>
+                    <View style={s.expExpandedActions}>
+                      {exp.roast && (
+                        <TouchableOpacity
+                          style={s.expShareBtn}
+                          onPress={() => Share.share({
+                            message: `🔥 "${exp.roast}"\n\n— ${formatMoney(exp.amount, exp.currency ?? currency)} at ${exp.description} · Expense Roaster`,
+                          })}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="share-outline" size={13} color="rgba(0,230,118,0.8)" />
+                          <Text style={s.expShareBtnText}>Share</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={s.deleteBtn}
+                        onPress={() => {
+                          Alert.alert('Delete Expense', 'Remove this transaction?', [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(exp.id) },
+                          ]);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="rgba(255,82,82,0.7)" />
+                        <Text style={s.deleteBtnText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </TouchableOpacity>
               );
@@ -612,9 +626,19 @@ export default function BankScreen() {
             <ScrollView style={s.roastScroll} contentContainerStyle={s.roastScrollContent} showsVerticalScrollIndicator={false}>
               <Text style={s.roastText}>{statementRoast}</Text>
             </ScrollView>
-            <TouchableOpacity onPress={() => setStatementRoast(null)} style={s.roastDismissBtn}>
-              <Text style={s.roastDismissBtnText}>Got it</Text>
-            </TouchableOpacity>
+            <View style={s.roastActionRow}>
+              <TouchableOpacity
+                onPress={() => Share.share({ message: `🔥 My statement roast:\n\n"${statementRoast}"\n\n— Expense Roaster` })}
+                style={s.roastShareBtn}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="share-outline" size={16} color="rgba(0,230,118,0.85)" />
+                <Text style={s.roastShareBtnText}>Share This Roast</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setStatementRoast(null)} style={s.roastDismissBtn}>
+                <Text style={s.roastDismissBtnText}>Got it</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -755,9 +779,19 @@ const s = StyleSheet.create({
   expDate: { ...typography.caption, color: colors.textMuted },
   expRoast: { ...typography.caption, fontStyle: 'italic', color: colors.textMuted, lineHeight: 18 },
 
+  expExpandedActions: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap',
+  },
+  expShareBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(0,230,118,0.07)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
+  },
+  expShareBtnText: { fontSize: 12, fontWeight: '600', color: 'rgba(0,230,118,0.85)' },
   deleteBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    alignSelf: 'flex-start', marginTop: 4,
     paddingHorizontal: 10, paddingVertical: 6,
     borderRadius: radius.md,
     backgroundColor: 'rgba(255,82,82,0.08)',
@@ -856,9 +890,19 @@ const s = StyleSheet.create({
     fontSize: 14, lineHeight: 22, color: 'rgba(255,255,255,0.88)',
     fontWeight: '400',
   },
-  roastDismissBtn: {
+  roastActionRow: {
+    flexDirection: 'row', gap: spacing.sm,
     marginHorizontal: spacing.lg, marginTop: spacing.md,
-    paddingVertical: 14, borderRadius: radius.lg,
+  },
+  roastShareBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, paddingVertical: 14, borderRadius: radius.lg,
+    backgroundColor: 'rgba(0,230,118,0.07)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.25)',
+  },
+  roastShareBtnText: { fontSize: 14, fontWeight: '700', color: 'rgba(0,230,118,0.9)' },
+  roastDismissBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: radius.lg,
     backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primaryBorder,
     alignItems: 'center',
   },
