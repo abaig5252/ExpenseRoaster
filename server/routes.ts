@@ -956,7 +956,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
   "documentType": "<'receipt' or 'bank_statement'>",
   "amount": <grand total in cents, integer>,
   "currency": "<3-letter ISO currency code from the receipt, e.g. USD, EUR, GBP, AUD>",
-  "description": "<merchant name — short, e.g. 'Walmart', 'Starbucks'>",
+  "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
   "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",
   "location": "<city and country from receipt, or null>",
@@ -1053,7 +1053,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: [
-            { type: "text", text: `First, decide if this is a single-transaction receipt or a bank/credit-card statement (multiple transaction rows, account number, statement period). Set "documentType" to "bank_statement" ONLY if it clearly shows a bank or credit card statement — otherwise "receipt". When in doubt, set "receipt".\n\nIf it IS a receipt, find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "documentType": "<'receipt' or 'bank_statement'>",\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<short merchant name>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",\n  "roast": "<1-2 cheeky sentences about this merchant and exact amount>"\n}` },
+            { type: "text", text: `First, decide if this is a single-transaction receipt or a bank/credit-card statement (multiple transaction rows, account number, statement period). Set "documentType" to "bank_statement" ONLY if it clearly shows a bank or credit card statement — otherwise "receipt". When in doubt, set "receipt".\n\nIf it IS a receipt, find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "documentType": "<'receipt' or 'bank_statement'>",\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",\n  "roast": "<1-2 cheeky sentences about this merchant and exact amount>"\n}` },
             { type: "image_url", image_url: { url: imageUrl } },
           ]},
         ],
@@ -1176,33 +1176,55 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         r.merchantPattern.toLowerCase().includes(tx.description.toLowerCase())
       );
       let category: string;
+      let cleanedDescription: string = tx.description;
       if (matchedRule) {
         category = matchedRule.category;
+        // Still clean the name even when rule matches category
+        const nameClean = await openai.chat.completions.create({
+          model: "gpt-5.2",
+          messages: [
+            { role: "system", content: `You are a merchant name parser. You will be given a raw bank statement merchant name and must return only the clean, human readable version.\n\nRules:\n- Remove all transaction codes, reference numbers, and location suffixes\n- Convert ALL CAPS to Title Case\n- Recognize common merchants and return their proper brand name (e.g. "SP0TIFY P3D89" → "Spotify")\n- For unknown merchants, return the cleanest readable version possible\n- If the merchant appears to be a service provider, keep the core name only\n- Return only the cleaned name — nothing else, no explanation` },
+            { role: "user", content: tx.description },
+          ],
+          max_completion_tokens: 20,
+        });
+        cleanedDescription = nameClean.choices[0]?.message?.content?.trim() || tx.description;
       } else {
         const aiCat = await openai.chat.completions.create({
           model: "gpt-5.2",
           messages: [
-            { role: "system", content: `Categorize this bank transaction. Reply with ONLY one of these exact values — pick the best match:
-- Food & Drink: restaurants, cafes, bars, takeout, food delivery, fast food
-- Groceries: supermarkets, Walmart, Costco, grocery stores, bulk food
-- Shopping: clothing, retail, electronics, department stores, Amazon, general merchandise
-- Transport: gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash
-- Travel: flights, hotels, Airbnb, car rental, accommodation, travel agencies
-- Entertainment: movies, concerts, events, gaming, theme parks, sports, nightlife
-- Health & Fitness: pharmacy, gym, doctor, dentist, spa, beauty salon, personal care
-- Subscriptions: recurring monthly/annual services, streaming, software, apps, memberships
-- Other: only if nothing above clearly fits${rulesContext}` },
+            { role: "system", content: `You are a merchant name parser AND transaction categorizer. Given a raw bank statement merchant name, return a JSON object with two fields:
+1. "name": the clean, human-readable merchant name — remove transaction codes, reference numbers, location suffixes; convert ALL CAPS to Title Case; recognize common brands (e.g. "SP0TIFY P3D89" → "Spotify"); return only the core name, no explanation
+2. "category": exactly one of these values — pick the best match:
+   - Food & Drink (restaurants, cafes, bars, takeout, food delivery, fast food)
+   - Groceries (supermarkets, Walmart, Costco, grocery stores, bulk food)
+   - Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise)
+   - Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash)
+   - Travel (flights, hotels, Airbnb, car rental, accommodation, travel agencies)
+   - Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife)
+   - Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty salon, personal care)
+   - Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships)
+   - Other (only if nothing above clearly fits)${rulesContext}
+
+Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
             { role: "user", content: tx.description },
           ],
-          max_completion_tokens: 10,
+          max_completion_tokens: 40,
+          response_format: { type: "json_object" },
         });
-        category = aiCat.choices[0]?.message?.content?.trim() || "Other";
+        try {
+          const parsed = JSON.parse(aiCat.choices[0]?.message?.content?.trim() || "{}");
+          cleanedDescription = parsed.name || tx.description;
+          category = parsed.category || "Other";
+        } catch {
+          category = "Other";
+        }
       }
-      const roast = await generateRoast(tx.description, Math.round(tx.amount * 100), category, tone, location, currency, date);
+      const roast = await generateRoast(cleanedDescription, Math.round(tx.amount * 100), category, tone, location, currency, date);
       const expense = await storage.createExpense({
         userId,
         amount: Math.round(tx.amount * 100),
-        description: tx.description,
+        description: cleanedDescription,
         date,
         category,
         roast,
