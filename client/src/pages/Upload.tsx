@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flame, Plus, Receipt, RefreshCw, Lock, Camera, Loader2, Trash2, X, ChevronDown } from "lucide-react";
+import { ShareButton } from "@/components/ShareButton";
 import { useQuery } from "@tanstack/react-query";
 import { useExpenses, useExpenseSummary, useDeleteExpense, useBulkDeleteExpenses, useMonthlyRoast, useUpdateExpense } from "@/hooks/use-expenses";
 import { ReceiptCollageCard } from "@/components/ReceiptCollageCard";
@@ -440,9 +441,18 @@ export default function Upload() {
                     <Flame className="w-5 h-5 text-[hsl(var(--primary))]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--primary))] mb-1">
-                      {fmtMonth(selectedMonth)} Verdict
-                    </p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--primary))]">
+                        {fmtMonth(selectedMonth)} Verdict
+                      </p>
+                      {monthlyRoastData?.roast && (
+                        <ShareButton
+                          text={`🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData.roast}"\n\n— Expense Roaster`}
+                          variant="icon"
+                          className="flex items-center justify-center w-7 h-7 rounded-lg text-[hsl(var(--primary))]/60 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200"
+                        />
+                      )}
+                    </div>
                     {roastLoading ? (
                       <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <Loader2 className="w-4 h-4 animate-spin" />

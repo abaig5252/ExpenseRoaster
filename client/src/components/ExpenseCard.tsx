@@ -3,6 +3,7 @@ import { Trash2, AlertTriangle, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { formatAmount } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
+import { ShareButton } from "@/components/ShareButton";
 
 interface ExpenseCardProps {
   expense: ExpenseResponse;
@@ -235,6 +236,15 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
         {[1, 2, 3, 4, 5].map(n => (
           <span key={n} style={{ fontSize: 12, opacity: n <= severity ? 1 : 0.2 }}>🔥</span>
         ))}
+        {expense.roast && (
+          <div style={{ marginLeft: "auto" }}>
+            <ShareButton
+              text={`🔥 "${expense.roast}"\n\n— ${formattedAmount} at ${expense.description} · Expense Roaster`}
+              variant="icon"
+              className="flex items-center justify-center w-7 h-7 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200"
+            />
+          </div>
+        )}
       </div>
 
       {/* Trash button — hidden until hover, not shown in select mode or when confirming */}

@@ -1,8 +1,8 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
-import { Flame, X, Share2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Flame, X } from "lucide-react";
 import { formatAmount } from "@/hooks/use-currency";
+import { ShareButton } from "@/components/ShareButton";
 
 interface RoastCardProps {
   expense: {
@@ -18,17 +18,7 @@ interface RoastCardProps {
 
 export function RoastCard({ expense, watermark = false, onClose }: RoastCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-
-  const handleShare = async () => {
-    const text = `😭 I just got financially roasted:\n\n"${expense.roast}"\n\n— Expense Roaster`;
-    if (navigator.share) {
-      await navigator.share({ text });
-    } else {
-      await navigator.clipboard.writeText(text);
-      toast({ title: "Roast copied!", description: "Share your shame with the world." });
-    }
-  };
+  const shareText = `🔥 I just got financially roasted:\n\n"${expense.roast}"\n\n— ${formatAmount(expense.amount, expense.currency || "USD")} at ${expense.description} · Expense Roaster`;
 
   return (
     <div ref={cardRef} className="relative glass-panel rounded-3xl overflow-hidden border border-[hsl(var(--primary))]/30 shadow-2xl shadow-[hsl(var(--primary))]/20">
@@ -92,16 +82,12 @@ export function RoastCard({ expense, watermark = false, onClose }: RoastCardProp
         )}
 
         {/* Share button */}
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleShare}
-          data-testid="button-share-roast"
-          className="w-full mt-4 py-3 rounded-2xl font-display font-bold text-white bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] btn-glow flex items-center justify-center gap-2 text-sm"
-        >
-          <Share2 className="w-4 h-4" />
-          Share My Shame
-        </motion.button>
+        <ShareButton
+          text={shareText}
+          label="Share My Shame"
+          variant="full"
+          className="w-full mt-4 py-3 rounded-2xl font-display font-bold text-white bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] btn-glow flex items-center justify-center gap-2 text-sm hover:opacity-90 transition-opacity"
+        />
       </div>
     </div>
   );
