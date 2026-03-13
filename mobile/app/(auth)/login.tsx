@@ -136,7 +136,7 @@ export default function LoginScreen() {
                       onBlur={() => setFocused(null)}
                     />
                     <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
+                      <Ionicons name={showPass ? 'eye-outline' : 'eye-off-outline'} size={20} color="#666" />
                     </TouchableOpacity>
                   </View>
 
@@ -231,7 +231,7 @@ export default function LoginScreen() {
                       onBlur={() => setFocused(null)}
                     />
                     <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
+                      <Ionicons name={showPass ? 'eye-outline' : 'eye-off-outline'} size={20} color="#666" />
                     </TouchableOpacity>
                   </View>
 
@@ -247,7 +247,7 @@ export default function LoginScreen() {
                       onBlur={() => setFocused(null)}
                     />
                     <TouchableOpacity style={s.eyeBtn} onPress={() => setShowConfirm(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
+                      <Ionicons name={showConfirm ? 'eye-outline' : 'eye-off-outline'} size={20} color="#666" />
                     </TouchableOpacity>
                   </View>
 
