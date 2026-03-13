@@ -124,7 +124,7 @@ export default function LoginScreen() {
                     onBlur={() => setFocused(null)}
                   />
 
-                  <View style={[s.inputRow, focused === 'password' && s.inputFocused]}>
+                  <View style={[s.inputRow, focused === 'password' && s.inputRowFocused]}>
                     <TextInput
                       style={s.inputFlex}
                       placeholder="Password"
@@ -219,7 +219,7 @@ export default function LoginScreen() {
                     onBlur={() => setFocused(null)}
                   />
 
-                  <View style={[s.inputRow, focused === 'password' && s.inputFocused]}>
+                  <View style={[s.inputRow, focused === 'password' && s.inputRowFocused]}>
                     <TextInput
                       style={s.inputFlex}
                       placeholder="Password (min 8 chars)"
@@ -235,7 +235,7 @@ export default function LoginScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  <View style={[s.inputRow, focused === 'confirm' && s.inputFocused]}>
+                  <View style={[s.inputRow, focused === 'confirm' && s.inputRowFocused]}>
                     <TextInput
                       style={s.inputFlex}
                       placeholder="Confirm Password"
@@ -426,6 +426,11 @@ const s = StyleSheet.create({
     shadowRadius: 4,
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 0 },
+  },
+  // Shadow-free variant for inputRow wrappers — shadow on a parent View
+  // triggers an iOS layout pass that blurs the child TextInput immediately.
+  inputRowFocused: {
+    borderColor: GREEN_FOCUS,
   },
   eyeBtn: {
     padding: 6,
