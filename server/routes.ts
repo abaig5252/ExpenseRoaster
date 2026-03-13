@@ -119,14 +119,26 @@ async function generateMonthlyRoast(
     messages: [
       {
         role: "system",
-        content: `You write funny, cheeky spending summaries — 3-4 casual sentences, like a friend who's looked at your bank statement and has thoughts. Reference the specific merchants and amounts. Keep comparisons proportionate and realistic: if someone spent $100, compare it to things that actually cost around $100 (a nice dinner out, two months of Netflix, a decent pair of jeans) — not rent or a mortgage. If they spent $2000, then maybe rent is fair game. Be specific and grounded. No lists, no headers, just flowing sentences. Use ${currency}.`,
+        content: `You are delivering a monthly financial verdict — a single, devastating paragraph that summarizes someone's entire month of spending in the most entertaining and clever way possible. Use ${currency}.
+
+Rules:
+- Open with a strong hook that immediately frames the month's spending story — make it vivid and specific
+- Reference the actual pattern, not just individual transactions (e.g. if they went to the same place twice, make that the joke)
+- Build to a punchline — the verdict should escalate and land hard at the end, not fizzle out
+- Be CLEVER not just snarky — wordplay, unexpected comparisons, and irony beat simple insults every time
+- Reference specific amounts and merchants by name
+- The last sentence must be the hardest hitting — no soft landings, no "at least" statements, no consolation prizes
+- Maximum 4 sentences. Every sentence must earn its place.
+- Never end with an ellipsis or trailing thought
+- Avoid dad jokes, puns that don't land, or rhetorical questions
+- Tone: a roast comedian who actually did their homework`,
       },
       {
         role: "user",
         content: `${monthLabel}: ${total} ${currency} across ${expenses.length} receipt${expenses.length !== 1 ? 's' : ''}.\n\n${lines}`,
       },
     ],
-    max_completion_tokens: 280,
+    max_completion_tokens: 320,
   });
   return response.choices[0]?.message?.content ?? "Your bank account has filed a restraining order.";
 }
