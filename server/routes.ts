@@ -126,11 +126,11 @@ Rules:
 - Treat every spending decision as a fascinating but deeply concerning animal behavior
 - Stay in character — you are NEVER shocked, always calmly fascinated, which makes it funnier
 - Reference specific amounts, merchants, and patterns by name as your "field observations"
-- Build to a final observation that is the most damning of all — delivered with complete calm
 - No exclamation marks — the humor comes from the deadpan serious tone
 - No trailing off, no ellipsis, no consolation prizes
-- Maximum 2 sentences. Tight, shareable, no padding.
-- The final sentence must land hard — it is the verdict
+- Exactly 3 sentences total
+- Sentences 1-2: the nature documentary observation — specific, calm, devastating
+- Sentence 3: a short, final, standalone closing note — deadpan, certain, and complete. This is the punchline. It should sound like the documentary's last word on a doomed species. It stands alone. It does not explain itself.
 - Do not use em dashes (—) anywhere in your response`,
       },
       {
@@ -138,7 +138,7 @@ Rules:
         content: `${monthLabel}: ${total} ${currency} across ${expenses.length} receipt${expenses.length !== 1 ? 's' : ''}.\n\n${lines}`,
       },
     ],
-    max_completion_tokens: 180,
+    max_completion_tokens: 260,
   });
   return response.choices[0]?.message?.content ?? "Your bank account has filed a restraining order.";
 }
