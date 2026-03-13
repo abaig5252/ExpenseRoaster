@@ -131,6 +131,7 @@ Rules:
 - Maximum 4 sentences. Every sentence must earn its place.
 - Never end with an ellipsis or trailing thought
 - Avoid dad jokes, puns that don't land, or rhetorical questions
+- The final punchline must connect back to the spending behavior itself — never pivot to an unrelated metaphor at the end
 - Tone: a roast comedian who actually did their homework`,
       },
       {
