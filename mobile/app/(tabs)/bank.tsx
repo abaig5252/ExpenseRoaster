@@ -88,6 +88,7 @@ export default function BankScreen() {
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [catPicker, setCatPicker] = useState<{ id: number; current: string } | null>(null);
+  const [statementRoast, setStatementRoast] = useState<string | null>(null);
   const [savingCatId, setSavingCatId] = useState<number | null>(null);
   const [catOverrides, setCatOverrides] = useState<Record<number, string>>({});
 
@@ -218,13 +219,17 @@ export default function BankScreen() {
         const err = await res.json().catch(() => ({ message: 'Import failed' }));
         throw new Error((err as { message?: string }).message);
       }
-      const data = await res.json() as { imported?: number };
-      Alert.alert('Imported!', `${data.imported ?? 0} transactions imported and roasted.`);
+      const data = await res.json() as { imported?: number; statementRoast?: string };
       setImportImageUri(null);
       setImportFileName(null);
       setImportFileType('image');
       setPreviewResult(null);
       qc.invalidateQueries({ queryKey: ['/api/expenses'] });
+      if (data.statementRoast) {
+        setStatementRoast(data.statementRoast);
+      } else {
+        Alert.alert('Imported!', `${data.imported ?? 0} transactions imported and roasted.`);
+      }
     } catch (e: unknown) {
       Alert.alert('Import Failed', (e as Error).message);
     } finally {
@@ -578,6 +583,42 @@ export default function BankScreen() {
         </View>
       </Modal>
 
+      {/* ── Statement Roast Modal ── */}
+      <Modal
+        visible={!!statementRoast}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setStatementRoast(null)}
+      >
+        <View style={s.roastModalBackdrop}>
+          <View style={s.roastSheet}>
+            <View style={s.roastSheetHandle} />
+            <View style={s.roastSheetHeader}>
+              <LinearGradient
+                colors={['#ff6b35', '#9333ea']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={s.roastSheetIconWrap}
+              >
+                <Ionicons name="flame" size={18} color="#fff" />
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={s.roastSheetTitle}>Statement Roast</Text>
+                <Text style={s.roastSheetSub}>Your complete spending analysis</Text>
+              </View>
+              <TouchableOpacity onPress={() => setStatementRoast(null)} style={s.roastCloseBtn}>
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={s.roastScroll} contentContainerStyle={s.roastScrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={s.roastText}>{statementRoast}</Text>
+            </ScrollView>
+            <TouchableOpacity onPress={() => setStatementRoast(null)} style={s.roastDismissBtn}>
+              <Text style={s.roastDismissBtnText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -774,4 +815,52 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
   },
   catGridText: { fontSize: 13, fontWeight: '700' },
+
+  roastModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  roastSheet: {
+    backgroundColor: '#161616',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#2a2a2a',
+    paddingBottom: 36, maxHeight: '80%',
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+  },
+  roastSheetHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignSelf: 'center', marginTop: 12, marginBottom: 4,
+  },
+  roastSheetHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  roastSheetIconWrap: {
+    width: 38, height: 38, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  roastSheetTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  roastSheetSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  roastCloseBtn: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  roastScroll: { maxHeight: 340 },
+  roastScrollContent: {
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+  },
+  roastText: {
+    fontSize: 14, lineHeight: 22, color: 'rgba(255,255,255,0.88)',
+    fontWeight: '400',
+  },
+  roastDismissBtn: {
+    marginHorizontal: spacing.lg, marginTop: spacing.md,
+    paddingVertical: 14, borderRadius: radius.lg,
+    backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primaryBorder,
+    alignItems: 'center',
+  },
+  roastDismissBtnText: { fontSize: 15, fontWeight: '700', color: colors.primary },
 });

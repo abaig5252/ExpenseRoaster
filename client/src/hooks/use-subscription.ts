@@ -92,7 +92,7 @@ export function useImportCSV() {
         const err = await res.json();
         throw new Error(err.message || "Import failed");
       }
-      return res.json() as Promise<{ imported: number }>;
+      return res.json() as Promise<{ imported: number; statementRoast?: string }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });

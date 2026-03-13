@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { parseReceiptDate } from "@/lib/dates";
 import { motion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, X, MessageSquare } from "lucide-react";
 import { useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
 import { CURRENCIES } from "@/hooks/use-currency";
@@ -153,6 +153,7 @@ export default function BankStatement() {
   const [scanning, setScanning] = useState(false);
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [editMonth, setEditMonth] = useState("");
+  const [statementRoast, setStatementRoast] = useState<string | null>(null);
 
   const { data: me } = useMe();
   const importMutation = useImportCSV();
@@ -193,9 +194,10 @@ export default function BankStatement() {
       { transactions: previewResult.transactions, month: editMonth, tone, currency: importCurrency },
       {
         onSuccess: (data) => {
-          toast({ title: `Imported ${data.imported} transactions!`, description: "Each one came with its own roast." });
+          toast({ title: `Imported ${data.imported} transactions!`, description: "Statement roast ready below." });
           setImportData(null);
           setPreviewResult(null);
+          setStatementRoast(data.statementRoast ?? null);
         },
         onError: (err: any) => {
           toast({ title: "Import failed", description: err.message, variant: "destructive" });
@@ -422,8 +424,36 @@ export default function BankStatement() {
             </motion.div>
           </div>
 
-          {/* Right: Expense list */}
+          {/* Right: Statement roast + Expense list */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+            {statementRoast && (
+              <motion.div
+                initial={{ opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-5 glass-panel rounded-3xl p-5 border border-[hsl(var(--primary))]/30 relative overflow-hidden"
+                data-testid="card-statement-roast"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--secondary))]/5 pointer-events-none" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center">
+                        <MessageSquare className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-bold text-white">Statement Roast</span>
+                    </div>
+                    <button
+                      onClick={() => setStatementRoast(null)}
+                      data-testid="button-dismiss-roast"
+                      className="text-muted-foreground hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-sm text-white/90 leading-relaxed whitespace-pre-line">{statementRoast}</p>
+                </div>
+              </motion.div>
+            )}
             <h2 className="text-xl font-bold text-white mb-4">Imported Expenses ({manualExpenses.length})</h2>
             <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-1">
               {manualExpenses.length === 0 ? (

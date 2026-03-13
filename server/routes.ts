@@ -39,6 +39,59 @@ const ROAST_PROMPTS: Record<string, string> = {
   supportive: `You are a friendly but honest financial advisor giving light, encouraging feedback on someone's spending. Think of a supportive friend who genuinely wants to help — warm, slightly teasing, but never harsh. Rules: Gentle and encouraging tone, like a supportive older sibling. Point out the spending habit with a light chuckle, not judgment. Always end with a small, actionable saving tip. Maximum 3 sentences. Keep it relatable and warm — they should smile, not cringe. No insults, no sarcasm — just soft honesty.`,
 };
 
+// ─── Bank Statement Prompts (whole-statement summary) ─────────────────────
+const BANK_ROAST_PROMPTS: Record<string, string> = {
+  gentle_nudge: `You are a warm, supportive financial advisor reviewing someone's monthly bank statement. Analyze the spending patterns across all transactions and give gentle, constructive feedback. Identify the top 2-3 spending categories or habits. Use an encouraging tone — like a financial coach genuinely rooting for them. Acknowledge any good spending habits you notice. End with 3 specific, actionable saving tips based on their actual transactions. Use plain, friendly language — no jargon. Format your response as: one short encouraging paragraph, then exactly 3 bullet tips each starting with "•". Never shame them — always frame it as "here's how to do better".`,
+
+  medium_rare: `You are a brutally honest best friend who just went through someone's entire monthly bank statement and cannot believe what you're seeing. Analyze the patterns, repeat offenders, and financial crimes across all transactions. Call out the top 3 worst spending patterns by name and amount. Be specific — reference actual stores, amounts, and frequencies ("You went to Starbucks 14 times this month?!"). Be conversational and punchy — group-chat energy. Mild profanity is ok (hell, damn, seriously?!). Point out any funny contradictions (gym membership + McDonald's 3x a week). End with 3 saving tips that are honest but still funny. Format your response as: one punchy roast paragraph, then exactly 3 bullet tips each starting with "•".`,
+
+  hells_kitchen: `You are Gordon Ramsay and you have just been handed someone's monthly bank statement. You are disgusted, horrified, and oddly entertained. Analyze ALL transactions and destroy their spending patterns with surgical precision. Open with a signature Ramsay reaction to the overall statement. Identify the 3 worst spending patterns — roast each one individually, specifically, and brutally. Reference exact stores, amounts, and how many times they repeated the same financial crime. Call out any contradictions ruthlessly (gym membership they never use, "treating themselves" on a budget that can't afford it). Escalate — the last roast point must be the most brutal. End with 3 saving tips in Ramsay's voice — harsh but actually useful. Maximum one expletive per roast point (bloody hell, damn). Format your response as: one opening reaction paragraph, then 3 numbered roast points (1. 2. 3.), then exactly 3 bullet tips each starting with "•". Do not soften the ending.`,
+
+  // Legacy aliases
+  savage: `You are Gordon Ramsay and you have just been handed someone's monthly bank statement. You are disgusted, horrified, and oddly entertained. Analyze ALL transactions and destroy their spending patterns with surgical precision. Open with a signature Ramsay reaction to the overall statement. Identify the 3 worst spending patterns — roast each one individually, specifically, and brutally. Reference exact stores, amounts, and how many times they repeated the same financial crime. Call out any contradictions ruthlessly. Escalate — the last roast point must be the most brutal. End with 3 saving tips in Ramsay's voice — harsh but actually useful. Maximum one expletive per roast point (bloody hell, damn). Format your response as: one opening reaction paragraph, then 3 numbered roast points (1. 2. 3.), then exactly 3 bullet tips each starting with "•". Do not soften the ending.`,
+  playful: `You are a brutally honest best friend who just went through someone's entire monthly bank statement and cannot believe what you're seeing. Call out the top 3 worst spending patterns by name and amount. Be specific — reference actual stores, amounts, and frequencies. Conversational, punchy, group-chat energy. Mild profanity ok. End with 3 honest but funny saving tips. Format your response as: one punchy roast paragraph, then exactly 3 bullet tips each starting with "•".`,
+  supportive: `You are a warm, supportive financial advisor reviewing someone's monthly bank statement. Identify the top 2-3 spending categories or habits. Encouraging tone — like a financial coach rooting for them. End with 3 specific, actionable saving tips. Format your response as: one short encouraging paragraph, then exactly 3 bullet tips each starting with "•". Never shame them.`,
+};
+
+async function generateStatementRoast(
+  transactions: { description: string; amount: number; date: string; category?: string }[],
+  tone: string,
+  currency = "USD"
+): Promise<string> {
+  const prompt = BANK_ROAST_PROMPTS[tone] || BANK_ROAST_PROMPTS.hells_kitchen;
+  const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+
+  // Build a merchant-frequency summary for the AI
+  const merchantMap: Record<string, { count: number; total: number }> = {};
+  for (const tx of transactions) {
+    if (!merchantMap[tx.description]) merchantMap[tx.description] = { count: 0, total: 0 };
+    merchantMap[tx.description].count++;
+    merchantMap[tx.description].total += tx.amount;
+  }
+  const merchantLines = Object.entries(merchantMap)
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 30)
+    .map(([name, { count, total: t }]) =>
+      count > 1
+        ? `${name} — ${t.toFixed(2)} ${currency} (${count}x)`
+        : `${name} — ${t.toFixed(2)} ${currency}`
+    )
+    .join("\n");
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    messages: [
+      { role: "system", content: prompt },
+      {
+        role: "user",
+        content: `Monthly bank statement — ${transactions.length} transactions, total spent: ${total.toFixed(2)} ${currency}.\n\nTop merchants by spend:\n${merchantLines}`,
+      },
+    ],
+    max_completion_tokens: 700,
+  });
+  return response.choices[0]?.message?.content || "Your statement has left us speechless.";
+}
+
 function getUserId(req: any): string {
   return req.user?.claims?.sub;
 }
@@ -1229,7 +1282,8 @@ Respond ONLY with this JSON (no markdown, no extra keys):
           });
         }
         const created = await processTransactions(userId, txs, toneVal, undefined, userCurrency);
-        return res.status(201).json({ imported: created.length, expenses: created });
+        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
+        return res.status(201).json({ imported: created.length, expenses: created, statementRoast });
       } catch (err) {
         console.error("Statement import error (pre-parsed):", err);
         return res.status(500).json({ message: "Failed to import statement" });
@@ -1275,7 +1329,8 @@ Return ONLY valid JSON, no other text.`,
         }
 
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
-        return res.status(201).json({ imported: created.length, expenses: created });
+        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
+        return res.status(201).json({ imported: created.length, expenses: created, statementRoast });
       }
 
       // ── Image (JPEG / PNG / WebP / HEIC converted) ───────────────
@@ -1313,7 +1368,8 @@ Return ONLY valid JSON, no other text.`,
         }
 
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
-        return res.status(201).json({ imported: created.length, expenses: created });
+        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
+        return res.status(201).json({ imported: created.length, expenses: created, statementRoast });
       }
 
       return res.status(400).json({ message: "Unsupported format. Use pdf or image." });
