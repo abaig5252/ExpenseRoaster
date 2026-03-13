@@ -44,10 +44,6 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return <Redirect to="/login" />;
   }
 
-  if (me && me.emailVerified === false) {
-    return <Redirect to="/verify" />;
-  }
-
   if (me && me.onboardingComplete === false) {
     return <Redirect to="/onboarding" />;
   }
@@ -69,10 +65,6 @@ function OnboardingRoute() {
 
   if (!isAuthenticated) {
     return <Redirect to="/login" />;
-  }
-
-  if (me && me.emailVerified === false) {
-    return <Redirect to="/verify" />;
   }
 
   if (me && me.onboardingComplete === true) {

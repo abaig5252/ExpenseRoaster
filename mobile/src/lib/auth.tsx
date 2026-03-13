@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { getToken, setToken, clearToken, apiGet, apiGetWithToken, apiPatch } from './api';
 
@@ -101,9 +102,25 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<MeUser | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const appState = React.useRef<AppStateStatus>(AppState.currentState);
 
   React.useEffect(() => {
     bootstrap();
+  }, []);
+
+  // Refresh user whenever the app comes back to foreground (e.g. after Stripe checkout)
+  React.useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        getToken().then(token => {
+          if (token) {
+            apiGet<MeUser>('/api/me').then(me => setUser(me)).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+      appState.current = nextState;
+    });
+    return () => sub.remove();
   }, []);
 
   async function syncCurrencyOnce(me: MeUser): Promise<MeUser> {
