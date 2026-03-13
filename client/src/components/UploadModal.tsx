@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { UploadCloud, X, Flame, AlertCircle, Camera, Check, ChevronLeft, ScanLine } from "lucide-react";
+import { UploadCloud, X, Flame, AlertCircle, Camera, Check, ChevronLeft, ScanLine, FileText } from "lucide-react";
 import { usePreviewReceipt, useConfirmReceipt } from "@/hooks/use-expenses";
 import { useMe } from "@/hooks/use-subscription";
 import { formatAmount } from "@/hooks/use-currency";
@@ -368,26 +368,40 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                     </div>
                   )}
                   {previewMutation.isError && (
-                    <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex flex-col gap-2 text-destructive">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                        <p className="text-sm font-medium">{getDisplayError(previewMutation.error)}</p>
-                      </div>
-                      {isLimitError && (
-                        <Link href="/pricing" onClick={resetAndClose}>
-                          <span className="text-sm font-bold text-[hsl(var(--primary))] hover:underline cursor-pointer ml-8">
-                            Upgrade to Premium for unlimited uploads →
-                          </span>
-                        </Link>
-                      )}
-                      {isBankStatementError && (
+                    isBankStatementError ? (
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-amber-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">This looks like a bank statement</p>
+                            <p className="text-sm mt-1 text-muted-foreground leading-relaxed">
+                              This tab is for individual receipts only. To import a bank or credit card statement with multiple transactions, use the <strong>Bank Statement</strong> tab.
+                            </p>
+                          </div>
+                        </div>
                         <Link href="/bank-statement" onClick={resetAndClose}>
-                          <span className="text-sm font-bold text-[hsl(var(--primary))] hover:underline cursor-pointer ml-8">
-                            Go to Bank Statement tab →
-                          </span>
+                          <button className="w-full py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 transition-colors text-sm font-bold text-amber-600 dark:text-amber-400">
+                            Take me to Bank Statement tab →
+                          </button>
                         </Link>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex flex-col gap-2 text-destructive">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                          <p className="text-sm font-medium">{getDisplayError(previewMutation.error)}</p>
+                        </div>
+                        {isLimitError && (
+                          <Link href="/pricing" onClick={resetAndClose}>
+                            <span className="text-sm font-bold text-[hsl(var(--primary))] hover:underline cursor-pointer ml-8">
+                              Upgrade to Premium for unlimited uploads →
+                            </span>
+                          </Link>
+                        )}
+                      </div>
+                    )
                   )}
 
                   {/* Tone selector */}

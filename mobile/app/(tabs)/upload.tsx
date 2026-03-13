@@ -5,6 +5,7 @@ import {
   Animated, Easing, LayoutAnimation, UIManager, Modal, TextInput, KeyboardAvoidingView,
 } from 'react-native';
 
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { requestCameraPermission, requestPhotoLibraryPermission } from '../../src/lib/permissions';
 import * as FileSystem from 'expo-file-system';
@@ -202,6 +203,7 @@ function formatMoney(cents: number, currency: string) {
 export default function UploadScreen() {
   const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -642,9 +644,15 @@ export default function UploadScreen() {
         const err = await res.json().catch(() => ({ message: 'Analysis failed', code: '' }));
         if ((err as any).code === 'BANK_STATEMENT_DETECTED') {
           Alert.alert(
-            'Wrong Tab',
-            "That looks like a bank statement, not a single receipt. Use the Bank tab to import your statement.",
-            [{ text: 'OK' }]
+            'Receipts Only',
+            "This looks like a bank or credit card statement. This tab is for individual receipts only.\n\nUse the Bank tab to import your full statement and get all your transactions roasted at once.",
+            [
+              { text: 'Got it', style: 'cancel' },
+              {
+                text: 'Go to Bank Tab',
+                onPress: () => router.push('/(tabs)/bank'),
+              },
+            ]
           );
           return;
         }
