@@ -24,6 +24,43 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+// ── Universal merchant name cleaner ─────────────────────────────────────────
+// Server-lifetime in-memory cache: each unique raw name is cleaned exactly once,
+// then all subsequent lookups are instant. No raw bank string ever reaches a
+// prompt or the UI without passing through here first.
+const _merchantCache = new Map<string, string>();
+const MERCHANT_CLEANER_PROMPT =
+  `You are a merchant name parser. You will be given a raw bank statement merchant name and must return only the clean, human readable version.\n\nRules:\n- Remove all transaction codes, reference numbers, and location suffixes\n- Convert ALL CAPS to Title Case\n- Recognize common merchants and return their proper brand name (e.g. "SP0TIFY P3D89" → "Spotify")\n- For unknown merchants, return the cleanest readable version possible\n- If the merchant appears to be a service provider, keep the core name only\n- Return only the cleaned name — nothing else, no explanation`;
+
+async function cleanMerchantName(raw: string): Promise<string> {
+  const trimmed = (raw || "").trim();
+  if (!trimmed || trimmed === "Unknown Purchase" || trimmed === "Unknown") return trimmed;
+  const key = trimmed.toLowerCase();
+  if (_merchantCache.has(key)) return _merchantCache.get(key)!;
+  try {
+    const r = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      messages: [
+        { role: "system", content: MERCHANT_CLEANER_PROMPT },
+        { role: "user", content: trimmed },
+      ],
+      max_completion_tokens: 20,
+    });
+    const cleaned = r.choices[0]?.message?.content?.trim() || trimmed;
+    _merchantCache.set(key, cleaned);
+    return cleaned;
+  } catch {
+    return trimmed;
+  }
+}
+
+// Clean a list of names in parallel (deduplicates automatically via cache)
+async function cleanMerchantNames(names: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(names.map(n => (n || "").trim()).filter(Boolean))];
+  const pairs = await Promise.all(unique.map(async n => [n, await cleanMerchantName(n)] as [string, string]));
+  return new Map(pairs);
+}
+
 const FREE_UPLOAD_LIMIT = 3;
 
 const ROAST_PROMPTS: Record<string, string> = {
@@ -61,12 +98,16 @@ async function generateStatementRoast(
   const prompt = BANK_ROAST_PROMPTS[tone] || BANK_ROAST_PROMPTS.hells_kitchen;
   const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
+  // Clean all merchant names before building the summary
+  const cleanMap = await cleanMerchantNames(transactions.map(tx => tx.description));
+
   // Build a merchant-frequency summary for the AI
   const merchantMap: Record<string, { count: number; total: number }> = {};
   for (const tx of transactions) {
-    if (!merchantMap[tx.description]) merchantMap[tx.description] = { count: 0, total: 0 };
-    merchantMap[tx.description].count++;
-    merchantMap[tx.description].total += tx.amount;
+    const name = cleanMap.get(tx.description) || tx.description;
+    if (!merchantMap[name]) merchantMap[name] = { count: 0, total: 0 };
+    merchantMap[name].count++;
+    merchantMap[name].total += tx.amount;
   }
   const merchantLines = Object.entries(merchantMap)
     .sort((a, b) => b[1].total - a[1].total)
@@ -110,8 +151,9 @@ async function generateMonthlyRoast(
   currency = "USD"
 ): Promise<string> {
   const total = (totalCents / 100).toFixed(2);
+  const cleanMap = await cleanMerchantNames(expenses.map(e => e.description));
   const lines = expenses.map(e =>
-    `${e.description} — ${(e.amountCents / 100).toFixed(2)} ${currency} (${e.category})`
+    `${cleanMap.get(e.description) || e.description} — ${(e.amountCents / 100).toFixed(2)} ${currency} (${e.category})`
   ).join('\n');
 
   const response = await openai.chat.completions.create({
@@ -150,6 +192,7 @@ function ordinalSuffix(n: number): string {
 }
 
 async function generateRoast(description: string, amountCents: number, category: string, tone = "hells_kitchen", _location?: string, currency = "USD", date?: Date | string): Promise<string> {
+  description = await cleanMerchantName(description);
   const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage;
   let timeNote = "";
   if (date) {
@@ -737,13 +780,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
       }
 
+      const descCleanMap = await cleanMerchantNames(allExpenses.map(e => e.description));
+
       const categoryTotals: Record<string, number> = {};
       const categoryMerchants: Record<string, string[]> = {};
       for (const exp of allExpenses) {
+        const cleanedDesc = descCleanMap.get(exp.description) || exp.description;
         categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
         if (!categoryMerchants[exp.category]) categoryMerchants[exp.category] = [];
-        if (!categoryMerchants[exp.category].includes(exp.description)) {
-          categoryMerchants[exp.category].push(exp.description);
+        if (!categoryMerchants[exp.category].includes(cleanedDesc)) {
+          categoryMerchants[exp.category].push(cleanedDesc);
         }
       }
 
@@ -989,6 +1035,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       await storage.incrementMonthlyUpload(userId);
 
       const detectedCurrency = (extracted.currency || "USD").toUpperCase();
+      const cleanedDescription = await cleanMerchantName(extracted.description || "Unknown Purchase");
 
       // For free users: return roast data but don't store
       if (isFree) {
@@ -997,7 +1044,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
           userId,
           amount: Math.round(extracted.amount),
           currency: detectedCurrency,
-          description: extracted.description || "Unknown Purchase",
+          description: cleanedDescription,
           date: dateToUse.toISOString(),
           category: extracted.category || "Other",
           roast: extracted.roast || "I'm speechless.",
@@ -1012,7 +1059,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       const expense = await storage.createExpense({
         userId,
         amount: Math.round(extracted.amount),
-        description: extracted.description || "Unknown Purchase",
+        description: cleanedDescription,
         date: dateToUse,
         category: extracted.category || "Other",
         roast: extracted.roast || "I'm speechless.",
@@ -1094,10 +1141,11 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       if (isFree && user.monthlyUploadCount >= FREE_UPLOAD_LIMIT) {
         return res.status(403).json({ message: `Free tier limit reached.`, code: "UPLOAD_LIMIT_REACHED" });
       }
-      const { amount, description, date, category, roast, currency: bodyCurrency } = req.body;
-      if (!amount || !description || !date || !category) {
+      const { amount, description: rawDescription, date, category, roast, currency: bodyCurrency } = req.body;
+      if (!amount || !rawDescription || !date || !category) {
         return res.status(400).json({ message: "Missing required fields" });
       }
+      const description = await cleanMerchantName(rawDescription);
       const confirmCurrency = bodyCurrency || "USD";
       await storage.incrementMonthlyUpload(userId);
       if (isFree) {
@@ -1132,12 +1180,13 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       const input = api.expenses.addManual.input.parse(req.body);
       const tone = (req.body.tone as string) || "hells_kitchen";
       const manualCurrency = input.currency || "USD";
-      const roast = await generateRoast(input.description, input.amount, input.category, tone, undefined, manualCurrency, new Date(input.date));
+      const cleanedManualDesc = await cleanMerchantName(input.description);
+      const roast = await generateRoast(cleanedManualDesc, input.amount, input.category, tone, undefined, manualCurrency, new Date(input.date));
 
       const expense = await storage.createExpense({
         userId,
         amount: Math.round(input.amount),
-        description: input.description,
+        description: cleanedManualDesc,
         date: new Date(input.date),
         category: input.category,
         roast,
@@ -1179,21 +1228,30 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       let cleanedDescription: string = tx.description;
       if (matchedRule) {
         category = matchedRule.category;
-        // Still clean the name even when rule matches category
-        const nameClean = await openai.chat.completions.create({
-          model: "gpt-5.2",
-          messages: [
-            { role: "system", content: `You are a merchant name parser. You will be given a raw bank statement merchant name and must return only the clean, human readable version.\n\nRules:\n- Remove all transaction codes, reference numbers, and location suffixes\n- Convert ALL CAPS to Title Case\n- Recognize common merchants and return their proper brand name (e.g. "SP0TIFY P3D89" → "Spotify")\n- For unknown merchants, return the cleanest readable version possible\n- If the merchant appears to be a service provider, keep the core name only\n- Return only the cleaned name — nothing else, no explanation` },
-            { role: "user", content: tx.description },
-          ],
-          max_completion_tokens: 20,
-        });
-        cleanedDescription = nameClean.choices[0]?.message?.content?.trim() || tx.description;
+        // Use shared cache-aware cleaner
+        cleanedDescription = await cleanMerchantName(tx.description);
       } else {
-        const aiCat = await openai.chat.completions.create({
-          model: "gpt-5.2",
-          messages: [
-            { role: "system", content: `You are a merchant name parser AND transaction categorizer. Given a raw bank statement merchant name, return a JSON object with two fields:
+        // Check if name is already cached — if so, only need category call
+        const cacheKey = tx.description.trim().toLowerCase();
+        const cachedName = _merchantCache.get(cacheKey);
+        if (cachedName) {
+          cleanedDescription = cachedName;
+          // Still need category — quick category-only call
+          const catOnly = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [
+              { role: "system", content: `Categorize this merchant into exactly one of: Food & Drink, Groceries, Shopping, Transport, Travel, Entertainment, Health & Fitness, Subscriptions, Other.${rulesContext}\n\nRespond with ONLY the category name.` },
+              { role: "user", content: cleanedDescription },
+            ],
+            max_completion_tokens: 15,
+          });
+          category = catOnly.choices[0]?.message?.content?.trim() || "Other";
+        } else {
+          // Combined name+category call (populates cache afterward)
+          const aiCat = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [
+              { role: "system", content: `You are a merchant name parser AND transaction categorizer. Given a raw bank statement merchant name, return a JSON object with two fields:
 1. "name": the clean, human-readable merchant name — remove transaction codes, reference numbers, location suffixes; convert ALL CAPS to Title Case; recognize common brands (e.g. "SP0TIFY P3D89" → "Spotify"); return only the core name, no explanation
 2. "category": exactly one of these values — pick the best match:
    - Food & Drink (restaurants, cafes, bars, takeout, food delivery, fast food)
@@ -1207,17 +1265,22 @@ Respond ONLY with this JSON (no markdown, no extra keys):
    - Other (only if nothing above clearly fits)${rulesContext}
 
 Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
-            { role: "user", content: tx.description },
-          ],
-          max_completion_tokens: 40,
-          response_format: { type: "json_object" },
-        });
-        try {
-          const parsed = JSON.parse(aiCat.choices[0]?.message?.content?.trim() || "{}");
-          cleanedDescription = parsed.name || tx.description;
-          category = parsed.category || "Other";
-        } catch {
-          category = "Other";
+              { role: "user", content: tx.description },
+            ],
+            max_completion_tokens: 40,
+            response_format: { type: "json_object" },
+          });
+          try {
+            const parsed = JSON.parse(aiCat.choices[0]?.message?.content?.trim() || "{}");
+            cleanedDescription = parsed.name || tx.description;
+            category = parsed.category || "Other";
+            // Populate the shared cache so subsequent roast/advice calls are instant
+            if (cleanedDescription && cleanedDescription !== tx.description) {
+              _merchantCache.set(cacheKey, cleanedDescription);
+            }
+          } catch {
+            category = "Other";
+          }
         }
       }
       const roast = await generateRoast(cleanedDescription, Math.round(tx.amount * 100), category, tone, location, currency, date);
@@ -1447,6 +1510,8 @@ Return ONLY valid JSON, no other text.`,
         return res.status(400).json({ message: "Need at least a few transactions to generate an annual report" });
       }
 
+      const annualCleanMap = await cleanMerchantNames(allExpenses.map(e => e.description || "Unknown"));
+
       const categoryTotals: Record<string, number> = {};
       const monthlyTotals: Record<string, number> = {};
       const merchantSpend: Record<string, { total: number; count: number }> = {};
@@ -1455,7 +1520,7 @@ Return ONLY valid JSON, no other text.`,
         categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
         const month = new Date(exp.date).toISOString().slice(0, 7);
         monthlyTotals[month] = (monthlyTotals[month] || 0) + exp.amount;
-        const merchant = exp.description || "Unknown";
+        const merchant = annualCleanMap.get(exp.description || "Unknown") || exp.description || "Unknown";
         if (!merchantSpend[merchant]) merchantSpend[merchant] = { total: 0, count: 0 };
         merchantSpend[merchant].total += exp.amount;
         merchantSpend[merchant].count += 1;
@@ -1501,7 +1566,7 @@ Return ONLY valid JSON, no other text.`,
       const biggestTx = [...allExpenses]
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 25)
-        .map(e => `${e.date} ${e.description || "Unknown"} ${(e.amount / 100).toFixed(2)} ${annualCurrency} [${e.category}]`)
+        .map(e => `${e.date} ${annualCleanMap.get(e.description || "Unknown") || e.description || "Unknown"} ${(e.amount / 100).toFixed(2)} ${annualCurrency} [${e.category}]`)
         .join("\n");
 
       const summaryText = `SPENDING ANALYSIS (${allExpenses.length} total transactions, currency: ${annualCurrency})
