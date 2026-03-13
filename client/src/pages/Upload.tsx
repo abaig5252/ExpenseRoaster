@@ -82,7 +82,7 @@ export default function Upload() {
 
   const isFree = !me || me.tier === "free";
   const uploadsUsed = me?.monthlyUploadCount || 0;
-  const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
+  const uploadsRemaining = Math.max(0, 3 - uploadsUsed);
   const firstName = user?.firstName || user?.email?.split("@")[0] || "friend";
 
   // Only receipt-type expenses
@@ -274,7 +274,7 @@ export default function Upload() {
             )}
             <p className="text-muted-foreground mt-3 text-lg">
               {isFree
-                ? `${uploadsRemaining}/1 free upload remaining this month.`
+                ? `${uploadsRemaining}/3 free uploads remaining this month.`
                 : selectedMonth && filteredReceipts.length > 0
                   ? `spent on receipts in ${fmtMonth(selectedMonth)}.`
                   : `spent this month on things you definitely needed.`}

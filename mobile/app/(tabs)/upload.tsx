@@ -236,7 +236,7 @@ export default function UploadScreen() {
 
   const isPremium = user?.tier === 'premium';
   const uploadsUsed = user?.monthlyUploadCount ?? 0;
-  const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
+  const uploadsRemaining = Math.max(0, 3 - uploadsUsed);
   const atLimit = !isPremium && uploadsRemaining === 0;
 
   const currency = user?.currency ?? 'USD';
@@ -570,7 +570,7 @@ export default function UploadScreen() {
 
   function promptImageSource() {
     if (atLimit) {
-      Alert.alert('Limit Reached', 'Free plan: 1 upload per month. Upgrade to Premium for unlimited.', [{ text: 'OK' }]);
+      Alert.alert('Limit Reached', 'Free plan: 3 uploads per month. Upgrade to Premium for unlimited.', [{ text: 'OK' }]);
       return;
     }
     if (Platform.OS === 'ios') {
@@ -639,7 +639,15 @@ export default function UploadScreen() {
         body: JSON.stringify({ image: imageDataUrl, tone }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Analysis failed' }));
+        const err = await res.json().catch(() => ({ message: 'Analysis failed', code: '' }));
+        if ((err as any).code === 'BANK_STATEMENT_DETECTED') {
+          Alert.alert(
+            'Wrong Tab',
+            "That looks like a bank statement, not a single receipt. Use the Bank tab to import your statement.",
+            [{ text: 'OK' }]
+          );
+          return;
+        }
         throw new Error((err as { message?: string }).message ?? 'Analysis failed');
       }
       const data = await res.json() as PreviewData;
@@ -762,7 +770,7 @@ export default function UploadScreen() {
                 ? (selectedMonth && filteredReceipts.length > 0
                     ? `spent on receipts in ${fmtMonth(selectedMonth)}.`
                     : 'spent this month on things you definitely needed.')
-                : `${uploadsRemaining}/1 free upload remaining this month.`}
+                : `${uploadsRemaining}/3 free uploads remaining this month.`}
             </Animated.Text>
           </View>
 

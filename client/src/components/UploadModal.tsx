@@ -138,6 +138,27 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
     (previewMutation.error as any)?.message?.includes("limit reached") ||
     (confirmMutation.error as any)?.message?.includes("limit reached");
 
+  const isBankStatementError =
+    (previewMutation.error as any)?.message?.includes("BANK_STATEMENT_DETECTED") ||
+    (previewMutation.error as any)?.message?.includes("bank statement");
+
+  const getDisplayError = (err: any): string | null => {
+    if (!err) return null;
+    const msg: string = err?.message || "";
+    if (msg.includes("BANK_STATEMENT_DETECTED") || msg.includes("bank statement")) {
+      return "That looks like a bank statement, not a single receipt. Head to the Bank Statement tab to import multiple transactions at once.";
+    }
+    if (msg.includes("limit reached")) {
+      return "You've used all your free uploads for this month.";
+    }
+    // Strip raw HTTP status prefix from apiFetch errors e.g. "422: {...}"
+    const jsonMatch = msg.match(/^\d+:\s*(\{.*\})$/s);
+    if (jsonMatch) {
+      try { return JSON.parse(jsonMatch[1]).message || msg; } catch { /* ignore */ }
+    }
+    return msg;
+  };
+
   const activeError = previewMutation.error || confirmMutation.error;
   const isPending = previewMutation.isPending || confirmMutation.isPending;
 
@@ -350,12 +371,19 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                     <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex flex-col gap-2 text-destructive">
                       <div className="flex items-start gap-3">
                         <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                        <p className="text-sm font-medium">{(previewMutation.error as any)?.message}</p>
+                        <p className="text-sm font-medium">{getDisplayError(previewMutation.error)}</p>
                       </div>
                       {isLimitError && (
                         <Link href="/pricing" onClick={resetAndClose}>
                           <span className="text-sm font-bold text-[hsl(var(--primary))] hover:underline cursor-pointer ml-8">
                             Upgrade to Premium for unlimited uploads →
+                          </span>
+                        </Link>
+                      )}
+                      {isBankStatementError && (
+                        <Link href="/bank-statement" onClick={resetAndClose}>
+                          <span className="text-sm font-bold text-[hsl(var(--primary))] hover:underline cursor-pointer ml-8">
+                            Go to Bank Statement tab →
                           </span>
                         </Link>
                       )}

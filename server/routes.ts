@@ -24,7 +24,7 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-const FREE_UPLOAD_LIMIT = 1;
+const FREE_UPLOAD_LIMIT = 3;
 
 const ROAST_PROMPTS: Record<string, string> = {
   savage: `You roast people's spending in 1-2 sentences — sharp, specific, a little mean but funny. Name the merchant, riff on the exact amount. Don't open with "You", "Oh", or the store name. Skip clichés like "bold choice", "treating yourself", "your wallet is crying". Just be unexpectedly funny — like a friend who's appalled but also kind of impressed.`,
@@ -847,7 +847,11 @@ Extract expense data from this receipt image. Keep the receipt's native currency
           {
             role: "user",
             content: [
-              { type: "text", text: `Carefully read this receipt and extract the expense details.
+              { type: "text", text: `First, decide if this image is a single-transaction receipt (e.g. from a store, restaurant, gas station, or online order) or a bank/credit-card statement (a multi-transaction document listing many purchases across time, with an account number, opening/closing balance, or statement period header).
+
+Set "documentType" to "bank_statement" ONLY if the image clearly shows a bank or credit card statement with multiple transaction rows and an account summary — otherwise set it to "receipt". When in doubt, set it to "receipt".
+
+If it IS a receipt, extract the expense details below.
 
 FINDING THE TOTAL AMOUNT (most important):
 1. Locate the final "Total", "Grand Total", "Amount Due", "Amount Paid", or "Balance Due" line — NOT "Subtotal".
@@ -859,6 +863,7 @@ Convert the total to cents in the receipt's own currency (multiply × 100, round
 
 Respond ONLY with this JSON (no markdown, no extra keys):
 {
+  "documentType": "<'receipt' or 'bank_statement'>",
   "amount": <grand total in cents, integer>,
   "currency": "<3-letter ISO currency code from the receipt, e.g. USD, EUR, GBP, AUD>",
   "description": "<merchant name — short, e.g. 'Walmart', 'Starbucks'>",
@@ -878,6 +883,14 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       if (!resultText) throw new Error("No AI response");
 
       const extracted = JSON.parse(resultText);
+
+      // Reject bank statements — free tier only or anyone trying to bypass the bank tab
+      if (extracted.documentType === "bank_statement") {
+        return res.status(422).json({
+          message: "That looks like a bank statement, not a receipt. Use the Bank Statement tab to import multiple transactions.",
+          code: "BANK_STATEMENT_DETECTED",
+        });
+      }
 
       const parsedDate = new Date(extracted.date);
       const dateToUse = isNaN(parsedDate.getTime()) || parsedDate.getFullYear() < 1990 ? new Date() : parsedDate;
@@ -950,7 +963,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: [
-            { type: "text", text: `Carefully read this receipt. Find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<short merchant name>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",\n  "roast": "<1-2 cheeky sentences about this merchant and exact amount>"\n}` },
+            { type: "text", text: `First, decide if this is a single-transaction receipt or a bank/credit-card statement (multiple transaction rows, account number, statement period). Set "documentType" to "bank_statement" ONLY if it clearly shows a bank or credit card statement — otherwise "receipt". When in doubt, set "receipt".\n\nIf it IS a receipt, find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "documentType": "<'receipt' or 'bank_statement'>",\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<short merchant name>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",\n  "roast": "<1-2 cheeky sentences about this merchant and exact amount>"\n}` },
             { type: "image_url", image_url: { url: imageUrl } },
           ]},
         ],
@@ -959,6 +972,12 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       const resultText = aiResponse.choices[0]?.message?.content;
       if (!resultText) throw new Error("No AI response");
       const extracted = JSON.parse(resultText);
+      if (extracted.documentType === "bank_statement") {
+        return res.status(422).json({
+          message: "That looks like a bank statement, not a receipt. Use the Bank Statement tab to import multiple transactions.",
+          code: "BANK_STATEMENT_DETECTED",
+        });
+      }
       const parsedDate = new Date(extracted.date);
       const dateToUse = isNaN(parsedDate.getTime()) || parsedDate.getFullYear() < 1990 ? new Date() : parsedDate;
       res.json({
