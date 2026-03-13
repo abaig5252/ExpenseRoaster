@@ -19,9 +19,9 @@ type PreviewResult = {
 };
 
 const TONES = [
-  { value: "savage", label: "Savage 🔥" },
-  { value: "playful", label: "Playful 😄" },
-  { value: "supportive", label: "Supportive 💛" },
+  { value: "hells_kitchen", label: "Hell's Kitchen 🔪" },
+  { value: "medium_rare",   label: "Medium Rare 🥩" },
+  { value: "gentle_nudge",  label: "Gentle Nudge 🌱" },
 ];
 
 const ALL_CATEGORIES = [
@@ -147,7 +147,7 @@ function EditableCategoryPill({ expenseId, category }: { expenseId: number; cate
 
 export default function BankStatement() {
   const [importCurrency, setImportCurrency] = useState<string>("USD");
-  const [tone, setTone] = useState("savage");
+  const [tone, setTone] = useState("hells_kitchen");
   const [importData, setImportData] = useState<{ data: string; format: "pdf" | "image"; fileName: string } | null>(null);
   const [converting, setConverting] = useState(false);
   const [scanning, setScanning] = useState(false);

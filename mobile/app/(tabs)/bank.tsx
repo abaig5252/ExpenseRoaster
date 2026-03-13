@@ -30,9 +30,9 @@ interface Expense {
 }
 
 const TONES = [
-  { value: 'savage',     label: 'Savage 🔥' },
-  { value: 'playful',    label: 'Playful 😄' },
-  { value: 'supportive', label: 'Supportive 💛' },
+  { value: 'hells_kitchen', label: "Hell's Kitchen 🔪" },
+  { value: 'medium_rare',   label: 'Medium Rare 🥩' },
+  { value: 'gentle_nudge',  label: 'Gentle Nudge 🌱' },
 ];
 
 const ALL_CATEGORIES = [
@@ -71,7 +71,7 @@ export default function BankScreen() {
   const isPremium = user?.tier === 'premium';
   const currency = user?.currency ?? 'USD';
 
-  const [tone, setTone] = useState('savage');
+  const [tone, setTone] = useState('hells_kitchen');
   const [importing, setImporting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [importImageUri, setImportImageUri] = useState<string | null>(null);
