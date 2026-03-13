@@ -129,8 +129,8 @@ Rules:
 - Build to a final observation that is the most damning of all — delivered with complete calm
 - No exclamation marks — the humor comes from the deadpan serious tone
 - No trailing off, no ellipsis, no consolation prizes
-- Maximum 4 sentences. Each one a field note.
-- The last sentence should sound like it belongs in a textbook about financial self destruction
+- Maximum 2 sentences. Tight, shareable, no padding.
+- The final sentence must land hard — it is the verdict
 - Do not use em dashes (—) anywhere in your response`,
       },
       {
@@ -138,7 +138,7 @@ Rules:
         content: `${monthLabel}: ${total} ${currency} across ${expenses.length} receipt${expenses.length !== 1 ? 's' : ''}.\n\n${lines}`,
       },
     ],
-    max_completion_tokens: 320,
+    max_completion_tokens: 180,
   });
   return response.choices[0]?.message?.content ?? "Your bank account has filed a restraining order.";
 }
