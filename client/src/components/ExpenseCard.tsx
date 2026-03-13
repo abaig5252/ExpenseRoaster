@@ -8,6 +8,7 @@ import { ShareButton } from "@/components/ShareButton";
 interface ExpenseCardProps {
   expense: ExpenseResponse;
   index: number;
+  avgAmountCents?: number;
   onDelete?: () => void;
   isDeleting?: boolean;
   isDisgrace?: boolean;
@@ -15,6 +16,19 @@ interface ExpenseCardProps {
   isSelected?: boolean;
   onSelect?: () => void;
   isExiting?: boolean;
+}
+
+function computeSeverity(amountCents: number, avgCents: number): number {
+  if (avgCents <= 0) {
+    const d = amountCents / 100;
+    return d < 10 ? 1 : d < 50 ? 2 : d < 150 ? 3 : d < 500 ? 4 : 5;
+  }
+  const ratio = amountCents / avgCents;
+  if (ratio < 0.25) return 1;
+  if (ratio < 0.50) return 2;
+  if (ratio < 0.80) return 3;
+  if (ratio < 1.00) return 4;
+  return 5;
 }
 
 const categoryEmoji: Record<string, string> = {
@@ -47,9 +61,8 @@ const sourceLabels: Record<string, string> = {
   "manual":         "Manual",
 };
 
-export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace = false, isSelectMode = false, isSelected = false, onSelect, isExiting = false }: ExpenseCardProps) {
+export function ExpenseCard({ expense, index, avgAmountCents = 0, onDelete, isDeleting, isDisgrace = false, isSelectMode = false, isSelected = false, onSelect, isExiting = false }: ExpenseCardProps) {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
-  const amountDollars = expense.amount / 100;
   const formattedAmount = formatAmount(expense.amount, (expense as any).currency || "USD");
   const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(parseReceiptDate(expense.date));
 
@@ -57,7 +70,7 @@ export function ExpenseCard({ expense, index, onDelete, isDeleting, isDisgrace =
   const pillColor = isDisgrace ? "#FF5252" : (categoryPillColors[expense.category] || "#4A5060");
   const sourceLabel = sourceLabels[expense.source || ""] || "Receipt";
 
-  const baseSeverity = amountDollars < 10 ? 1 : amountDollars < 50 ? 2 : amountDollars < 150 ? 3 : amountDollars < 500 ? 4 : 5;
+  const baseSeverity = computeSeverity(expense.amount, avgAmountCents);
   const severity = isDisgrace ? 5 : baseSeverity;
 
   const handleCardClick = useCallback(() => {

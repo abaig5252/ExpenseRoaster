@@ -6,6 +6,7 @@ import { parseReceiptDate } from "@/lib/dates";
 interface Props {
   expense: ExpenseResponse;
   index: number;
+  avgAmountCents?: number;
   onDelete?: () => void;
   onEdit?: () => void;
   isDeleting?: boolean;
@@ -13,6 +14,19 @@ interface Props {
   isSelected?: boolean;
   onSelect?: () => void;
   isExiting?: boolean;
+}
+
+function computeSeverity(amountCents: number, avgCents: number): number {
+  if (avgCents <= 0) {
+    const d = amountCents / 100;
+    return d < 10 ? 1 : d < 50 ? 2 : d < 150 ? 3 : d < 500 ? 4 : 5;
+  }
+  const ratio = amountCents / avgCents;
+  if (ratio < 0.25) return 1;
+  if (ratio < 0.50) return 2;
+  if (ratio < 0.80) return 3;
+  if (ratio < 1.00) return 4;
+  return 5;
 }
 
 const categoryEmoji: Record<string, string> = {
@@ -46,19 +60,18 @@ const categoryPillColors: Record<string, string> = {
 const ROTATIONS = [-2, 1, -1.5, 2, -0.5, 1.5, -1, 0.5, -2.5, 0];
 
 export function ReceiptCollageCard({
-  expense, index, onDelete, onEdit, isDeleting,
+  expense, index, avgAmountCents = 0, onDelete, onEdit, isDeleting,
   isSelectMode = false, isSelected = false, onSelect, isExiting = false,
 }: Props) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hovered, setHovered] = useState(false);
   const rotation = ROTATIONS[index % ROTATIONS.length];
-  const amountDollars = expense.amount / 100;
   const expenseCurrency = (expense as any).currency || "USD";
   const formattedAmount = (expense.amount / 100).toLocaleString(undefined, { style: "currency", currency: expenseCurrency });
   const formattedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(parseReceiptDate(expense.date));
   const emoji = categoryEmoji[expense.category] || "🧾";
   const pillColor = categoryPillColors[expense.category] || "#4A5060";
-  const severity = amountDollars < 10 ? 1 : amountDollars < 50 ? 2 : amountDollars < 150 ? 3 : amountDollars < 500 ? 4 : 5;
+  const severity = computeSeverity(expense.amount, avgAmountCents);
 
   const handleCardClick = () => {
     if (isSelectMode) onSelect?.();

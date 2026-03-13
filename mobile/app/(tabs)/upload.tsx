@@ -261,6 +261,12 @@ export default function UploadScreen() {
   const receiptExpenses = expenses?.filter(e => e.source === 'receipt') ?? [];
   const monthlyTotal = summary?.monthlyTotal ?? 0;
 
+  // Average receipt amount across ALL receipts — drives relative flame severity
+  const avgReceiptAmountCents = useMemo(() => {
+    if (receiptExpenses.length === 0) return 0;
+    return Math.round(receiptExpenses.reduce((sum, e) => sum + e.amount, 0) / receiptExpenses.length);
+  }, [receiptExpenses.length]);
+
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   const availableMonths = useMemo(() => {
@@ -1002,6 +1008,7 @@ export default function UploadScreen() {
                       expense={exp}
                       currency={currency}
                       index={i}
+                      avgAmountCents={avgReceiptAmountCents}
                       isSelectMode={selectMode}
                       isSelected={selectedIds.has(exp.id)}
                       isExiting={deletingIds.has(exp.id)}
@@ -1302,6 +1309,7 @@ interface ReceiptCardProps {
   expense: Expense;
   currency: string;
   index: number;
+  avgAmountCents?: number;
   isSelectMode?: boolean;
   isSelected?: boolean;
   isExiting?: boolean;
@@ -1310,7 +1318,20 @@ interface ReceiptCardProps {
   onDelete?: () => void;
 }
 
-function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelected = false, isExiting = false, onSelect, onEdit, onDelete }: ReceiptCardProps) {
+function computeSeverity(amountCents: number, avgCents: number): number {
+  if (avgCents <= 0) {
+    const d = amountCents / 100;
+    return d < 10 ? 1 : d < 50 ? 2 : d < 150 ? 3 : d < 500 ? 4 : 5;
+  }
+  const ratio = amountCents / avgCents;
+  if (ratio < 0.25) return 1;
+  if (ratio < 0.50) return 2;
+  if (ratio < 0.80) return 3;
+  if (ratio < 1.00) return 4;
+  return 5;
+}
+
+function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMode = false, isSelected = false, isExiting = false, onSelect, onEdit, onDelete }: ReceiptCardProps) {
   const translateY = useRef(new Animated.Value(44)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
   const exitScale  = useRef(new Animated.Value(1)).current;
@@ -1322,8 +1343,7 @@ function ReceiptCard({ expense, currency, index, isSelectMode = false, isSelecte
   const flameLoops     = useRef<(Animated.CompositeAnimation | null)[]>([null, null, null, null, null]);
 
   const rotation = ROTATIONS[index % ROTATIONS.length];
-  const dollars  = expense.amount / 100;
-  const severity = dollars < 10 ? 1 : dollars < 50 ? 2 : dollars < 150 ? 3 : dollars < 500 ? 4 : 5;
+  const severity = computeSeverity(expense.amount, avgAmountCents);
   const emoji    = CATEGORY_EMOJI[expense.category] ?? '🧾';
   const pillColor = CATEGORY_COLOR[expense.category] ?? '#4A5060';
   const dateStr  = expense.createdAt

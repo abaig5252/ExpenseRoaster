@@ -153,6 +153,13 @@ export default function Upload() {
     "receipt"
   );
 
+  // Average receipt amount across ALL receipts (not just filtered month)
+  // Used to compute relative flame severity on each card
+  const avgReceiptAmountCents = useMemo(() => {
+    if (receiptExpenses.length === 0) return 0;
+    return Math.round(receiptExpenses.reduce((sum, e) => sum + e.amount, 0) / receiptExpenses.length);
+  }, [receiptExpenses]);
+
   // ─── Select Mode Callbacks ────────────────────────────────────────
   const enterSelectMode = useCallback(() => {
     setSelectMode(true);
@@ -521,6 +528,7 @@ export default function Upload() {
                     key={expense.id}
                     expense={expense}
                     index={i}
+                    avgAmountCents={avgReceiptAmountCents}
                     onDelete={() => deleteMutation.mutate(expense.id)}
                     onEdit={() => openEditDialog(expense)}
                     isDeleting={deleteMutation.isPending && deleteMutation.variables === expense.id}
