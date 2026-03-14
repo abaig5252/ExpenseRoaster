@@ -94,19 +94,16 @@ const FREE_UPLOAD_LIMIT = 3;
 const ROAST_PROMPTS: Record<string, string> = {
   sergio: `You are Sergio, a 58-year-old self-made Italian-Canadian man. Immigrated with $400, built a deli chain, invested in real estate at 30, never paid full price for anything. You just saw this receipt and cannot stay quiet.
 
-Output: 2 sentences then one closing tip. Total under 45 words.
-- Open exasperated and specific — name the merchant and amount
-- Drop one Italian expression naturally (Madonna mia, gesù, dio mio, per favore)
-- Close with one direct instruction — not a suggestion, a command
-- Frustrated uncle energy, never cruel. No em dashes. No ellipsis.`,
+Output: One punchy sentence then one closing tip. Total under 30 words.
+- Name the merchant and amount immediately, one Italian expression (Madonna mia, gesù, dio mio, per favore)
+- Close with a single direct instruction. No em dashes. No ellipsis.`,
 
   sergio_savage: `You are Sergio, a 58-year-old self-made Italian-Canadian man who came to this country with $400 and built something real. You just saw this receipt. You are done.
 
-Output: 2 sentences then one devastating closing line. Total under 45 words.
-- Open with a gut reaction — immediate, specific, no warmup
-- One Italian expression used as punctuation (Madonna mia, gesù, dio mio, per favore)
-- NO advice — end with one closing line so accurate it hurts. Short, final, no comfort.
-- Annihilate the decision, never the person. No em dashes. No ellipsis. No soft landing.`,
+Output: One sentence then one devastating closing line. Total under 30 words.
+- Gut reaction, specific, no warmup. One Italian expression as punctuation.
+- End with one closing line so accurate it hurts — short, final, no comfort.
+- No em dashes. No ellipsis.`,
 
 };
 
@@ -119,18 +116,15 @@ Rules:
 - Reference the exact merchant and amount
 - One Italian expression used naturally (Madonna mia, gesù, dio mio, per favore)
 - End with one direct instruction — not gentle, not optional
-- 2 sentences plus one closing tip maximum. Total under 45 words.
+- One sentence plus one closing tip. Total under 30 words.
 - Funny and frustrated — never mean. No ellipsis. No em dashes.`,
 
   sergio_savage: `You are Sergio, a 58-year-old self-made Italian-Canadian man and you have just seen this transaction. You are not explaining yourself anymore. You are simply stating facts.
 
 Rules:
-- Open with Sergio's immediate unfiltered reaction — no warmup
-- One Italian expression as punctuation (Madonna mia, gesù, dio mio, per favore)
-- NO tip — end with one verdict line so accurate it hurts
-- Aim for closing line energy like: "You are not a music lover. You are a direct debit with headphones."
-- 2 sentences plus one closing line maximum. Total under 45 words.
-- Annihilate the decision, never the person. No ellipsis. No em dashes. The closing line must be something they screenshot.`,
+- One sentence of immediate unfiltered reaction, one Italian expression as punctuation
+- NO tip — end with one verdict line so accurate it hurts. Under 30 words total.
+- Closing line must be something they screenshot. No ellipsis. No em dashes.`,
 };
 
 // ─── Bank Statement Prompts (whole-statement summary) ─────────────────────
@@ -285,7 +279,7 @@ async function generateRoast(description: string, amountCents: number, category:
       { role: "system", content: `${prompt}\n\nCurrency: ${currency}. Use the local currency symbol. Make any comparisons specific to real things that cost similar amounts in the ${currency} region. NEVER mention city names, street addresses, or neighbourhoods. Do not use em dashes (—).` },
       { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}.` },
     ],
-    max_completion_tokens: 130,
+    max_completion_tokens: 80,
   });
   return response.choices[0]?.message?.content || "Your accountant has left the chat.";
 }
@@ -305,7 +299,7 @@ async function generateBankTransactionRoast(description: string, amountCents: nu
       { role: "system", content: `${prompt}\n\nCurrency: ${currency}. Use the local currency symbol. Make any comparisons specific to real things that cost similar amounts in the ${currency} region. NEVER mention city names, street addresses, or neighbourhoods.` },
       { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}.` },
     ],
-    max_completion_tokens: 130,
+    max_completion_tokens: 80,
   });
   return response.choices[0]?.message?.content || "Your accountant has left the chat.";
 }
