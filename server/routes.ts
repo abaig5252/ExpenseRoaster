@@ -24,6 +24,34 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+// ── Currency → country context for localised AI advice ───────────────────────
+function currencyCountryContext(currency: string): string {
+  const map: Record<string, string> = {
+    CAD: "Canada. Use Canadian brands, services, and prices (e.g. Tim Hortons, Freshii, Loblaws, Costco Canada, PC Financial, TD/RBC/BMO/Scotiabank/CIBC, Rogers/Bell/Telus, LCBO, Hudson's Bay, Canadian Tire, Freshco, No Frills, Food Basics, Cineplex, Fido, Koodo, Public Mobile, Goodfood, Flashfood app, GoodLife Fitness, YMCAs). Savings tips should reference Canadian tax accounts like TFSA, RRSP, FHSA where relevant.",
+    USD: "United States. Use US brands and prices (e.g. McDonald's McCafe, Trader Joe's, Costco, Walmart, Target, Chase/BofA/Wells Fargo/Credit unions, T-Mobile/Mint Mobile, Planet Fitness, ALDI, Kroger, CVS, Verizon, YouTube Premium, Robinhood, Fidelity). Reference US tax accounts like 401(k), IRA, HSA where relevant.",
+    GBP: "United Kingdom. Use UK brands and prices (e.g. Tesco, Sainsbury's, Aldi UK, Lidl, Greggs, Pret a Manger, Monzo, Starling, Barclays, Halifax, HSBC, EE/O2/Vodafone/giffgaff, PureGym, The Gym Group, Deliveroo, Ocado, M&S Food). Reference ISA accounts, NS&I Premium Bonds where relevant.",
+    AUD: "Australia. Use Australian brands and prices (e.g. Woolworths, Coles, ALDI Australia, Kmart, Big W, IGA, ANZ/CBA/NAB/Westpac, Aldi, Officeworks, JB Hi-Fi, Boost Juice, Guzman y Gomez, Menulog, HelloFresh AU, Bupa/Medibank, Optus/Telstra/Vodafone AU, Fitness First, Anytime Fitness AU). Reference Australian superannuation, offset accounts where relevant.",
+    NZD: "New Zealand. Use NZ brands and prices (e.g. Countdown/Woolworths NZ, Pak'nSave, New World, The Warehouse, ANZ NZ/BNZ/ASB/Westpac NZ, Spark/One NZ/2degrees, Les Mills NZ, Uber Eats NZ). Reference KiwiSaver where relevant.",
+    EUR: "Europe (Eurozone). Use pan-European and country-specific brands where possible (e.g. Lidl, Aldi, Carrefour, Mercadona, Rewe, Edeka, N26, Revolut, BlaBlaCar, Booking.com, Decathlon, MediaMarkt). Mention relevant EU financial tools.",
+    INR: "India. Use Indian brands and prices (e.g. BigBasket, Blinkit, Swiggy, Zomato, Jio/Airtel/Vi, PhonePe, Paytm, HDFC/ICICI/SBI/Axis Bank, Zepto, Reliance Smart, Amazon India, Flipkart, Nykaa, Meesho, NPS, PPF, ELSS mutual funds). Reference Indian tax saving instruments like PPF, ELSS, NPS under Section 80C.",
+    SGD: "Singapore. Use Singapore brands and prices (e.g. NTUC FairPrice, Cold Storage, Giant, Hawker centres, GrabFood, foodpanda SG, DBS/OCBC/UOB, Singtel/StarHub/M1, Gojek SG, Circles.Life, ActiveSG gyms). Reference CPF, SRS accounts where relevant.",
+    HKD: "Hong Kong. Use Hong Kong brands and prices (e.g. ParknShop, Wellcome, HKTVmall, Cathay Pacific, MTR, HSBC HK, Hang Seng, HKD MPF, McDonald's HK, Deliveroo HK, OpenRice picks).",
+    MXN: "Mexico. Use Mexican brands and prices (e.g. Walmart Mexico, Soriana, Oxxo, FEMSA, Rappi Mexico, BBVA Mexico, Santander MX, Banorte, Chedraui, Sam's Club MX, DiDi Food).",
+    BRL: "Brazil. Use Brazilian brands and prices (e.g. Mercado Livre, iFood, Pão de Açúcar, Carrefour Brazil, Nubank, Itaú, Bradesco, Santander BR, Localiza, Gympass, Drogasil).",
+    ZAR: "South Africa. Use South African brands and prices (e.g. Checkers, Pick n Pay, Woolworths SA, Takealot, Standard Bank, FNB, Nedbank, Absa, Vodacom, MTN SA, Mr Price, Discovery Health).",
+    AED: "United Arab Emirates. Use UAE brands and prices (e.g. Carrefour UAE, Spinneys, LuLu Hypermarket, Talabat, Noon, Emirates NBD, ADCB, FAB, Etisalat/e&, du, Fitness First UAE).",
+    CHF: "Switzerland. Use Swiss brands and prices (e.g. Migros, Coop Switzerland, Denner, Lidl CH, UBS, Credit Suisse/UBS, PostFinance, Swiss Post, SBB GA/Halbtax, Digitec/Galaxus).",
+    SEK: "Sweden. Use Swedish brands and prices (e.g. ICA, Coop Sweden, Lidl SE, Klarna, Swish, Handelsbanken, SEB, Swedbank, Northmill, Hemköp, MatHem, SATS gym, Blocket).",
+    NOK: "Norway. Use Norwegian brands and prices (e.g. Rema 1000, Kiwi, Meny, Coop Norway, DNB, SpareBank, Vipps, Oda.com, Foodora Norway, SATS gym Norway).",
+    DKK: "Denmark. Use Danish brands and prices (e.g. Netto, Lidl Denmark, Føtex, Bilka, Nemlig.com, MobilePay, Danske Bank, Nordea DK, Salling Group).",
+    JPY: "Japan. Use Japanese brands and prices (e.g. 7-Eleven Japan, FamilyMart, Lawson, Rakuten, Amazon Japan, PayPay, LINE Pay, SoftBank, docomo, AEON, Ito-Yokado, Suica/IC cards).",
+    KRW: "South Korea. Use Korean brands and prices (e.g. Coupang, Baemin, Kakao Pay, Naver Pay, Samsung Card, Hyundai Card, KB Kookmin, Shinhan, GS25, CU convenience stores, Emart).",
+  };
+  const countryCtx = map[currency.toUpperCase()];
+  if (countryCtx) return `The user is based in ${countryCtx}`;
+  return `The user's currency is ${currency}. Tailor all recommendations, brand names, and pricing to a country that commonly uses ${currency}.`;
+}
+
 // ── Universal merchant name cleaner ─────────────────────────────────────────
 // Server-lifetime in-memory cache: each unique raw name is cleaned exactly once,
 // then all subsequent lookups are instant. No raw bank string ever reaches a
@@ -973,6 +1001,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (month) timeContext = new Date(month + "-02").toLocaleString("en-US", { month: "long", year: "numeric" });
       else if (year) timeContext = year;
 
+      const adviceCountryCtx = currencyCountryContext(adviceCurrency);
+
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
@@ -980,7 +1010,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             role: "system",
             content: `You are a brutally honest, deeply knowledgeable financial advisor analyzing REAL spending data. You know local prices, brands, and alternatives for every major region.
 
-The user's currency is ${adviceCurrency}. All amounts must be in ${adviceCurrency} with realistic local pricing.
+${adviceCountryCtx}
+All amounts must be in ${adviceCurrency} with realistic local pricing.
 Time period: ${timeContext}.
 
 You MUST return ONLY a valid JSON object — no markdown, no explanation, no code fences. The JSON MUST contain a "breakdown" array with one entry per category listed by the user. NEVER return an empty breakdown.
@@ -994,10 +1025,10 @@ Required JSON shape:
     {
       "category": "exact category name from input",
       "roast": "One savage funny sentence roasting this specific spending — reference the actual merchant names or amounts. Make it sting.",
-      "insight": "2-3 SPECIFIC, ACTIONABLE sentences. State the exact problem (e.g. 'You're spending X/mo on coffee alone'). Give a concrete fix with a specific number or action. Name a real alternative vendor or habit.",
+      "insight": "2-3 SPECIFIC, ACTIONABLE sentences. State the exact problem (e.g. 'You're spending X/mo on coffee alone'). Give a concrete fix with a specific number or action. Name a real local alternative vendor or habit that exists in the user's country.",
       "alternatives": [
-        "Real cheaper option — ~X ${adviceCurrency}",
-        "Another real option — ~X ${adviceCurrency}",
+        "Real cheaper option available locally — ~X ${adviceCurrency}",
+        "Another real local option — ~X ${adviceCurrency}",
         "DIY / free option — free"
       ],
       "potentialSaving": <realistic cents saved per month if they follow the advice>
@@ -1007,18 +1038,11 @@ Required JSON shape:
 
 STRICT RULES FOR BREAKDOWN:
 - Every category in the input MUST appear in breakdown. No exceptions.
-- roast: reference specific merchant names from the data, be funny and sharp
-- insight: be concrete. Not "consider reducing" — say "cancel X and switch to Y, saving ~Z ${adviceCurrency}/mo"
-- alternatives: use REAL brand names that exist in the ${adviceCurrency} region. Examples:
-  * Dining (CAD): "Freshii — ~$12 CAD", "Meal prep Sunday — ~$8/meal", "Grocery store sushi — ~$10 CAD"
-  * Coffee (CAD): "Tim Hortons — ~$2.50 CAD", "Nespresso pods — ~$0.90/cup", "French press + bulk beans — ~$0.30/cup"
-  * Coffee (USD): "McDonald's McCafe — ~$2 USD", "Keurig pods — ~$0.75/cup", "Home brew — ~$0.20/cup"
-  * Subscriptions: "Share Netflix plan", "Bundle Disney+/Hulu/ESPN — ~$14.99 USD/mo", "Cancel and rotate"
-  * Fitness: "Planet Fitness — ~$10/mo", "YouTube workouts — free", "City rec center — ~$25/mo"
-  * Groceries: "ALDI / Lidl — 20% cheaper", "Store-brand swap", "Costco bulk — saves ~30%"
-  * Gas/Transport: "GasBuddy app", "Carpool", "Transit pass"
+- roast: reference specific merchant names from the data, be funny and sharp.
+- insight: be concrete. Not "consider reducing" — say "cancel X and switch to Y, saving ~Z ${adviceCurrency}/mo". Always name real local alternatives available in the user's country.
+- alternatives: MUST use REAL brand names and services that actually exist and are available in the user's country. Wrong: generic US suggestions for a Canadian user. Right: Tim Hortons, No Frills, Fido, GoodLife for CAD users.
 - potentialSaving: be realistic. For a $400 dining habit, don't say $380 savings. Say $80-$150.
-- LOCATION RULE: Do NOT mention city names, street addresses, neighbourhoods, or any geographic location in roast or insight text unless that location appears in the merchant name itself.`,
+- LOCATION RULE: Do NOT mention city names, street addresses, or neighbourhoods unless they appear in the merchant name itself.`,
           },
           {
             role: "user",
@@ -1861,16 +1885,21 @@ FULL YEAR PROJECTION (at current pace): ${(projectionFullYear / 100).toFixed(2)}
 TOP 25 BIGGEST TRANSACTIONS:
 ${biggestTx}`;
 
-      const systemPrompt = `You are the world's most insightful (and entertainingly savage) financial analyst. The user paid for this premium ${reportYear} year-to-date report (${ytdLabel}) — make it thorough, specific, fun and genuinely useful. You have full merchant aggregates and biggest transactions. Research real alternatives and savings strategies specific to ${annualCurrency} users.
+      const annualCountryCtx = currencyCountryContext(annualCurrency);
+
+      const systemPrompt = `You are the world's most insightful (and entertainingly savage) financial analyst. The user paid for this premium ${reportYear} year-to-date report (${ytdLabel}) — make it thorough, specific, fun and genuinely useful. You have full merchant aggregates and biggest transactions.
+
+${annualCountryCtx}
+All monetary amounts are in ${annualCurrency}. Every alternative, tip, company, app, or service you mention MUST be real and actually available in the user's country. Do not suggest US companies to a Canadian user, UK brands to an Australian user, etc.
 
 Respond ONLY with valid JSON with exactly these keys:
 - "roast": string — 5-6 sentences of savage but accurate roast referencing specific merchant names, exact amounts, and patterns from this year so far.
 - "spendingPersonality": object — { "title": string (fun archetype max 5 words e.g. "The Subscription Hoarder"), "description": string (2 sentences based on actual data) }
 - "behavioralAnalysis": string — 4-5 sentences: what spending patterns reveal about this person's lifestyle, priorities, emotional triggers, habits.
 - "monthlyTrend": string — 1-2 sentences on whether spending improved or worsened month-over-month and what drove it.
-- "merchantInsights": array of 5 objects — { "merchant": string, "totalSpent": number (cents), "visits": number, "insight": string (funny observation + useful tip for this merchant) }
-- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents, annualised from YTD), "alternative": string (specific real app/store/habit relevant to ${annualCurrency} users), "potentialAnnualSaving": number (realistic cents), "tip": string (actionable 1-2 sentences with real numbers) }
-- "improvements": array of 5 strings — prioritized improvements with concrete steps and realistic ${annualCurrency} savings amounts.
+- "merchantInsights": array of 5 objects — { "merchant": string, "totalSpent": number (cents), "visits": number, "insight": string (funny observation + useful country-specific tip for this merchant) }
+- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents, annualised from YTD), "alternative": string (specific real app/store/service that exists in the user's country), "potentialAnnualSaving": number (realistic cents), "tip": string (actionable 1-2 sentences with real numbers and local brand names) }
+- "improvements": array of 5 strings — prioritized improvements with concrete steps, local brand names, and realistic ${annualCurrency} savings amounts.
 - "funFact": string — one surprising or funny statistical observation from the data.
 All monetary values in JSON must be integers in cents.`;
 
