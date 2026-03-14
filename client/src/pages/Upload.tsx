@@ -558,7 +558,7 @@ export default function Upload() {
 
             {/* Receipt cards */}
             {isLoading ? (
-              <div className="columns-2 md:columns-3 gap-4">
+              <div className="columns-1 sm:columns-2 md:columns-3 gap-4">
                 {[1, 2, 3, 4].map(i => (
                   <div
                     key={i}
@@ -605,7 +605,7 @@ export default function Upload() {
                 </p>
               </motion.div>
             ) : (
-              <div className="columns-2 md:columns-3 lg:columns-4" style={{ gap: 16 }}>
+              <div className="columns-1 sm:columns-2 md:columns-3" style={{ gap: 16 }}>
                 {filteredReceipts.map((expense, i) => (
                   <ReceiptCollageCard
                     key={expense.id}
