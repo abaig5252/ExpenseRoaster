@@ -4,6 +4,7 @@ import { parseReceiptDate } from "@/lib/dates";
 import { motion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
 import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare } from "lucide-react";
+import { ShareButton } from "@/components/ShareButton";
 import { useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
 import { CURRENCIES } from "@/hooks/use-currency";
@@ -543,7 +544,16 @@ export default function BankStatement() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                       </div>
-                      {exp.roast && <p className="text-sm italic text-white/70 mt-2 leading-relaxed">"{exp.roast}"</p>}
+                      {exp.roast && (
+                        <div className="flex items-start gap-2 mt-2">
+                          <p className="text-sm italic text-white/70 leading-relaxed flex-1">"{exp.roast}"</p>
+                          <ShareButton
+                            text={`🔥 "${exp.roast}"\n\n— ${(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })} at ${exp.description} · Expense Roaster`}
+                            variant="icon"
+                            className="flex items-center justify-center w-6 h-6 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200 shrink-0 mt-0.5"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                   <button onClick={() => deleteMutation.mutate(exp.id)} disabled={deleteMutation.isPending}

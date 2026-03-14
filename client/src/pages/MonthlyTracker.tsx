@@ -9,6 +9,7 @@ import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, t
 import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parseReceiptDate } from "@/lib/dates";
+import { ShareButton } from "@/components/ShareButton";
 
 function fmtMonth(ym: string) {
   const [year, month] = ym.split("-");
@@ -732,7 +733,16 @@ export default function MonthlyTracker() {
                       <p className="text-xs text-muted-foreground italic line-clamp-2">"{exp.roast}"</p>
                     )}
                   </div>
-                  <span className="text-sm font-bold text-white shrink-0">{makeFmt((exp as any).currency || bankCurrency)(exp.amount)}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-bold text-white">{makeFmt((exp as any).currency || bankCurrency)(exp.amount)}</span>
+                    {exp.roast && (
+                      <ShareButton
+                        text={`🔥 "${exp.roast}"\n\n— ${makeFmt((exp as any).currency || bankCurrency)(exp.amount)} at ${exp.description} · Expense Roaster`}
+                        variant="icon"
+                        className="flex items-center justify-center w-6 h-6 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200"
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

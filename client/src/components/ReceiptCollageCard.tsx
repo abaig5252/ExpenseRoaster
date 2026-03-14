@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, Pencil, Trash2, Check } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { parseReceiptDate } from "@/lib/dates";
+import { ShareButton } from "@/components/ShareButton";
 
 interface Props {
   expense: ExpenseResponse;
@@ -232,11 +233,20 @@ export function ReceiptCollageCard({
         </div>
       )}
 
-      {/* Severity */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 2 }}>
+      {/* Severity + share */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
         {[1, 2, 3, 4, 5].map(n => (
           <span key={n} style={{ fontSize: 11, opacity: n <= severity ? 1 : 0.15 }}>🔥</span>
         ))}
+        {expense.roast && (
+          <div style={{ marginLeft: 6 }}>
+            <ShareButton
+              text={`🔥 "${expense.roast}"\n\n— ${(expense.amount / 100).toLocaleString(undefined, { style: "currency", currency: (expense as any).currency || "USD" })} at ${expense.description} · Expense Roaster`}
+              variant="icon"
+              className="flex items-center justify-center w-6 h-6 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200"
+            />
+          </div>
+        )}
       </div>
 
       {/* Delete confirmation overlay */}
