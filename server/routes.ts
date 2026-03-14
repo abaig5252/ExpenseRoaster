@@ -1776,7 +1776,6 @@ Return ONLY valid JSON, no other text.`,
       const allTimeTotalSpend = rawExpenses.reduce((s, e) => s + e.amount, 0);
       const avgMonthlyAllTime = allTimeTotalSpend / Math.max(allTimeMonths, 1);
       const projection5yr = Math.round(avgMonthlyAllTime * 12 * 5);
-      const projectionFullYear = Math.round(avgMonthly * 12);
       const allTimeYearsRange = allTimeMonths > 0
         ? (() => {
             const months = Object.keys(allTimeMonthlyTotals).sort();
@@ -1808,6 +1807,7 @@ Return ONLY valid JSON, no other text.`,
       const worstMonth = [...sortedMonths].sort((a, b) => b[1] - a[1])[0];
       const bestMonth = [...sortedMonths].sort((a, b) => a[1] - b[1])[0];
       const avgMonthly = totalSpend / Math.max(sortedMonths.length, 1);
+      const projectionFullYear = Math.round(avgMonthly * 12);
       const top10Merchants = Object.entries(merchantSpend)
         .sort((a, b) => b[1].total - a[1].total)
         .slice(0, 10);
