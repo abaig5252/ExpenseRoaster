@@ -615,7 +615,7 @@ export default function BankScreen() {
                 <Ionicons name="flame" size={18} color="#fff" />
               </LinearGradient>
               <View style={{ flex: 1 }}>
-                <Text style={s.roastSheetTitle}>Statement Roast</Text>
+                <Text style={s.roastSheetTitle}>Monthly Statement Roast</Text>
                 <Text style={s.roastSheetSub}>Your complete spending analysis</Text>
               </View>
               <TouchableOpacity onPress={() => setStatementRoast(null)} style={s.roastCloseBtn}>

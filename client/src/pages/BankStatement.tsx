@@ -484,7 +484,7 @@ export default function BankStatement() {
                     <MessageSquare className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <span className="text-sm font-bold text-white block">Statement Roast</span>
+                    <span className="text-sm font-bold text-white block">Monthly Statement Roast</span>
                     {activeMonth && <span className="text-xs text-muted-foreground">{formatMonthLabel(activeMonth)}</span>}
                   </div>
                 </div>
