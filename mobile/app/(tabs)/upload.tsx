@@ -156,9 +156,10 @@ if (Platform.OS === 'android') {
 }
 
 const TONES = [
-  { value: 'gentle_nudge',  label: '🌱 Accountant',  desc: 'Tough love' },
-  { value: 'medium_rare',   label: '🔥 No Filter',   desc: 'Slightly savage' },
-  { value: 'hells_kitchen', label: '💀 Ramsay Mode', desc: 'Full brutality' },
+  { value: 'sergio',        label: '🤌 Uncle Sergio', desc: 'Warm coach' },
+  { value: 'gentle_nudge',  label: '🌱 Accountant',   desc: 'Tough love' },
+  { value: 'medium_rare',   label: '🔥 No Filter',    desc: 'Slightly savage' },
+  { value: 'hells_kitchen', label: '💀 Ramsay Mode',  desc: 'Full brutality' },
 ];
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -1694,9 +1695,9 @@ const s = StyleSheet.create({
   preview: { width: '100%', height: 220 },
   clearBtn: { position: 'absolute', top: spacing.sm, right: spacing.sm },
   toneLabel: { ...typography.label, color: colors.textMuted, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
-  toneRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  toneRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   toneChip: {
-    flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md,
+    width: '47%', paddingVertical: spacing.sm, borderRadius: radius.md,
     backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center',
   },

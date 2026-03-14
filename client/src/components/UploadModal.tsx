@@ -18,9 +18,10 @@ interface UploadModalProps {
 }
 
 const TONES = [
-  { value: "gentle_nudge",  label: "Accountant 🌱",  desc: "Tough love" },
-  { value: "medium_rare",   label: "No Filter 🔥",   desc: "Slightly savage" },
-  { value: "hells_kitchen", label: "Ramsay Mode 💀", desc: "Full brutality" },
+  { value: "sergio",        label: "Uncle Sergio 🤌", desc: "Warm coach" },
+  { value: "gentle_nudge",  label: "Accountant 🌱",   desc: "Tough love" },
+  { value: "medium_rare",   label: "No Filter 🔥",    desc: "Slightly savage" },
+  { value: "hells_kitchen", label: "Ramsay Mode 💀",  desc: "Full brutality" },
 ];
 
 const CATEGORIES = [
@@ -409,7 +410,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
                     <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
                       Roast Tone {!isPremium && <span className="text-[hsl(var(--primary))]">(Premium)</span>}
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {TONES.map((t) => (
                         <button
                           key={t.value}
