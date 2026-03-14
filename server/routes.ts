@@ -1792,8 +1792,10 @@ Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
           });
         }
         const created = await processTransactions(userId, txs, toneVal, undefined, userCurrency);
+        const existingRoast1 = await storage.getStatementRoast(userId, statementMonth);
         const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, statementMonth);
         await storage.saveStatementRoast(userId, statementMonth, statementRoast, toneVal);
+        if (existingRoast1) await storage.markStatementRoastDirty(userId, statementMonth);
         // Fire-and-forget: auto-update monthly verdict if one exists for this month
         triggerAutoVerdictUpdate(userId, statementMonth, "bank_statement");
         triggerAutoVerdictUpdate(userId, statementMonth, "all");
@@ -1844,8 +1846,10 @@ Return ONLY valid JSON, no other text.`,
 
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
         const pdfMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
+        const existingRoast2 = await storage.getStatementRoast(userId, pdfMonth);
         const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, pdfMonth);
         await storage.saveStatementRoast(userId, pdfMonth, statementRoast, toneVal);
+        if (existingRoast2) await storage.markStatementRoastDirty(userId, pdfMonth);
         return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: pdfMonth });
       }
 
@@ -1885,8 +1889,10 @@ Return ONLY valid JSON, no other text.`,
 
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
         const imgMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
+        const existingRoast3 = await storage.getStatementRoast(userId, imgMonth);
         const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, imgMonth);
         await storage.saveStatementRoast(userId, imgMonth, statementRoast, toneVal);
+        if (existingRoast3) await storage.markStatementRoastDirty(userId, imgMonth);
         return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: imgMonth });
       }
 
@@ -1915,7 +1921,7 @@ Return ONLY valid JSON, no other text.`,
     const needsGeneration = !row || !row.roast || row.roast === FALLBACK;
 
     if (!needsGeneration) {
-      return res.json({ roast: row.roast.replace(/\*+/g, ""), tone: row.tone });
+      return res.json({ roast: row.roast.replace(/\*+/g, ""), tone: row.tone, isDirty: row.isDirty ?? false });
     }
 
     // Auto-generate from stored transactions for this month
@@ -2263,7 +2269,15 @@ All numeric monetary JSON fields must be integers in cents. All text/string fiel
     if (numericIds.length === 0) {
       return res.status(400).json({ message: "No valid IDs provided" });
     }
+    // Capture affected months for bank_statement expenses before deleting
+    const allExpenses = await storage.getExpenses(userId);
+    const toDelete = allExpenses.filter(e => numericIds.includes(e.id) && e.source !== "receipt");
+    const affectedMonths = [...new Set(toDelete.map(e => {
+      const d = e.date instanceof Date ? e.date : new Date(String(e.date));
+      return d.toISOString().slice(0, 7);
+    }))];
     const deleted = await storage.bulkDeleteExpenses(userId, numericIds);
+    for (const m of affectedMonths) await storage.markStatementRoastDirty(userId, m);
     return res.json({ deleted });
   });
 
@@ -2367,7 +2381,14 @@ All numeric monetary JSON fields must be integers in cents. All text/string fiel
   // ─── Expenses: Delete ────────────────────────────────────────────
   app.delete(buildUrl(api.expenses.delete.path).replace(":id", ":id"), isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
-    await storage.deleteExpense(Number(req.params.id), userId);
+    const id = Number(req.params.id);
+    // Capture the expense's month before deleting so we can mark the roast dirty
+    const expense = await storage.getExpenseById(id, userId);
+    await storage.deleteExpense(id, userId);
+    if (expense && expense.source !== "receipt") {
+      const d = expense.date instanceof Date ? expense.date : new Date(String(expense.date));
+      await storage.markStatementRoastDirty(userId, d.toISOString().slice(0, 7));
+    }
     res.status(204).send();
   });
 

@@ -32,7 +32,9 @@ export interface IStorage {
   saveMonthlyVerdict(userId: string, month: string, source: string, roast: string): Promise<MonthlyVerdict>;
   regenerateMonthlyVerdict(id: number, roast: string): Promise<MonthlyVerdict>;
   updateVerdictRoast(id: number, roast: string): Promise<MonthlyVerdict>;
+  getExpenseById(id: number, userId: string): Promise<Expense | null>;
   getStatementRoast(userId: string, month: string): Promise<StatementRoast | null>;
+  markStatementRoastDirty(userId: string, month: string): Promise<void>;
   deleteStatementRoast(userId: string, month: string): Promise<void>;
   saveStatementRoast(userId: string, month: string, roast: string, tone: string): Promise<StatementRoast>;
   getStatementMonths(userId: string): Promise<string[]>;
@@ -149,6 +151,13 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(expenses.id, id), eq(expenses.userId, userId)))
       .returning();
     return updated;
+  }
+
+  async getExpenseById(id: number, userId: string): Promise<Expense | null> {
+    const [row] = await db.select().from(expenses)
+      .where(and(eq(expenses.id, id), eq(expenses.userId, userId)))
+      .limit(1);
+    return row ?? null;
   }
 
   async deleteExpense(id: number, userId: string): Promise<void> {
@@ -287,6 +296,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(statementRoasts.createdAt))
       .limit(1);
     return row ?? null;
+  }
+
+  async markStatementRoastDirty(userId: string, month: string): Promise<void> {
+    await db.update(statementRoasts)
+      .set({ isDirty: true })
+      .where(and(eq(statementRoasts.userId, userId), eq(statementRoasts.month, month)));
   }
 
   async deleteStatementRoast(userId: string, month: string): Promise<void> {

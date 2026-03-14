@@ -93,6 +93,7 @@ export const statementRoasts = pgTable("statement_roasts", {
   month: varchar("month").notNull(),
   roast: text("roast").notNull(),
   tone: varchar("tone").default("sergio").notNull(),
+  isDirty: boolean("is_dirty").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 export type StatementRoast = typeof statementRoasts.$inferSelect;

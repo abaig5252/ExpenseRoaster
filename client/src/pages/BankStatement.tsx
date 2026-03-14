@@ -207,11 +207,12 @@ export default function BankStatement() {
 
   const activeMonth = selectedMonth ?? availableMonths[0] ?? null;
 
-  const { data: roastData, isLoading: roastLoading } = useQuery<{ roast: string | null }>({
+  const { data: roastData, isLoading: roastLoading } = useQuery<{ roast: string | null; isDirty?: boolean }>({
     queryKey: ["/api/statement-roast", activeMonth],
     enabled: !!activeMonth,
   });
   const statementRoast = roastData?.roast ?? null;
+  const roastIsDirty = roastData?.isDirty ?? false;
 
   const regenerateRoastMutation = useMutation({
     mutationFn: async (month: string) => {
@@ -584,12 +585,12 @@ export default function BankStatement() {
                     <span className="text-sm font-bold text-white block">Monthly Statement Roast</span>
                     {activeMonth && <span className="text-xs text-muted-foreground">{formatMonthLabel(activeMonth)}</span>}
                   </div>
-                  {statementRoast && activeMonth && (
+                  {roastIsDirty && activeMonth && (
                     <button
                       data-testid="button-regenerate-statement-roast"
                       onClick={() => regenerateRoastMutation.mutate(activeMonth)}
                       disabled={regenerateRoastMutation.isPending}
-                      title="Regenerate statement roast"
+                      title="Data changed — click to regenerate roast"
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[hsl(var(--primary))]/70 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200 disabled:opacity-50 shrink-0"
                     >
                       {regenerateRoastMutation.isPending
