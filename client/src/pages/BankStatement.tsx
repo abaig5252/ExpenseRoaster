@@ -406,7 +406,7 @@ export default function BankStatement() {
 
           {/* Right: Statement roast — fills column height, scrollable content */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-            className="flex flex-col h-full">
+            className="flex flex-col h-full overflow-hidden">
             {isPremium && <div className="mb-5 h-[52px] shrink-0" />}
             <div
               data-testid="card-statement-roast"
