@@ -1893,12 +1893,14 @@ All monetary values in JSON must be integers in cents.`;
     }
   });
 
-  // GET alias for mobile proxy compatibility (Replit rewrites POST→GET for external devices)
-  app.get("/api/expenses/annual-report", isAuthenticated, (req: any, res: Response) => {
-    // Reuse the POST handler by treating this as a POST internally
-    req.method = "POST";
-    req.body = req.body || {};
-    req.app._router.handle(req, res, () => res.status(500).json({ message: "Route error" }));
+  // GET alias for mobile proxy compatibility
+  app.get("/api/expenses/annual-report", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const user = await storage.getUser(userId);
+    if (!user || !user.hasAnnualReport) {
+      return res.status(403).json({ message: "Annual Report requires purchase", code: "ANNUAL_REQUIRED" });
+    }
+    return res.status(405).json({ message: "Use POST to generate the annual report" });
   });
 
   // ─── Contact Form ─────────────────────────────────────────────────

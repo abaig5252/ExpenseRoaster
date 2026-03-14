@@ -36,8 +36,161 @@ export default function AnnualReport() {
   };
 
   const handleDownload = () => {
-    if (!reportRef.current) return;
-    window.print();
+    if (!reportData) return;
+    const currency = reportData.currency || "USD";
+    const f = (cents: number) => (cents / 100).toLocaleString(undefined, { style: "currency", currency });
+    const fMonth = (ym: string) => {
+      const [y, m] = ym.split("-");
+      return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    };
+    const catColors = ["#E85D26","#C4A832","#7B6FE8","#3BB8A0","#E8526A"];
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<title>Annual Roast Report — Expense Roaster</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#fff;color:#111;padding:48px 56px;max-width:860px;margin:0 auto;font-size:14px;line-height:1.6}
+  h1{font-size:28px;font-weight:800;margin-bottom:4px}
+  h2{font-size:17px;font-weight:700;margin-bottom:12px;color:#111}
+  .sub{color:#666;font-size:13px;margin-bottom:32px}
+  .logo{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:8px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  .stat{background:#f5f5f5;border-radius:12px;padding:16px}
+  .stat-val{font-size:18px;font-weight:800;color:#111;margin-bottom:2px}
+  .stat-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#888;font-weight:600}
+  .months{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
+  .month-best{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px}
+  .month-worst{background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px}
+  .month-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+  .month-best .month-lbl{color:#16a34a}.month-worst .month-lbl{color:#dc2626}
+  .month-name{font-size:15px;font-weight:700}.month-val{font-size:13px;color:#555;margin-top:2px}
+  .card{background:#f8f8f8;border-radius:14px;padding:20px;margin-bottom:16px;border:1px solid #eee}
+  .card-accent{background:#fffbeb;border-color:#fde68a}
+  .card-roast{background:#fff7f4;border-color:#fdddd5}
+  .card-savings{background:#f0fdf4;border-color:#bbf7d0}
+  .tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px;border-radius:20px;margin-bottom:8px}
+  .tag-primary{background:#fff4e6;color:#b45309}
+  .tag-accent{background:#eff6ff;color:#1d4ed8}
+  .tag-green{background:#f0fdf4;color:#15803d}
+  .roast-text{font-style:italic;font-size:15px;line-height:1.7;color:#222}
+  .cat-row{margin-bottom:10px}
+  .cat-label{display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;font-weight:600}
+  .cat-bar-bg{height:8px;background:#e5e5e5;border-radius:4px;overflow:hidden}
+  .cat-bar{height:8px;border-radius:4px}
+  .merchant-row{display:flex;gap:12px;align-items:flex-start;padding:12px;background:#fff;border:1px solid #eee;border-radius:10px;margin-bottom:8px}
+  .merchant-num{width:28px;height:28px;border-radius:8px;background:#eff6ff;color:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .merchant-name{font-weight:700;font-size:13px}
+  .merchant-meta{font-size:11px;color:#888;margin-top:2px}
+  .merchant-insight{font-size:12px;color:#555;margin-top:4px}
+  .saving-row{background:#fff;border:1px solid #d1fae5;border-radius:10px;padding:14px;margin-bottom:8px}
+  .saving-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+  .saving-cat{font-size:11px;font-weight:700;text-transform:uppercase;color:#888;letter-spacing:.6px}
+  .saving-spent{font-size:13px;font-weight:700;margin-top:2px}
+  .saving-amount{font-size:16px;font-weight:800;color:#16a34a}
+  .saving-alt{display:inline-block;font-size:11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;border-radius:20px;padding:2px 8px;margin-bottom:4px;font-weight:600}
+  .saving-tip{font-size:12px;color:#555}
+  .improvement{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f0f0f0}
+  .improvement:last-child{border-bottom:none}
+  .imp-num{width:22px;height:22px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px}
+  .personality-title{font-size:22px;font-weight:800;margin-bottom:8px}
+  .footer{margin-top:40px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#aaa;display:flex;justify-content:space-between}
+  @media print{body{padding:32px 40px}@page{margin:0.5in}}
+</style></head><body>
+<div class="logo">Expense Roaster</div>
+<h1>Annual Roast Report</h1>
+<div class="sub">Generated ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})} &nbsp;·&nbsp; ${reportData.transactionCount} transactions &nbsp;·&nbsp; ${currency}</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val">${f(reportData.totalSpend)}</div><div class="stat-lbl">Total Spent</div></div>
+  <div class="stat"><div class="stat-val">${f(reportData.avgMonthlySpend)}</div><div class="stat-lbl">Monthly Avg</div></div>
+  <div class="stat"><div class="stat-val">${f(reportData.projection5yr)}</div><div class="stat-lbl">5-Year Projection</div></div>
+  <div class="stat"><div class="stat-val">${reportData.transactionCount?.toLocaleString()}</div><div class="stat-lbl">Transactions</div></div>
+</div>
+
+<div class="months">
+  <div class="month-best"><div class="month-lbl">Best Month</div><div class="month-name">${reportData.bestMonth?.month ? fMonth(reportData.bestMonth.month) : "—"}</div><div class="month-val">${f(reportData.bestMonth?.amount||0)}</div></div>
+  <div class="month-worst"><div class="month-lbl">Worst Month</div><div class="month-name">${reportData.worstMonth?.month ? fMonth(reportData.worstMonth.month) : "—"}</div><div class="month-val">${f(reportData.worstMonth?.amount||0)}</div></div>
+</div>
+
+${reportData.spendingPersonality ? `
+<div class="card">
+  <div class="tag tag-accent">Spending Personality</div>
+  <div class="personality-title">${reportData.spendingPersonality.title}</div>
+  <div style="color:#444">${reportData.spendingPersonality.description}</div>
+</div>` : ""}
+
+<div class="card card-roast">
+  <div class="tag tag-primary">🔥 The Annual Roast</div>
+  <div class="roast-text">"${reportData.roast}"</div>
+</div>
+
+${reportData.funFact ? `<div class="card card-accent"><div class="tag tag-primary">✨ Fun Fact</div><div>${reportData.funFact}</div></div>` : ""}
+
+<div class="card">
+  <h2>Top 5 Spending Categories</h2>
+  ${(reportData.top5Categories||[]).map((cat: any, i: number) => {
+    const pct = reportData.totalSpend > 0 ? Math.round((cat.amount/reportData.totalSpend)*100) : 0;
+    return `<div class="cat-row">
+      <div class="cat-label"><span>${i+1}. ${cat.category}</span><span>${f(cat.amount)} &nbsp; ${pct}%</span></div>
+      <div class="cat-bar-bg"><div class="cat-bar" style="width:${pct}%;background:${catColors[i]}"></div></div>
+    </div>`;
+  }).join("")}
+</div>
+
+<div class="card">
+  <h2>Behavioral Analysis</h2>
+  <div style="color:#444">${reportData.behavioralAnalysis}</div>
+</div>
+
+${reportData.monthlyTrend ? `<div class="card"><div class="tag tag-accent">Spending Trend</div><div>${reportData.monthlyTrend}</div></div>` : ""}
+
+${reportData.merchantInsights?.length ? `
+<div class="card">
+  <h2>Merchant Insights</h2>
+  ${reportData.merchantInsights.map((m: any, i: number) => `
+    <div class="merchant-row">
+      <div class="merchant-num">${i+1}</div>
+      <div style="flex:1">
+        <div class="merchant-name">${m.merchant}</div>
+        <div class="merchant-meta">${f(m.totalSpent)} &nbsp;·&nbsp; ${m.visits} visit${m.visits!==1?"s":""}</div>
+        <div class="merchant-insight">${m.insight}</div>
+      </div>
+    </div>`).join("")}
+</div>` : ""}
+
+${reportData.savingsOpportunities?.length ? `
+<div class="card card-savings">
+  <h2>Savings Opportunities</h2>
+  ${reportData.savingsOpportunities.map((opp: any) => `
+    <div class="saving-row">
+      <div class="saving-head">
+        <div><div class="saving-cat">${opp.category}</div><div class="saving-spent">Currently ${f(opp.currentAnnualSpend)}/yr</div></div>
+        <div><div style="font-size:11px;color:#888">Potential saving</div><div class="saving-amount">${f(opp.potentialAnnualSaving)}/yr</div></div>
+      </div>
+      <div class="saving-alt">Try instead: ${opp.alternative}</div>
+      <div class="saving-tip">${opp.tip}</div>
+    </div>`).join("")}
+</div>` : ""}
+
+${reportData.improvements?.length ? `
+<div class="card">
+  <h2>Top Improvements</h2>
+  ${reportData.improvements.map((imp: string, i: number) => `
+    <div class="improvement"><div class="imp-num">${i+1}</div><div>${imp}</div></div>`).join("")}
+</div>` : ""}
+
+<div class="footer">
+  <span>Expense Roaster — Annual Roast Report</span>
+  <span>${new Date().toLocaleDateString()}</span>
+</div>
+</body></html>`;
+
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 600);
   };
 
   if (!canAccess) {
