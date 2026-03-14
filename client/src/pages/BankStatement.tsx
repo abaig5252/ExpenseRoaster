@@ -214,9 +214,13 @@ export default function BankStatement() {
   const statementRoast = roastData?.roast ?? null;
 
   const regenerateRoastMutation = useMutation({
-    mutationFn: (month: string) => apiRequest("POST", `/api/statement-roast/${month}/regenerate`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/statement-roast", activeMonth] });
+    mutationFn: async (month: string) => {
+      const res = await apiRequest("POST", `/api/statement-roast/${month}/regenerate`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      // Set the query data directly from the POST response body — avoids 304 cache collisions
+      queryClient.setQueryData(["/api/statement-roast", activeMonth], data);
     },
     onError: () => {
       toast({ title: "Failed to regenerate", description: "Please try again.", variant: "destructive" });
@@ -591,10 +595,12 @@ export default function BankStatement() {
                   )}
                 </div>
 
-                {roastLoading ? (
+                {roastLoading || regenerateRoastMutation.isPending ? (
                   <div className="flex flex-col items-center justify-center flex-1 text-center">
                     <Loader2 className="w-7 h-7 text-[hsl(var(--primary))] mb-3 animate-spin" />
-                    <p className="text-xs text-muted-foreground">Loading roast...</p>
+                    <p className="text-xs text-muted-foreground">
+                      {regenerateRoastMutation.isPending ? "Regenerating roast..." : "Loading roast..."}
+                    </p>
                   </div>
                 ) : statementRoast ? (
                   <div className="overflow-y-auto flex-1 min-h-0 pr-1">
