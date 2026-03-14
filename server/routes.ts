@@ -1749,9 +1749,19 @@ Return ONLY valid JSON, no other text.`,
     }
 
     try {
-      const allExpenses = await storage.getExpenses(userId);
+      const now = new Date();
+      const yearStart = new Date(now.getFullYear(), 0, 1); // Jan 1 of current year
+      const reportYear = now.getFullYear();
+      const ytdLabel = `Jan 1, ${reportYear} – ${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+
+      const rawExpenses = await storage.getExpenses(userId);
+      const allExpenses = rawExpenses.filter(e => {
+        const d = new Date(e.date);
+        return d >= yearStart && d <= now;
+      });
+
       if (allExpenses.length < 3) {
-        return res.status(400).json({ message: "Need at least a few transactions to generate an annual report" });
+        return res.status(400).json({ message: `Need at least 3 transactions from ${reportYear} to generate a year-to-date report. Upload some receipts or bank statements from this year first.` });
       }
 
       const annualCleanMap = await cleanMerchantNames(allExpenses.map(e => e.description || "Unknown"));
@@ -1776,7 +1786,10 @@ Return ONLY valid JSON, no other text.`,
       const worstMonth = [...sortedMonths].sort((a, b) => b[1] - a[1])[0];
       const bestMonth = [...sortedMonths].sort((a, b) => a[1] - b[1])[0];
       const avgMonthly = totalSpend / Math.max(sortedMonths.length, 1);
-      const projection5yr = avgMonthly * 12 * 5;
+      // Full-year projection: remaining months at current monthly pace
+      const monthsElapsed = now.getMonth() + 1; // 1-12
+      const remainingMonths = 12 - monthsElapsed;
+      const projectionFullYear = totalSpend + avgMonthly * remainingMonths;
       const top10Merchants = Object.entries(merchantSpend)
         .sort((a, b) => b[1].total - a[1].total)
         .slice(0, 10);
@@ -1813,31 +1826,32 @@ Return ONLY valid JSON, no other text.`,
         .map(e => `${e.date} ${annualCleanMap.get(e.description || "Unknown") || e.description || "Unknown"} ${(e.amount / 100).toFixed(2)} ${annualCurrency} [${e.category}]`)
         .join("\n");
 
-      const summaryText = `SPENDING ANALYSIS (${allExpenses.length} total transactions, currency: ${annualCurrency})
+      const summaryText = `YEAR-TO-DATE SPENDING ANALYSIS (${ytdLabel}, ${allExpenses.length} transactions, currency: ${annualCurrency})
 
 ALL MERCHANTS (name|total_spent|visits):
 ${allMerchants}
 
 MONTHLY TOTALS: ${monthlyBreakdown}
-SPENDING TREND: ${trendDir} (comparing first half to second half of transaction history)
+SPENDING TREND: ${trendDir} (comparing first half to second half of year-to-date period)
 CATEGORIES: ${top5Categories.map(([c, a]) => `${c} ${(a / 100).toFixed(2)} ${annualCurrency}`).join(" | ")}
 BEST MONTH: ${bestMonth?.[0]} (${((bestMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency})
 WORST MONTH: ${worstMonth?.[0]} (${((worstMonth?.[1] || 0) / 100).toFixed(2)} ${annualCurrency})
 AVG MONTHLY: ${(avgMonthly / 100).toFixed(2)} ${annualCurrency}
-TOTAL: ${(totalSpend / 100).toFixed(2)} ${annualCurrency}
+YTD TOTAL: ${(totalSpend / 100).toFixed(2)} ${annualCurrency}
+FULL YEAR PROJECTION (at current pace): ${(projectionFullYear / 100).toFixed(2)} ${annualCurrency}
 
 TOP 25 BIGGEST TRANSACTIONS:
 ${biggestTx}`;
 
-      const systemPrompt = `You are the world's most insightful (and entertainingly savage) financial analyst. The user paid for this premium annual report — make it thorough, specific, fun and genuinely useful. You have full merchant aggregates and biggest transactions. Research real alternatives and savings strategies specific to ${annualCurrency} users.
+      const systemPrompt = `You are the world's most insightful (and entertainingly savage) financial analyst. The user paid for this premium ${reportYear} year-to-date report (${ytdLabel}) — make it thorough, specific, fun and genuinely useful. You have full merchant aggregates and biggest transactions. Research real alternatives and savings strategies specific to ${annualCurrency} users.
 
 Respond ONLY with valid JSON with exactly these keys:
-- "roast": string — 5-6 sentences of savage but accurate annual roast referencing specific merchant names, exact amounts, and patterns.
+- "roast": string — 5-6 sentences of savage but accurate roast referencing specific merchant names, exact amounts, and patterns from this year so far.
 - "spendingPersonality": object — { "title": string (fun archetype max 5 words e.g. "The Subscription Hoarder"), "description": string (2 sentences based on actual data) }
 - "behavioralAnalysis": string — 4-5 sentences: what spending patterns reveal about this person's lifestyle, priorities, emotional triggers, habits.
-- "monthlyTrend": string — 1-2 sentences on whether spending improved or worsened and what drove it.
+- "monthlyTrend": string — 1-2 sentences on whether spending improved or worsened month-over-month and what drove it.
 - "merchantInsights": array of 5 objects — { "merchant": string, "totalSpent": number (cents), "visits": number, "insight": string (funny observation + useful tip for this merchant) }
-- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents), "alternative": string (specific real app/store/habit relevant to ${annualCurrency} users), "potentialAnnualSaving": number (realistic cents), "tip": string (actionable 1-2 sentences with real numbers) }
+- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents, annualised from YTD), "alternative": string (specific real app/store/habit relevant to ${annualCurrency} users), "potentialAnnualSaving": number (realistic cents), "tip": string (actionable 1-2 sentences with real numbers) }
 - "improvements": array of 5 strings — prioritized improvements with concrete steps and realistic ${annualCurrency} savings amounts.
 - "funFact": string — one surprising or funny statistical observation from the data.
 All monetary values in JSON must be integers in cents.`;
@@ -1872,11 +1886,13 @@ All monetary values in JSON must be integers in cents.`;
         totalSpend,
         currency: annualCurrency,
         transactionCount: allExpenses.length,
+        reportYear,
+        ytdLabel,
         top5Categories: top5Categories.map(([cat, amt]) => ({ category: cat, amount: amt })),
         worstMonth: { month: worstMonth?.[0] || "", amount: worstMonth?.[1] || 0 },
         bestMonth: { month: bestMonth?.[0] || "", amount: bestMonth?.[1] || 0 },
         avgMonthlySpend: Math.round(avgMonthly),
-        projection5yr: Math.round(projection5yr),
+        projectionFullYear: Math.round(projectionFullYear),
         monthlyTotals: sortedMonths.map(([month, amount]) => ({ month, amount })),
         roast: aiData.roast || "Your spending is a masterpiece of questionable decisions.",
         spendingPersonality: aiData.spendingPersonality || { title: "The Mystery Spender", description: "Your spending defies categorization." },

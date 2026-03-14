@@ -46,7 +46,7 @@ export default function AnnualReport() {
     const catColors = ["#E85D26","#C4A832","#7B6FE8","#3BB8A0","#E8526A"];
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<title>Annual Roast Report — Expense Roaster</title>
+<title>${reportData.reportYear ?? new Date().getFullYear()} Year-to-Date Roast Report — Expense Roaster</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#fff;color:#111;padding:48px 56px;max-width:860px;margin:0 auto;font-size:14px;line-height:1.6}
@@ -97,13 +97,13 @@ export default function AnnualReport() {
   @media print{body{padding:32px 40px}@page{margin:0.5in}}
 </style></head><body>
 <div class="logo">Expense Roaster</div>
-<h1>Annual Roast Report</h1>
-<div class="sub">Generated ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})} &nbsp;·&nbsp; ${reportData.transactionCount} transactions &nbsp;·&nbsp; ${currency}</div>
+<h1>${reportData.reportYear ?? new Date().getFullYear()} Year-to-Date Roast Report</h1>
+<div class="sub">${reportData.ytdLabel ?? `Jan 1 – ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`} &nbsp;·&nbsp; ${reportData.transactionCount} transactions &nbsp;·&nbsp; ${currency}</div>
 
 <div class="stats">
   <div class="stat"><div class="stat-val">${f(reportData.totalSpend)}</div><div class="stat-lbl">Total Spent</div></div>
   <div class="stat"><div class="stat-val">${f(reportData.avgMonthlySpend)}</div><div class="stat-lbl">Monthly Avg</div></div>
-  <div class="stat"><div class="stat-val">${f(reportData.projection5yr)}</div><div class="stat-lbl">5-Year Projection</div></div>
+  <div class="stat"><div class="stat-val">${f(reportData.projectionFullYear)}</div><div class="stat-lbl">Full Year Projection</div></div>
   <div class="stat"><div class="stat-val">${reportData.transactionCount?.toLocaleString()}</div><div class="stat-lbl">Transactions</div></div>
 </div>
 
@@ -180,7 +180,7 @@ ${reportData.improvements?.length ? `
 </div>` : ""}
 
 <div class="footer">
-  <span>Expense Roaster — Annual Roast Report</span>
+  <span>Expense Roaster — ${reportData.reportYear ?? new Date().getFullYear()} Year-to-Date Roast Report</span>
   <span>${new Date().toLocaleDateString()}</span>
 </div>
 </body></html>`;
@@ -205,7 +205,7 @@ ${reportData.improvements?.length ? `
             </div>
             <h1 className="text-4xl font-bold text-white mb-4">Annual Roast Report</h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Get a full year of financial analysis with brutal honesty, behavioral insights, and a 5-year projection. $29.99 per report, every time.
+              Get a year-to-date financial analysis with brutal honesty, behavioral insights, and a full-year spending projection. $29.99 per report, every time.
             </p>
             <div className="glass-panel rounded-3xl p-8 mb-6 text-left">
               <div className="text-5xl font-amount-card text-white mb-1">$29.99</div>
@@ -220,7 +220,7 @@ ${reportData.improvements?.length ? `
                   "Per-merchant insights & tips",
                   "5 savings opportunities with real alternatives",
                   "Monthly spending trend",
-                  "5-year projection if you don't change",
+                  "Full year projection at your current pace",
                   "Fun facts from your transaction history",
                   "Downloadable PDF",
                 ].map(f => (
@@ -260,7 +260,12 @@ ${reportData.improvements?.length ? `
               <div className="w-10 h-10 rounded-2xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
                 <FileText className="w-5 h-5 text-[hsl(var(--accent))]" />
               </div>
-              <h1 className="text-4xl font-bold text-white">Annual Roast Report</h1>
+              <div>
+                <h1 className="text-4xl font-bold text-white">Annual Roast Report</h1>
+                {reportData?.ytdLabel && (
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">{reportData.ytdLabel}</div>
+                )}
+              </div>
             </div>
             {reportData && (
               <button onClick={handleDownload} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 transition-all text-sm font-semibold text-white" data-testid="button-download-report">
@@ -268,7 +273,7 @@ ${reportData.improvements?.length ? `
               </button>
             )}
           </div>
-          <p className="text-muted-foreground mt-2 text-lg">The full financial post-mortem. No sugarcoating.</p>
+          <p className="text-muted-foreground mt-2 text-lg">The full year-to-date financial post-mortem. No sugarcoating.</p>
         </motion.div>
 
         {!reportData ? (
@@ -278,7 +283,7 @@ ${reportData.improvements?.length ? `
             </div>
             <h2 className="text-3xl font-bold text-white mb-3">Ready to face the truth?</h2>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              This analyzes every single transaction you've uploaded — merchants, patterns, habits — and generates a comprehensive financial deep-dive. Give it 20–30 seconds.
+              Analyzes every transaction you've uploaded this year — merchants, patterns, habits — and projects your full-year spend. Give it 20–30 seconds.
             </p>
             {reportMutation.isError && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 mb-6 max-w-md mx-auto">
@@ -304,7 +309,7 @@ ${reportData.improvements?.length ? `
               {[
                 { label: "Total Spent", value: fmt(reportData.totalSpend), icon: TrendingUp, color: "primary" },
                 { label: "Monthly Avg", value: fmt(reportData.avgMonthlySpend), icon: Calendar, color: "secondary" },
-                { label: "5-Year Projection", value: fmt(reportData.projection5yr), icon: Target, color: "destructive" },
+                { label: "Full Year Projection", value: fmt(reportData.projectionFullYear), icon: Target, color: "destructive" },
                 { label: "Transactions", value: reportData.transactionCount?.toLocaleString() ?? "—", icon: BarChart2, color: "accent" },
               ].map((stat, i) => (
                 <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
@@ -481,13 +486,13 @@ ${reportData.improvements?.length ? `
               </motion.div>
             )}
 
-            {/* 5-Year Warning */}
+            {/* Full Year Projection Warning */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}
               className="glass-panel rounded-3xl p-8 border border-destructive/30 bg-destructive/5">
-              <h2 className="text-xl font-bold text-white mb-2">5-Year Projection</h2>
-              <p className="text-muted-foreground mb-4 text-sm">If your spending habits remain completely unchanged:</p>
-              <div className="text-5xl font-amount-card text-destructive">{fmt(reportData.projection5yr)}</div>
-              <p className="text-muted-foreground mt-2 text-sm">spent over the next 5 years at your current rate.</p>
+              <h2 className="text-xl font-bold text-white mb-2">Full {reportData.reportYear} Projection</h2>
+              <p className="text-muted-foreground mb-4 text-sm">If your spending pace stays the same for the rest of the year:</p>
+              <div className="text-5xl font-amount-card text-destructive">{fmt(reportData.projectionFullYear)}</div>
+              <p className="text-muted-foreground mt-2 text-sm">estimated total for all of {reportData.reportYear} at your current monthly rate.</p>
             </motion.div>
 
             {/* Improvements */}
