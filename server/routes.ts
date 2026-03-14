@@ -208,7 +208,12 @@ Rules:
     ],
     max_completion_tokens: 420,
   });
-  return response.choices[0]?.message?.content || "The record has been updated.";
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    console.error("[generateStatementRoast] AI returned empty content. finish_reason:", response.choices[0]?.finish_reason);
+    throw new Error("AI returned empty content for statement roast");
+  }
+  return content;
 }
 
 function getUserId(req: any): string {
@@ -1682,8 +1687,43 @@ Return ONLY valid JSON, no other text.`,
   app.get("/api/statement-roast/:month", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
     const { month } = req.params;
+    const user = await storage.getUser(userId);
     const row = await storage.getStatementRoast(userId, month);
-    res.json({ roast: row?.roast ?? null, tone: row?.tone ?? null });
+
+    const FALLBACK = "The record has been updated.";
+    const needsGeneration = !row || !row.roast || row.roast === FALLBACK;
+
+    if (!needsGeneration) {
+      return res.json({ roast: row.roast, tone: row.tone });
+    }
+
+    // Auto-generate from stored transactions for this month
+    const allExpenses = await storage.getExpenses(userId);
+    const monthTxs = allExpenses.filter(e => {
+      const d = e.date instanceof Date ? e.date : new Date(String(e.date));
+      return d.toISOString().slice(0, 7) === month && e.source !== "receipt";
+    });
+
+    if (monthTxs.length === 0) {
+      return res.json({ roast: null, tone: null });
+    }
+
+    const currency = user?.currency ?? "USD";
+    const txsForRoast = monthTxs.map(e => ({
+      description: e.description,
+      amount: e.amount / 100,
+      date: (e.date instanceof Date ? e.date : new Date(String(e.date))).toISOString(),
+      category: e.category,
+    }));
+
+    try {
+      const roast = await generateStatementRoast(txsForRoast, "sergio", currency, month);
+      await storage.saveStatementRoast(userId, month, roast, "sergio");
+      return res.json({ roast, tone: "sergio" });
+    } catch (err) {
+      console.error("[statement-roast] generation failed:", err);
+      return res.json({ roast: null, tone: null });
+    }
   });
 
   // ─── Expenses: Annual report (premium or hasAnnualReport) ────────
