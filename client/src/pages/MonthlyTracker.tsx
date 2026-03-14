@@ -300,27 +300,44 @@ export default function MonthlyTracker() {
       <div className="min-h-screen pb-24">
         <div className="bg-noise" />
         <AppNav />
-        <main className="max-w-xl mx-auto px-4 sm:px-6 pt-24 relative z-10 flex flex-col items-center text-center gap-6">
-          <div className="w-16 h-16 rounded-3xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 flex items-center justify-center">
-            <Lock className="w-8 h-8 text-[hsl(var(--primary))]" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-3">Monthly Tracker</h1>
-            <p className="text-muted-foreground text-base leading-relaxed">
-              Track your spending across months, get AI-powered financial advice, and see where your money actually goes — this is a Premium feature.
+        <main className="max-w-xl mx-auto px-4 sm:px-6 pt-16 relative z-10">
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center text-center gap-6">
+            <div className="w-16 h-16 rounded-3xl bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 flex items-center justify-center">
+              <BarChart3 className="w-8 h-8 text-[hsl(var(--accent))]" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-3">Monthly Tracker</h1>
+              <p className="text-muted-foreground text-base leading-relaxed">
+                See exactly where your money goes, month by month. Uncle Sergio's got charts, breakdowns, and advice you really don't want to hear.
+              </p>
+            </div>
+            <div className="w-full glass-panel rounded-3xl p-6 text-left flex flex-col gap-3">
+              {[
+                { icon: "📊", text: "Month-by-month spending trends with interactive charts" },
+                { icon: "🗂️", text: "Full category breakdown — Food, Transport, Entertainment, and more" },
+                { icon: "🤖", text: "AI financial advice tailored to your actual spending patterns" },
+                { icon: "📅", text: "Filter by month, year, or category to drill into the damage" },
+                { icon: "📉", text: "Compare your best and worst months side by side" },
+                { icon: "💡", text: "Savings opportunities with specific, actionable alternatives" },
+              ].map(({ icon, text }) => (
+                <div key={text} className="flex items-start gap-3">
+                  <span className="text-lg shrink-0 mt-0.5">{icon}</span>
+                  <p className="text-sm text-white/80">{text}</p>
+                </div>
+              ))}
+            </div>
+            <Link href="/pricing">
+              <button
+                data-testid="button-upgrade-tracker"
+                className="w-full px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-white font-bold text-base hover:opacity-90 transition-opacity"
+              >
+                Upgrade to Premium — $9.99/mo
+              </button>
+            </Link>
+            <p className="text-xs text-muted-foreground pb-4">
+              Also includes unlimited uploads, bank statement import, monthly verdicts, and more.
             </p>
-          </div>
-          <Link href="/pricing">
-            <button
-              data-testid="button-upgrade-tracker"
-              className="px-8 py-3 rounded-2xl bg-[hsl(var(--primary))] text-white font-bold text-base hover:opacity-90 transition-opacity"
-            >
-              Upgrade to Premium
-            </button>
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            Also unlocks unlimited uploads, monthly verdicts, bank statement import, and more.
-          </p>
+          </motion.div>
         </main>
       </div>
     );

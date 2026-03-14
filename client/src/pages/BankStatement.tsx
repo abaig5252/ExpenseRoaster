@@ -361,6 +361,54 @@ export default function BankStatement() {
     ? new Date(editMonth + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "";
 
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen pb-24">
+        <div className="bg-noise" />
+        <AppNav />
+        <main className="max-w-xl mx-auto px-4 sm:px-6 pt-16 relative z-10">
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center text-center gap-6">
+            <div className="w-16 h-16 rounded-3xl bg-[hsl(var(--secondary))]/20 border border-[hsl(var(--secondary))]/30 flex items-center justify-center">
+              <Wallet className="w-8 h-8 text-[hsl(var(--secondary))]" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-3">Bank Statement Import</h1>
+              <p className="text-muted-foreground text-base leading-relaxed">
+                Upload your bank or credit card statement and let Uncle Sergio roast every single transaction. Painful. Enlightening. Worth it.
+              </p>
+            </div>
+            <div className="w-full glass-panel rounded-3xl p-6 text-left flex flex-col gap-3">
+              {[
+                { icon: "📄", text: "Import PDF or photo statements — bank or credit card" },
+                { icon: "🔥", text: "Every transaction individually roasted by AI" },
+                { icon: "🗂️", text: "Full transaction history, organised by month and category" },
+                { icon: "⚖️", text: "Monthly verdict: a brutal summary of your spending habits" },
+                { icon: "🎭", text: "Choose your roast tone — Roasted 🔥 or Destroyed 💀" },
+                { icon: "🗑️", text: "Bulk select and delete transactions you'd rather forget" },
+              ].map(({ icon, text }) => (
+                <div key={text} className="flex items-start gap-3">
+                  <span className="text-lg shrink-0 mt-0.5">{icon}</span>
+                  <p className="text-sm text-white/80">{text}</p>
+                </div>
+              ))}
+            </div>
+            <Link href="/pricing">
+              <button
+                data-testid="button-upgrade-bank"
+                className="w-full px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] text-white font-bold text-base hover:opacity-90 transition-opacity"
+              >
+                Upgrade to Premium — $9.99/mo
+              </button>
+            </Link>
+            <p className="text-xs text-muted-foreground pb-4">
+              Also includes unlimited receipt uploads, monthly tracker, and more.
+            </p>
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <>
     <div className="min-h-screen pb-24">
@@ -379,24 +427,6 @@ export default function BankStatement() {
             Upload your bank or credit card statement — PDF or photo. Every transaction gets roasted.
           </p>
         </motion.div>
-
-        {!isPremium && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="glass-panel rounded-2xl p-5 mb-6 border border-[hsl(var(--primary))]/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <Lock className="w-5 h-5 text-[hsl(var(--primary))] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-bold text-white">Statement import requires Premium</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Upgrade to import bank or credit card statements, PDF or photo, and track your full history.</p>
-              </div>
-            </div>
-            <Link href="/pricing">
-              <button className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] text-white text-sm font-bold whitespace-nowrap hover:opacity-90 transition-all" data-testid="button-upgrade-bank">
-                Upgrade — $9.99/mo
-              </button>
-            </Link>
-          </motion.div>
-        )}
 
         {/* ── Top row: import + roast side by side ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 items-start">
