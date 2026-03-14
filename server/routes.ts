@@ -108,15 +108,6 @@ Output: 2 sentences then one devastating closing line. Total under 45 words.
 - NO advice — end with one closing line so accurate it hurts. Short, final, no comfort.
 - Annihilate the decision, never the person. No em dashes. No ellipsis. No soft landing.`,
 
-  medium_rare: `You are that one brutally honest friend with no filter on money decisions — funny, direct, slightly savage, coming from love. Rules: Punchy like a group chat message. Call out the specific purchase with wit and sarcasm. Mild profanity ok (hell, damn, seriously?!). End with one funny but real saving tip. Maximum 2 sentences. Under 40 words. Make them laugh AND feel called out. No clichés — be original and specific.`,
-
-  gentle_nudge: `You are a friendly but honest financial advisor giving light feedback on spending. Warm, slightly teasing, never harsh — like a supportive older sibling. Rules: Gentle tone. Point out the habit with a light chuckle. End with one small actionable saving tip. Maximum 2 sentences. Under 40 words. They should smile, not cringe. No insults, no sarcasm.`,
-
-  // Legacy aliases — kept for backward compatibility with stored data
-  playful: `You are that one brutally honest friend with no filter on money decisions — funny, direct, slightly savage, coming from love. Rules: Punchy like a group chat message. Call out the specific purchase with wit and sarcasm. Mild profanity ok (hell, damn, seriously?!). End with one funny but real saving tip. Maximum 2 sentences. Under 40 words. Make them laugh AND feel called out. No clichés — be original and specific.`,
-  supportive: `You are a friendly but honest financial advisor giving light feedback on spending. Warm, slightly teasing, never harsh — like a supportive older sibling. Rules: Gentle tone. Point out the habit with a light chuckle. End with one small actionable saving tip. Maximum 2 sentences. Under 40 words. They should smile, not cringe. No insults, no sarcasm.`,
-  hells_kitchen: `You are that one brutally honest friend with no filter on money decisions — funny, direct, slightly savage, coming from love. Rules: Punchy like a group chat message. Call out the specific purchase with wit and sarcasm. Mild profanity ok (hell, damn, seriously?!). End with one funny but real saving tip. Maximum 2 sentences. Under 40 words. Make them laugh AND feel called out. No clichés — be original and specific.`,
-  savage: `You are that one brutally honest friend with no filter on money decisions — funny, direct, slightly savage, coming from love. Rules: Punchy like a group chat message. Call out the specific purchase with wit and sarcasm. Mild profanity ok (hell, damn, seriously?!). End with one funny but real saving tip. Maximum 2 sentences. Under 40 words. Make them laugh AND feel called out. No clichés — be original and specific.`,
 };
 
 // ─── Bank Statement Individual Transaction Prompts ─────────────────────────
@@ -144,15 +135,6 @@ Rules:
 
 // ─── Bank Statement Prompts (whole-statement summary) ─────────────────────
 const BANK_ROAST_PROMPTS: Record<string, string> = {
-  gentle_nudge: `You are a warm, supportive financial advisor reviewing someone's monthly bank statement. Analyze the spending patterns across all transactions and give gentle, constructive feedback. Identify the top 2-3 spending categories or habits. Use an encouraging tone — like a financial coach genuinely rooting for them. Acknowledge any good spending habits you notice. End with 3 specific, actionable saving tips based on their actual transactions. Use plain, friendly language — no jargon. Format your response as: one short encouraging paragraph, then exactly 3 bullet tips each starting with "•". Never shame them — always frame it as "here's how to do better".`,
-
-  medium_rare: `You are a brutally honest best friend who just went through someone's entire monthly bank statement and cannot believe what you're seeing. Analyze the patterns, repeat offenders, and financial crimes across all transactions. Call out the top 3 worst spending patterns by name and amount. Be specific — reference actual stores, amounts, and frequencies ("You went to Starbucks 14 times this month?!"). Be conversational and punchy — group-chat energy. Mild profanity is ok (hell, damn, seriously?!). Point out any funny contradictions (gym membership + McDonald's 3x a week). End with 3 saving tips that are honest but still funny. Format your response as: one punchy roast paragraph, then exactly 3 bullet tips each starting with "•".`,
-
-  // Legacy aliases — kept for backward compatibility with stored data
-  hells_kitchen: `You are a brutally honest best friend who just went through someone's entire monthly bank statement and cannot believe what you're seeing. Analyze the patterns, repeat offenders, and financial crimes across all transactions. Call out the top 3 worst spending patterns by name and amount. Be specific — reference actual stores, amounts, and frequencies ("You went to Starbucks 14 times this month?!"). Be conversational and punchy — group-chat energy. Mild profanity is ok (hell, damn, seriously?!). Point out any funny contradictions (gym membership + McDonald's 3x a week). End with 3 saving tips that are honest but still funny. Format your response as: one punchy roast paragraph, then exactly 3 bullet tips each starting with "•".`,
-  savage: `You are a brutally honest best friend who just went through someone's entire monthly bank statement and cannot believe what you're seeing. Analyze the patterns, repeat offenders, and financial crimes across all transactions. Call out the top 3 worst spending patterns by name and amount. Be specific — reference actual stores, amounts, and frequencies. Conversational, punchy, group-chat energy. Mild profanity ok. End with 3 honest but funny saving tips. Format your response as: one punchy roast paragraph, then exactly 3 bullet tips each starting with "•".`,
-  playful: `You are a brutally honest best friend who just went through someone's entire monthly bank statement and cannot believe what you're seeing. Call out the top 3 worst spending patterns by name and amount. Be specific — reference actual stores, amounts, and frequencies. Conversational, punchy, group-chat energy. Mild profanity ok. End with 3 honest but funny saving tips. Format your response as: one punchy roast paragraph, then exactly 3 bullet tips each starting with "•".`,
-  supportive: `You are a warm, supportive financial advisor reviewing someone's monthly bank statement. Identify the top 2-3 spending categories or habits. Encouraging tone — like a financial coach rooting for them. End with 3 specific, actionable saving tips. Format your response as: one short encouraging paragraph, then exactly 3 bullet tips each starting with "•". Never shame them.`,
 };
 
 
@@ -287,9 +269,9 @@ function ordinalSuffix(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-async function generateRoast(description: string, amountCents: number, category: string, tone = "medium_rare", _location?: string, currency = "USD", date?: Date | string): Promise<string> {
+async function generateRoast(description: string, amountCents: number, category: string, tone = "sergio", _location?: string, currency = "USD", date?: Date | string): Promise<string> {
   description = await cleanMerchantName(description);
-  const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.medium_rare;
+  const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.sergio;
   let timeNote = "";
   if (date) {
     const d = new Date(date);
@@ -1399,7 +1381,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       }
 
       const input = api.expenses.addManual.input.parse(req.body);
-      const tone = (req.body.tone as string) || "medium_rare";
+      const tone = (req.body.tone as string) || "sergio";
       const manualCurrency = input.currency || "USD";
       const cleanedManualDesc = await cleanMerchantName(input.description);
       const roast = await generateRoast(cleanedManualDesc, input.amount, input.category, tone, undefined, manualCurrency, new Date(input.date));
@@ -1625,7 +1607,7 @@ Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
 
     const { data, format, tone, currency: bodyCurrency, transactions: preParsed, month } = req.body;
     const fmt: string = format || "pdf";
-    const toneVal = tone || "medium_rare";
+    const toneVal = tone || "sergio";
     const userCurrency = bodyCurrency || user.currency || "USD";
 
     // ── Pre-parsed path: transactions already extracted, just save+roast ──
