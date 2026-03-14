@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { parseReceiptDate } from "@/lib/dates";
 import { motion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, X, MessageSquare } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare } from "lucide-react";
 import { useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
 import { CURRENCIES } from "@/hooks/use-currency";
@@ -10,6 +11,11 @@ import { AppNav } from "@/components/AppNav";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+
+function formatMonthLabel(month: string) {
+  const [yr, mo] = month.split("-").map(Number);
+  return new Date(yr, mo - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
 
 type PreviewResult = {
   transactions: { description: string; amount: number; date: string }[];
@@ -152,7 +158,7 @@ export default function BankStatement() {
   const [scanning, setScanning] = useState(false);
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [editMonth, setEditMonth] = useState("");
-  const [statementRoast, setStatementRoast] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const leftColRef = useRef<HTMLDivElement>(null);
   const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
 
@@ -172,8 +178,33 @@ export default function BankStatement() {
   const { data: expenses } = useExpenses();
   const { toast } = useToast();
 
+  const { data: monthsData } = useQuery<{ months: string[] }>({
+    queryKey: ["/api/statement-months"],
+  });
+  const availableMonths = monthsData?.months ?? [];
+
+  const activeMonth = selectedMonth ?? availableMonths[0] ?? null;
+
+  const { data: roastData, isLoading: roastLoading } = useQuery<{ roast: string | null }>({
+    queryKey: ["/api/statement-roast", activeMonth],
+    enabled: !!activeMonth,
+  });
+  const statementRoast = roastData?.roast ?? null;
+
+  useEffect(() => {
+    if (!selectedMonth && availableMonths.length > 0) {
+      setSelectedMonth(availableMonths[0]);
+    }
+  }, [availableMonths, selectedMonth]);
+
   const isPremium = me?.tier === "premium";
-  const manualExpenses = expenses?.filter(e => e.source === "manual" || e.source === "bank_statement") ?? [];
+  const allBankExpenses = expenses?.filter(e => e.source === "bank_statement") ?? [];
+  const manualExpenses = activeMonth
+    ? allBankExpenses.filter(e => {
+        const d = parseReceiptDate(e.date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` === activeMonth;
+      })
+    : allBankExpenses;
 
   const scanStatement = async () => {
     if (!importData) return;
@@ -205,10 +236,14 @@ export default function BankStatement() {
       { transactions: previewResult.transactions, month: editMonth, tone, currency: importCurrency },
       {
         onSuccess: (data) => {
+          const importedMonth = (data as any).month || editMonth;
           toast({ title: `Imported ${data.imported} transactions!`, description: "Statement roast ready below." });
           setImportData(null);
           setPreviewResult(null);
-          setStatementRoast(data.statementRoast ?? null);
+          if (importedMonth) setSelectedMonth(importedMonth);
+          queryClient.invalidateQueries({ queryKey: ["/api/statement-months"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/statement-roast", importedMonth] });
+          queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
         },
         onError: (err: any) => {
           toast({ title: "Import failed", description: err.message, variant: "destructive" });
@@ -427,22 +462,22 @@ export default function BankStatement() {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/8 to-[hsl(var(--secondary))]/4 pointer-events-none" />
               <div className="relative flex flex-col h-full p-6 min-h-0">
-                <div className="flex items-center justify-between mb-4 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center shrink-0">
-                      <MessageSquare className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-bold text-white">Statement Roast</span>
+                <div className="flex items-center gap-2 mb-4 shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center shrink-0">
+                    <MessageSquare className="w-4 h-4 text-white" />
                   </div>
-                  {statementRoast && (
-                    <button onClick={() => setStatementRoast(null)} data-testid="button-dismiss-roast"
-                      className="text-muted-foreground hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div>
+                    <span className="text-sm font-bold text-white block">Statement Roast</span>
+                    {activeMonth && <span className="text-xs text-muted-foreground">{formatMonthLabel(activeMonth)}</span>}
+                  </div>
                 </div>
 
-                {statementRoast ? (
+                {roastLoading ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-center">
+                    <Loader2 className="w-7 h-7 text-[hsl(var(--primary))] mb-3 animate-spin" />
+                    <p className="text-xs text-muted-foreground">Loading roast...</p>
+                  </div>
+                ) : statementRoast ? (
                   <div className="overflow-y-auto flex-1 min-h-0 pr-1">
                     <p className="text-sm text-white/90 leading-relaxed whitespace-pre-line">{statementRoast}</p>
                   </div>
@@ -460,9 +495,22 @@ export default function BankStatement() {
         {/* ── Full-width transactions card ── */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
           className="glass-panel rounded-3xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4">
-            Imported Transactions {manualExpenses.length > 0 && <span className="text-base font-normal text-muted-foreground ml-1">({manualExpenses.length})</span>}
-          </h2>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <h2 className="text-xl font-bold text-white">
+              Imported Transactions {manualExpenses.length > 0 && <span className="text-base font-normal text-muted-foreground ml-1">({manualExpenses.length})</span>}
+            </h2>
+            {availableMonths.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                {availableMonths.map(m => (
+                  <button key={m} onClick={() => setSelectedMonth(m)}
+                    data-testid={`button-month-${m}`}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeMonth === m ? "bg-[hsl(var(--secondary))]/20 text-[hsl(var(--secondary))] border border-[hsl(var(--secondary))]/40" : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"}`}>
+                    {formatMonthLabel(m)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {manualExpenses.length === 0 ? (
             <div className="py-12 text-center">
               <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />

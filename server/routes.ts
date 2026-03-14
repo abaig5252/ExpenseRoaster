@@ -1532,6 +1532,7 @@ Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
     if (Array.isArray(preParsed) && preParsed.length > 0) {
       try {
         let txs = preParsed as { description: string; amount: number; date: string }[];
+        const statementMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
         if (month) {
           const [yr, mo] = month.split('-').map(Number);
           const daysInMonth = new Date(yr, mo, 0).getDate();
@@ -1542,7 +1543,8 @@ Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
         }
         const created = await processTransactions(userId, txs, toneVal, undefined, userCurrency);
         const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
-        return res.status(201).json({ imported: created.length, expenses: created, statementRoast });
+        await storage.saveStatementRoast(userId, statementMonth, statementRoast, toneVal);
+        return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: statementMonth });
       } catch (err) {
         console.error("Statement import error (pre-parsed):", err);
         return res.status(500).json({ message: "Failed to import statement" });
@@ -1589,7 +1591,9 @@ Return ONLY valid JSON, no other text.`,
 
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
         const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
-        return res.status(201).json({ imported: created.length, expenses: created, statementRoast });
+        const pdfMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
+        await storage.saveStatementRoast(userId, pdfMonth, statementRoast, toneVal);
+        return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: pdfMonth });
       }
 
       // ── Image (JPEG / PNG / WebP / HEIC converted) ───────────────
@@ -1628,7 +1632,9 @@ Return ONLY valid JSON, no other text.`,
 
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
         const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
-        return res.status(201).json({ imported: created.length, expenses: created, statementRoast });
+        const imgMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
+        await storage.saveStatementRoast(userId, imgMonth, statementRoast, toneVal);
+        return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: imgMonth });
       }
 
       return res.status(400).json({ message: "Unsupported format. Use pdf or image." });
@@ -1636,6 +1642,21 @@ Return ONLY valid JSON, no other text.`,
       console.error("Statement import error:", err);
       res.status(500).json({ message: "Failed to import statement" });
     }
+  });
+
+  // ─── Statement months available for the user ─────────────────
+  app.get("/api/statement-months", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const months = await storage.getStatementMonths(userId);
+    res.json({ months });
+  });
+
+  // ─── Fetch persisted statement roast for a month ─────────────
+  app.get("/api/statement-roast/:month", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const { month } = req.params;
+    const row = await storage.getStatementRoast(userId, month);
+    res.json({ roast: row?.roast ?? null, tone: row?.tone ?? null });
   });
 
   // ─── Expenses: Annual report (premium or hasAnnualReport) ────────

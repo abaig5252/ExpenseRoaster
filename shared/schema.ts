@@ -87,6 +87,16 @@ export const monthlyVerdicts = pgTable("monthly_verdicts", {
 });
 export type MonthlyVerdict = typeof monthlyVerdicts.$inferSelect;
 
+export const statementRoasts = pgTable("statement_roasts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  month: varchar("month").notNull(),
+  roast: text("roast").notNull(),
+  tone: varchar("tone").default("sergio").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export type StatementRoast = typeof statementRoasts.$inferSelect;
+
 export const contactSubmissions = pgTable("contact_submissions", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),

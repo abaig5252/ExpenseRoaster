@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { expenses, users, contactSubmissions, categoryRules, monthlyVerdicts, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact, type CategoryRule, type MonthlyVerdict } from "@shared/schema";
+import { expenses, users, contactSubmissions, categoryRules, monthlyVerdicts, statementRoasts, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact, type CategoryRule, type MonthlyVerdict, type StatementRoast } from "@shared/schema";
 import { eq, desc, gte, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -31,6 +31,9 @@ export interface IStorage {
   getMonthlyVerdict(userId: string, month: string, source: string): Promise<MonthlyVerdict | null>;
   saveMonthlyVerdict(userId: string, month: string, source: string, roast: string): Promise<MonthlyVerdict>;
   regenerateMonthlyVerdict(id: number, roast: string): Promise<MonthlyVerdict>;
+  getStatementRoast(userId: string, month: string): Promise<StatementRoast | null>;
+  saveStatementRoast(userId: string, month: string, roast: string, tone: string): Promise<StatementRoast>;
+  getStatementMonths(userId: string): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -264,6 +267,36 @@ export class DatabaseStorage implements IStorage {
       .where(eq(monthlyVerdicts.id, id))
       .returning();
     return row;
+  }
+
+  async getStatementRoast(userId: string, month: string): Promise<StatementRoast | null> {
+    const [row] = await db.select().from(statementRoasts)
+      .where(and(eq(statementRoasts.userId, userId), eq(statementRoasts.month, month)))
+      .orderBy(desc(statementRoasts.createdAt))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async saveStatementRoast(userId: string, month: string, roast: string, tone: string): Promise<StatementRoast> {
+    const existing = await this.getStatementRoast(userId, month);
+    if (existing) {
+      const [row] = await db.update(statementRoasts)
+        .set({ roast, tone })
+        .where(eq(statementRoasts.id, existing.id))
+        .returning();
+      return row;
+    }
+    const [row] = await db.insert(statementRoasts).values({ userId, month, roast, tone }).returning();
+    return row;
+  }
+
+  async getStatementMonths(userId: string): Promise<string[]> {
+    const rows = await db
+      .selectDistinct({ month: sql<string>`to_char(${expenses.date}, 'YYYY-MM')` })
+      .from(expenses)
+      .where(and(eq(expenses.userId, userId), eq(expenses.source, "bank_statement")))
+      .orderBy(desc(sql`to_char(${expenses.date}, 'YYYY-MM')`));
+    return rows.map(r => r.month);
   }
 }
 
