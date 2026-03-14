@@ -1915,6 +1915,40 @@ Return ONLY valid JSON, no other text.`,
     }
   });
 
+  // ─── Statement roast: force-regenerate (clears cache, re-runs prompt) ─
+  app.post("/api/statement-roast/:month/regenerate", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const { month } = req.params;
+    const user = await storage.getUser(userId);
+    const currency = user?.currency ?? "USD";
+
+    const allExpenses = await storage.getExpenses(userId);
+    const monthTxs = allExpenses.filter(e => {
+      const d = e.date instanceof Date ? e.date : new Date(String(e.date));
+      return d.toISOString().slice(0, 7) === month && e.source !== "receipt";
+    });
+
+    if (monthTxs.length === 0) {
+      return res.status(400).json({ message: "No transactions found for this month." });
+    }
+
+    const txsForRoast = monthTxs.map(e => ({
+      description: e.description,
+      amount: e.amount / 100,
+      date: (e.date instanceof Date ? e.date : new Date(String(e.date))).toISOString(),
+      category: e.category,
+    }));
+
+    try {
+      const roast = await generateStatementRoast(txsForRoast, "sergio", currency, month);
+      await storage.saveStatementRoast(userId, month, roast, "sergio");
+      return res.json({ roast, tone: "sergio" });
+    } catch (err) {
+      console.error("[statement-roast/regenerate] failed:", err);
+      return res.status(500).json({ message: "Failed to regenerate roast." });
+    }
+  });
+
   // ─── Expenses: Annual report (premium or hasAnnualReport) ────────
   app.post("/api/expenses/annual-report", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);

@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { parseReceiptDate } from "@/lib/dates";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare, X } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare, X, RefreshCw } from "lucide-react";
 import { ShareButton } from "@/components/ShareButton";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
@@ -212,6 +212,16 @@ export default function BankStatement() {
     enabled: !!activeMonth,
   });
   const statementRoast = roastData?.roast ?? null;
+
+  const regenerateRoastMutation = useMutation({
+    mutationFn: (month: string) => apiRequest("POST", `/api/statement-roast/${month}/regenerate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/statement-roast", activeMonth] });
+    },
+    onError: () => {
+      toast({ title: "Failed to regenerate", description: "Please try again.", variant: "destructive" });
+    },
+  });
 
   useEffect(() => {
     if (!selectedMonth && availableMonths.length > 0) {
@@ -561,10 +571,24 @@ export default function BankStatement() {
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center shrink-0">
                     <MessageSquare className="w-4 h-4 text-white" />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <span className="text-sm font-bold text-white block">Monthly Statement Roast</span>
                     {activeMonth && <span className="text-xs text-muted-foreground">{formatMonthLabel(activeMonth)}</span>}
                   </div>
+                  {statementRoast && activeMonth && (
+                    <button
+                      data-testid="button-regenerate-statement-roast"
+                      onClick={() => regenerateRoastMutation.mutate(activeMonth)}
+                      disabled={regenerateRoastMutation.isPending}
+                      title="Regenerate statement roast"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[hsl(var(--primary))]/70 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200 disabled:opacity-50 shrink-0"
+                    >
+                      {regenerateRoastMutation.isPending
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <RefreshCw className="w-3 h-3" />}
+                      <span>Refresh</span>
+                    </button>
+                  )}
                 </div>
 
                 {roastLoading ? (
