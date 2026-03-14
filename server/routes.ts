@@ -276,7 +276,15 @@ One final standalone sentence. Deadpan. Certain. Complete. It does not explain i
 BLANK LINE
 
 BLOCK 3 — SAVING TIPS (exactly 3 lines):
-Three practical, specific saving tips based on the actual merchants and amounts in the data. Each tip is one plain prose sentence on its own line. Reference real merchant names and real amounts from the data. No bullet points. No numbers. No dashes. No headers. Just three plain sentences, one per line.
+Three practical saving tips, each a single plain prose sentence on its own line. Each tip MUST reference a real merchant name and real amount from the data.
+
+MERCHANT RESEARCH RULES — apply before writing any tip:
+- Telecom providers (Rogers, Bell, Telus, AT&T, Verizon, Shaw, Videotron, Freedom, Fido, Koodo, etc.) sell phone, internet, TV, and home security as bundles or separately. You CANNOT determine which service a charge is for from the name alone. Do NOT advise switching, cancelling, or consolidating telecom lines unless you are 100% certain what each charge is for. If uncertain, skip that merchant.
+- Professional membership fees and licensing dues (CPA, CFA, CMA, bar association, medical licensing, engineering associations, real estate board fees, etc.) are mandatory professional obligations — they are not discretionary services. Do NOT advise reducing or pausing them. Skip any merchant that appears to be a professional body, licensing authority, or regulatory membership.
+- Insurance charges can cover many products (auto, home, travel, life, disability, health). Do NOT advise switching or reducing insurance without knowing the product type. If uncertain, skip.
+- Employer-reimbursed expenses, business expenses, and tax-deductible items should not be flagged as wasteful. Skip any merchant that could plausibly be business-related.
+- SKIP RULE: If you cannot determine with high confidence what specific product or service a transaction represents, do not write a tip for that merchant. Choose a different merchant you ARE certain about.
+- Only write tips for clearly discretionary consumer spending where you are certain about the product: restaurants, coffee shops, subscription streaming services, gyms, retail shopping, food delivery, etc.
 
 ENFORCEMENT:
 - Exactly 4 observation sentences, exactly 1 closing line, exactly 3 tip sentences.
@@ -1213,10 +1221,17 @@ Required JSON shape:
   ]
 }
 
+MERCHANT RESEARCH RULES — apply to every insight and alternative before writing:
+- Telecom providers (Rogers, Bell, Telus, AT&T, Verizon, Shaw, Videotron, Freedom, Fido, Koodo, etc.) offer phone, internet, TV, and home security — often in bundles. You CANNOT determine which service a charge is for from the merchant name alone. Do NOT advise switching providers, cancelling lines, or consolidating plans unless you are 100% certain what specific service is being charged. If uncertain, acknowledge the uncertainty in the insight and skip actionable advice for that merchant.
+- Professional membership fees and licensing dues (CPA, CFA, CMA, bar associations, medical licensing, real estate boards, engineering associations, etc.) are mandatory professional obligations — not discretionary spending. Do NOT advise reducing or eliminating them. Note in the insight that these are likely non-discretionary professional costs.
+- Insurance charges (travel, auto, home, life, disability, health) vary widely in product type. Do NOT advise switching or reducing insurance without knowing the exact product. If uncertain, note the ambiguity and skip actionable advice.
+- Business and employer-reimbursed expenses should not be flagged as wasteful. If a merchant could plausibly be a business expense, note the ambiguity.
+- SKIP RULE: Only provide specific actionable advice for clearly discretionary consumer spending where you are certain about the product (restaurants, coffee shops, streaming services, gyms, retail shopping, food delivery, etc.).
+
 STRICT RULES FOR BREAKDOWN:
 - Every category in the input MUST appear in breakdown. No exceptions.
 - roast: reference specific merchant names from the data, be funny and sharp.
-- insight: be concrete. Not "consider reducing" — say "cancel X and switch to Y, saving ~Z ${adviceCurrency}/mo". Always name real local alternatives available in the user's country.
+- insight: be concrete where certain. For ambiguous merchants, state the uncertainty clearly (e.g. "Rogers could be internet, phone, or a bundle — without knowing the service type, it's hard to advise a switch"). Never give wrong-footed advice by guessing.
 - alternatives: MUST use REAL brand names and services that actually exist and are available in the user's country. Wrong: generic US suggestions for a Canadian user. Right: Tim Hortons, No Frills, Fido, GoodLife for CAD users.
 - potentialSaving: be realistic. For a $400 dining habit, don't say $380 savings. Say $80-$150.
 - LOCATION RULE: Do NOT mention city names, street addresses, or neighbourhoods unless they appear in the merchant name itself.`,
