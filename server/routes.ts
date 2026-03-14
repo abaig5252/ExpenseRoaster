@@ -1853,7 +1853,7 @@ Return ONLY valid JSON, no other text.`,
       // All merchant aggregates — compact, analytically rich, much smaller than raw rows
       const allMerchants = Object.entries(merchantSpend)
         .sort((a, b) => b[1].total - a[1].total)
-        .map(([name, d]) => `${name}|${(d.total / 100).toFixed(2)}|${d.count}`)
+        .map(([name, d]) => `${name}|${(d.total / 100).toFixed(2)} ${annualCurrency}|${d.count} visits`)
         .join("\n");
 
       // Monthly breakdown
@@ -1869,6 +1869,7 @@ Return ONLY valid JSON, no other text.`,
         .join("\n");
 
       const summaryText = `YEAR-TO-DATE SPENDING ANALYSIS (${ytdLabel}, ${allExpenses.length} transactions, currency: ${annualCurrency})
+NOTE: All amounts in this data are in ${annualCurrency} dollars (main currency unit), NOT cents. When you write prose, use these dollar values directly (e.g. "$1,694.99 ${annualCurrency}"). For JSON numeric fields marked as cents, multiply the dollar value by 100.
 
 ALL MERCHANTS (name|total_spent|visits):
 ${allMerchants}
@@ -1892,16 +1893,22 @@ ${biggestTx}`;
 ${annualCountryCtx}
 All monetary amounts are in ${annualCurrency}. Every alternative, tip, company, app, or service you mention MUST be real and actually available in the user's country. Do not suggest US companies to a Canadian user, UK brands to an Australian user, etc.
 
+CRITICAL FORMATTING RULE — applies to ALL string fields (roast, descriptions, insights, tips, improvements, funFact):
+- NEVER write raw cent values in text. ALWAYS convert to the main currency unit.
+- Example: 169499 cents → $1,694.99 ${annualCurrency}. NEVER write "169499 cents" in any string.
+- Format amounts as: $X,XXX.XX ${annualCurrency} (e.g. "$1,694.99 CAD", "$85.00 CAD")
+- Numeric JSON fields (totalSpent, currentAnnualSpend, potentialAnnualSaving) MUST remain integers in cents — only string prose must use dollars.
+
 Respond ONLY with valid JSON with exactly these keys:
-- "roast": string — 5-6 sentences of savage but accurate roast referencing specific merchant names, exact amounts, and patterns from this year so far.
-- "spendingPersonality": object — { "title": string (fun archetype max 5 words e.g. "The Subscription Hoarder"), "description": string (2 sentences based on actual data) }
-- "behavioralAnalysis": string — 4-5 sentences: what spending patterns reveal about this person's lifestyle, priorities, emotional triggers, habits.
-- "monthlyTrend": string — 1-2 sentences on whether spending improved or worsened month-over-month and what drove it.
-- "merchantInsights": array of 5 objects — { "merchant": string, "totalSpent": number (cents), "visits": number, "insight": string (funny observation + useful country-specific tip for this merchant) }
-- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents, annualised from YTD), "alternative": string (specific real app/store/service that exists in the user's country), "potentialAnnualSaving": number (realistic cents), "tip": string (actionable 1-2 sentences with real numbers and local brand names) }
-- "improvements": array of 5 strings — prioritized improvements with concrete steps, local brand names, and realistic ${annualCurrency} savings amounts.
-- "funFact": string — one surprising or funny statistical observation from the data.
-All monetary values in JSON must be integers in cents.`;
+- "roast": string — 5-6 sentences of savage but accurate roast referencing specific merchant names, formatted dollar amounts (not cents), and patterns from this year so far.
+- "spendingPersonality": object — { "title": string (fun archetype max 5 words e.g. "The Subscription Hoarder"), "description": string (2 sentences based on actual data, using dollar amounts not cents) }
+- "behavioralAnalysis": string — 4-5 sentences: what spending patterns reveal about this person's lifestyle, priorities, emotional triggers, habits. Use dollar amounts when mentioning figures.
+- "monthlyTrend": string — 1-2 sentences on whether spending improved or worsened month-over-month and what drove it. Use dollar amounts.
+- "merchantInsights": array of 5 objects — { "merchant": string, "totalSpent": number (cents integer), "visits": number, "insight": string (funny observation + useful country-specific tip — use dollar amounts in text, not cents) }
+- "savingsOpportunities": array of 5 objects — { "category": string, "currentAnnualSpend": number (cents integer), "alternative": string (specific real app/store/service that exists in the user's country), "potentialAnnualSaving": number (cents integer), "tip": string (actionable 1-2 sentences with real dollar amounts and local brand names) }
+- "improvements": array of 5 strings — prioritized improvements with concrete steps, local brand names, and realistic dollar savings amounts (not cents).
+- "funFact": string — one surprising or funny statistical observation from the data, using dollar amounts not cents.
+All numeric monetary JSON fields must be integers in cents. All text/string fields must express amounts in dollars (main currency unit).`;
 
       const makeAIRequest = (model: string, timeoutMs?: number) => openai.chat.completions.create(
         {
