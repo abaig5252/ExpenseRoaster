@@ -153,6 +153,18 @@ export default function BankStatement() {
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [editMonth, setEditMonth] = useState("");
   const [statementRoast, setStatementRoast] = useState<string | null>(null);
+  const leftColRef = useRef<HTMLDivElement>(null);
+  const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = leftColRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(entries => {
+      setLeftColHeight(entries[0]?.contentRect.height ?? null);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const { data: me } = useMe();
   const importMutation = useImportCSV();
@@ -288,10 +300,10 @@ export default function BankStatement() {
         )}
 
         {/* ── Top row: import + roast side by side ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 items-start">
 
           {/* Left: Tone selector + Import card */}
-          <div>
+          <div ref={leftColRef}>
             {isPremium && (
               <div className="mb-5">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Roast Tone</label>
@@ -404,9 +416,10 @@ export default function BankStatement() {
             </motion.div>
           </div>
 
-          {/* Right: Statement roast — fills column height, scrollable content */}
+          {/* Right: Statement roast — matches left column height, scrollable content */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-            className="flex flex-col h-full overflow-hidden">
+            className="flex flex-col"
+            style={{ height: leftColHeight ?? "auto" }}>
             {isPremium && <div className="mb-5 h-[52px] shrink-0" />}
             <div
               data-testid="card-statement-roast"
