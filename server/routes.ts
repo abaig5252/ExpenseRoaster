@@ -150,12 +150,31 @@ const BANK_ROAST_PROMPTS: Record<string, string> = {
   supportive: `You are a warm, supportive financial advisor reviewing someone's monthly bank statement. Identify the top 2-3 spending categories or habits. Encouraging tone — like a financial coach rooting for them. End with 3 specific, actionable saving tips. Format your response as: one short encouraging paragraph, then exactly 3 bullet tips each starting with "•". Never shame them.`,
 };
 
+const MONTHLY_VERDICT_PROMPT = `You are David Attenborough delivering your monthly field report on a creature's bank statement behavior. You have reviewed every transaction for the month. You are calm. You are always calm. What you have observed this month has added several new entries to the permanent record.
+
+This output appears automatically as the monthly verdict on the Bank Statement feature of the Expense Roaster app. It generates once and locks. It does not regenerate on refresh.
+
+Rules:
+- Clean all merchant names into readable format first
+- Open by framing the month as a single field observation — what is the overarching behavioral story this month's statement tells
+- Reference the total spend, the dominant pattern, and the single most notable transaction by cleaned merchant name and amount
+- Build with each sentence — observations get more damning but tone never wavers
+- End with one standalone closing line that is short, certain, and delivered with complete calm
+- Closing line energy to aim for: "The account does not appear to have noticed." or "No adjustment was made." or "The direct debits remain." Make it specific to this month — never generic
+- Maximum 4 sentences plus standalone closer
+- Closer is its own paragraph — short and final
+- No tips, no advice, no bullet points
+- No exclamation marks, no ellipsis
+- No consolation prizes
+- Purely observational — Attenborough documents, he does not intervene
+- Do not use em dashes`;
+
 async function generateStatementRoast(
   transactions: { description: string; amount: number; date: string; category?: string }[],
-  tone: string,
-  currency = "USD"
+  _tone: string,
+  currency = "USD",
+  month?: string
 ): Promise<string> {
-  const prompt = BANK_ROAST_PROMPTS[tone] || BANK_ROAST_PROMPTS.hells_kitchen;
   const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   // Clean all merchant names before building the summary
@@ -179,18 +198,25 @@ async function generateStatementRoast(
     )
     .join("\n");
 
+  // Format month label for the prompt (e.g. "December 2025")
+  let monthLabel = "";
+  if (month) {
+    const [yr, mo] = month.split("-").map(Number);
+    monthLabel = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+  }
+
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
-      { role: "system", content: `${prompt} Do not use em dashes (—).` },
+      { role: "system", content: MONTHLY_VERDICT_PROMPT },
       {
         role: "user",
-        content: `Monthly bank statement — ${transactions.length} transactions, total spent: ${total.toFixed(2)} ${currency}.\n\nTop merchants by spend:\n${merchantLines}`,
+        content: `Monthly statement data: ${transactions.length} transactions, total spent: ${total.toFixed(2)} ${currency}.\n${monthLabel ? `Month and year: ${monthLabel}\n` : ""}\nTop merchants by spend:\n${merchantLines}`,
       },
     ],
-    max_completion_tokens: 700,
+    max_completion_tokens: 300,
   });
-  return response.choices[0]?.message?.content || "Your statement has left us speechless.";
+  return response.choices[0]?.message?.content || "The record has been updated.";
 }
 
 function getUserId(req: any): string {
@@ -1551,7 +1577,7 @@ Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
           });
         }
         const created = await processTransactions(userId, txs, toneVal, undefined, userCurrency);
-        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
+        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, statementMonth);
         await storage.saveStatementRoast(userId, statementMonth, statementRoast, toneVal);
         return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: statementMonth });
       } catch (err) {
@@ -1599,8 +1625,8 @@ Return ONLY valid JSON, no other text.`,
         }
 
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
-        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
         const pdfMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
+        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, pdfMonth);
         await storage.saveStatementRoast(userId, pdfMonth, statementRoast, toneVal);
         return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: pdfMonth });
       }
@@ -1640,8 +1666,8 @@ Return ONLY valid JSON, no other text.`,
         }
 
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
-        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency);
         const imgMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
+        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, imgMonth);
         await storage.saveStatementRoast(userId, imgMonth, statementRoast, toneVal);
         return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: imgMonth });
       }
