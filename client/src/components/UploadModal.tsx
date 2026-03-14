@@ -23,7 +23,7 @@ const TONES = [
 ];
 
 const CATEGORIES = [
-  "Food & Drink", "Groceries", "Shopping", "Transport",
+  "Food & Drink", "Groceries", "Shopping", "Transport", "Donations",
   "Travel", "Entertainment", "Health & Fitness", "Subscriptions", "Other",
 ];
 

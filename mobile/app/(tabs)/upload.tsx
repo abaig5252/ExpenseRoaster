@@ -67,9 +67,9 @@ const VERDICT_CAT_COLORS: Record<string, string> = {
   'other':           '#4A5060',
 };
 
-const VERDICT_CAT_NAMES = ['Food & Drink','Groceries','Shopping','Transport','Travel','Entertainment','Health & Fitness','Health','Subscriptions','Coffee','Other'];
+const VERDICT_CAT_NAMES = ['Food & Drink','Groceries','Shopping','Transport','Travel','Entertainment','Health & Fitness','Health','Subscriptions','Coffee','Donations','Other'];
 
-const CATEGORIES = ['Food & Drink','Groceries','Shopping','Transport','Travel','Entertainment','Health & Fitness','Subscriptions','Other'];
+const CATEGORIES = ['Food & Drink','Groceries','Shopping','Transport','Travel','Entertainment','Health & Fitness','Subscriptions','Donations','Other'];
 
 type PreviewData = {
   amount: number;
@@ -169,6 +169,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
   'Subscriptions': '📱',
   'Coffee':        '☕',
   'Groceries':     '🛒',
+  'Donations':     '🙏',
   'Other':         '🧾',
 };
 
@@ -181,6 +182,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   'Subscriptions': '#7B6FE8',
   'Coffee':        '#C4A832',
   'Groceries':     '#C4A832',
+  'Donations':     '#5BA8A8',
   'Other':         '#4A5060',
 };
 

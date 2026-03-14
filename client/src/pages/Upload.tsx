@@ -795,12 +795,12 @@ export default function Upload() {
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Category</label>
                   <div className="flex flex-wrap gap-2">
-                    {["Food & Drink","Groceries","Shopping","Transport","Travel","Entertainment","Health & Fitness","Subscriptions","Other"].map(cat => {
+                    {["Food & Drink","Groceries","Shopping","Transport","Travel","Entertainment","Health & Fitness","Subscriptions","Donations","Other"].map(cat => {
                       const active = editCategory === cat;
                       const colors: Record<string,string> = {
                         "Food & Drink":"#E85D26","Groceries":"#78A856","Shopping":"#C4A832",
                         "Transport":"#3BB8A0","Travel":"#3B8EB8","Entertainment":"#E8526A",
-                        "Health & Fitness":"#5BA85E","Subscriptions":"#7B6FE8","Other":"#4A5060",
+                        "Health & Fitness":"#5BA85E","Subscriptions":"#7B6FE8","Donations":"#5BA8A8","Other":"#4A5060",
                       };
                       const col = colors[cat] ?? "#4A5060";
                       return (

@@ -1172,7 +1172,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
   "currency": "<3-letter ISO currency code from the receipt, e.g. USD, EUR, GBP, AUD>",
   "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
-  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",
+  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Donations (churches, mosques, temples, synagogues, charities, foundations, nonprofits, religious organizations, ministries, cathedrals, parishes — look for keywords like church, charity, donate, foundation, ministry, cathedral, parish, zakat, tithe, nonprofit, relief fund), Other (only if nothing above fits)>",
   "location": "<city and country from receipt, or null>"
 }` },
               { type: "image_url", image_url: { url: imageUrl } },
@@ -1383,6 +1383,22 @@ Respond ONLY with this JSON (no markdown, no extra keys):
     }
   });
 
+  // ─── Donation keyword detector ───────────────────────────────────
+  const DONATION_KEYWORDS = [
+    "church", "mosque", "temple", "synagogue", "cathedral", "chapel", "parish",
+    "ministry", "ministries", "diocese", "mission", "charity", "charitable",
+    "foundation", "nonprofit", "non-profit", "ngo", "relief fund", "food bank",
+    "salvation army", "red cross", "habitat for humanity", "goodwill",
+    "donate", "donation", "tithe", "tithing", "zakat", "sadaqah",
+    "religious", "gospel", "bible", "baptist", "methodist", "catholic",
+    "christian", "islamic", "jewish", "hindu", "sikh", "buddhist",
+    "st.", "saint", "holy", "blessed", "sacred",
+  ];
+  function isDonation(name: string): boolean {
+    const lower = name.toLowerCase();
+    return DONATION_KEYWORDS.some(kw => lower.includes(kw));
+  }
+
   // ─── Shared: process a list of raw transactions into expenses ─────
   async function processTransactions(
     userId: string,
@@ -1410,6 +1426,10 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         category = matchedRule.category;
         // Use shared cache-aware cleaner
         cleanedDescription = await cleanMerchantName(tx.description);
+      } else if (isDonation(tx.description)) {
+        // Keyword-based donation detection — skip AI category call
+        category = "Donations";
+        cleanedDescription = await cleanMerchantName(tx.description);
       } else {
         // Check if name is already cached — if so, only need category call
         const cacheKey = tx.description.trim().toLowerCase();
@@ -1420,7 +1440,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
           const catOnly = await openai.chat.completions.create({
             model: "gpt-5.2",
             messages: [
-              { role: "system", content: `Categorize this merchant into exactly one of: Food & Drink, Groceries, Shopping, Transport, Travel, Entertainment, Health & Fitness, Subscriptions, Other.${rulesContext}\n\nRespond with ONLY the category name.` },
+              { role: "system", content: `Categorize this merchant into exactly one of: Food & Drink, Groceries, Shopping, Transport, Travel, Entertainment, Health & Fitness, Subscriptions, Donations, Other.\n\nDonations = churches, mosques, temples, synagogues, charities, foundations, nonprofits, religious organizations, ministries, cathedrals, parishes — any merchant name containing words like church, charity, donate, foundation, ministry, cathedral, parish, zakat, tithe, nonprofit, relief fund.${rulesContext}\n\nRespond with ONLY the category name.` },
               { role: "user", content: cleanedDescription },
             ],
             max_completion_tokens: 15,
@@ -1442,6 +1462,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
    - Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife)
    - Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty salon, personal care)
    - Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships)
+   - Donations (churches, mosques, temples, synagogues, charities, foundations, nonprofits, religious organizations, ministries, cathedrals, parishes — any name containing: church, charity, donate, foundation, ministry, cathedral, parish, zakat, tithe, nonprofit, relief fund)
    - Other (only if nothing above clearly fits)${rulesContext}
 
 Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },

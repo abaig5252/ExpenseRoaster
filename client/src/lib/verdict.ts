@@ -22,7 +22,7 @@ export const VERDICT_CATEGORY_COLORS: Record<string, string> = {
 
 const CATEGORY_NAMES = [
   'Food & Drink', 'Groceries', 'Shopping', 'Transport', 'Travel',
-  'Entertainment', 'Health & Fitness', 'Health', 'Subscriptions', 'Coffee', 'Other',
+  'Entertainment', 'Health & Fitness', 'Health', 'Subscriptions', 'Coffee', 'Donations', 'Other',
 ];
 
 const CURRENCY_RE = /^(?:S\$|CA\$|A\$|NZ\$|HK\$|MX\$|US\$|AU\$|C\$|[$£€¥₹])\s*[\d,]+(?:\.\d{1,2})?(?:\s*(?:SGD|USD|GBP|EUR|CAD|AUD|JPY|INR|CHF|MXN|HKD|NZD))?$/i;

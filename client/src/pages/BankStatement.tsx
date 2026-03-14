@@ -31,7 +31,7 @@ const TONES = [
 ];
 
 const ALL_CATEGORIES = [
-  "Food & Drink",
+  "Food & Drink", "Donations",
   "Groceries",
   "Shopping",
   "Transport",
@@ -52,6 +52,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Health & Fitness": "#5BA85E",
   "Subscriptions": "#7B6FE8",
   "Coffee": "#7B6FE8",
+  "Donations": "#5BA8A8",
   "Other": "#4A5060",
 };
 

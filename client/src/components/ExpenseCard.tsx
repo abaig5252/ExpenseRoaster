@@ -40,6 +40,7 @@ const categoryEmoji: Record<string, string> = {
   "Subscriptions": "📱",
   "Coffee":        "☕",
   "Groceries":     "🛒",
+  "Donations":     "🙏",
   "Other":         "🧾",
 };
 
@@ -52,6 +53,7 @@ const categoryPillColors: Record<string, string> = {
   "Subscriptions": "#E8526A",
   "Coffee":        "#7B6FE8",
   "Groceries":     "#C4A832",
+  "Donations":     "#5BA8A8",
   "Other":         "#4A5060",
 };
 

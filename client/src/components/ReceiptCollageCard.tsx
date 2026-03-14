@@ -42,6 +42,7 @@ const categoryEmoji: Record<string, string> = {
   "Health":          "💊",
   "Subscriptions":   "📱",
   "Coffee":          "☕",
+  "Donations":       "🙏",
   "Other":           "🧾",
 };
 
@@ -56,6 +57,7 @@ const categoryPillColors: Record<string, string> = {
   "Health":          "#5BA85E",
   "Subscriptions":   "#7B6FE8",
   "Coffee":          "#C4A832",
+  "Donations":       "#5BA8A8",
   "Other":           "#4A5060",
 };
 
