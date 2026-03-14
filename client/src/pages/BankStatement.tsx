@@ -287,10 +287,11 @@ export default function BankStatement() {
           </motion.div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left: Import section */}
-          <div>
-            {/* Tone selector */}
+        {/* ── Top row: import + roast side by side ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+          {/* Left: Tone selector + Import card */}
+          <div className="flex flex-col">
             {isPremium && (
               <div className="mb-5">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Roast Tone</label>
@@ -306,14 +307,12 @@ export default function BankStatement() {
               </div>
             )}
 
-            {/* Import card */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5 flex-1">
               <div>
                 <h2 className="text-xl font-bold text-white mb-1">Import Statement</h2>
                 <p className="text-xs text-muted-foreground">Upload a PDF or photo of your bank or credit card statement. Up to 100 transactions per import.</p>
               </div>
 
-              {/* File drop zone */}
               {converting ? (
                 <div className="border-2 border-dashed border-[hsl(var(--secondary))]/40 rounded-2xl p-8 text-center">
                   <Loader2 className="w-8 h-8 text-[hsl(var(--secondary))] mx-auto mb-3 animate-spin" />
@@ -345,23 +344,17 @@ export default function BankStatement() {
                 </div>
               )}
 
-              {/* Currency */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Statement Currency</label>
-                <select
-                  value={importCurrency}
-                  onChange={e => setImportCurrency(e.target.value)}
-                  disabled={!isPremium}
+                <select value={importCurrency} onChange={e => setImportCurrency(e.target.value)} disabled={!isPremium}
                   data-testid="select-import-currency"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-semibold focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors appearance-none cursor-pointer disabled:opacity-50"
-                >
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-semibold focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors appearance-none cursor-pointer disabled:opacity-50">
                   {CURRENCIES.map(({ code, label }) => (
                     <option key={code} value={code} className="bg-[hsl(var(--background))]">{label}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Preview result — shown after scan */}
               {previewResult && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   className="rounded-2xl border border-[hsl(var(--secondary))]/30 bg-[hsl(var(--secondary))]/5 p-4 flex flex-col gap-3">
@@ -375,14 +368,10 @@ export default function BankStatement() {
                     <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block flex items-center gap-1.5">
                       <Calendar className="w-3 h-3" /> Statement Month
                     </label>
-                    <input
-                      type="month"
-                      value={editMonth}
-                      onChange={e => setEditMonth(e.target.value)}
+                    <input type="month" value={editMonth} onChange={e => setEditMonth(e.target.value)}
                       data-testid="input-edit-month"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[hsl(var(--secondary))]/60 transition-colors"
-                      style={{ colorScheme: "dark" }}
-                    />
+                      style={{ colorScheme: "dark" }} />
                     <p className="text-xs text-muted-foreground mt-1">Confirm this matches your statement: <span className="text-white font-semibold">{monthLabel}</span>.</p>
                   </div>
                 </motion.div>
@@ -395,18 +384,12 @@ export default function BankStatement() {
                 </div>
               )}
 
-              {/* Step 1: Scan */}
-              {!previewResult && (
+              {!previewResult ? (
                 <button onClick={scanStatement} disabled={scanning || !importData || !isPremium} data-testid="button-scan-statement"
                   className="w-full py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--secondary))] to-[hsl(var(--primary))] text-white btn-glow transition-all flex items-center justify-center gap-3 disabled:opacity-60">
-                  {scanning
-                    ? <><Loader2 className="w-5 h-5 animate-spin" /> Scanning...</>
-                    : <><FileText className="w-5 h-5" /> Scan Statement</>}
+                  {scanning ? <><Loader2 className="w-5 h-5 animate-spin" /> Scanning...</> : <><FileText className="w-5 h-5" /> Scan Statement</>}
                 </button>
-              )}
-
-              {/* Step 2: Import & Roast */}
-              {previewResult && (
+              ) : (
                 <div className="flex gap-3">
                   <button onClick={() => setPreviewResult(null)} disabled={importMutation.isPending}
                     className="px-5 py-4 rounded-2xl font-bold text-sm bg-white/5 text-muted-foreground hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50">
@@ -414,97 +397,106 @@ export default function BankStatement() {
                   </button>
                   <button onClick={handleImport} disabled={importMutation.isPending || !editMonth} data-testid="button-import-statement"
                     className="flex-1 py-4 rounded-2xl font-display font-bold text-lg bg-gradient-to-r from-[hsl(var(--secondary))] to-[hsl(var(--primary))] text-white btn-glow transition-all flex items-center justify-center gap-3 disabled:opacity-60">
-                    {importMutation.isPending
-                      ? <><Loader2 className="w-5 h-5 animate-spin" /> Roasting...</>
-                      : <><Flame className="w-5 h-5" /> Import & Roast All</>}
+                    {importMutation.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Roasting...</> : <><Flame className="w-5 h-5" /> Import & Roast All</>}
                   </button>
                 </div>
               )}
             </motion.div>
           </div>
 
-          {/* Right: Statement roast + Expense list */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-            {statementRoast && (
-              <motion.div
-                initial={{ opacity: 0, y: -12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-5 glass-panel rounded-3xl p-5 border border-[hsl(var(--primary))]/30 relative overflow-hidden"
-                data-testid="card-statement-roast"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--secondary))]/5 pointer-events-none" />
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center">
-                        <MessageSquare className="w-4 h-4 text-white" />
-                      </div>
-                      <span className="text-sm font-bold text-white">Statement Roast</span>
+          {/* Right: Statement roast — aligned with import card, scrollable */}
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+            className="flex flex-col">
+            {/* spacer to align with tone selector when premium */}
+            {isPremium && <div className="mb-5 h-[52px]" />}
+            <div
+              data-testid="card-statement-roast"
+              className="glass-panel rounded-3xl flex flex-col flex-1 border border-[hsl(var(--primary))]/20 relative overflow-hidden"
+              style={{ minHeight: 260 }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/8 to-[hsl(var(--secondary))]/4 pointer-events-none" />
+              <div className="relative flex flex-col h-full p-6">
+                <div className="flex items-center justify-between mb-4 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center shrink-0">
+                      <MessageSquare className="w-4 h-4 text-white" />
                     </div>
-                    <button
-                      onClick={() => setStatementRoast(null)}
-                      data-testid="button-dismiss-roast"
-                      className="text-muted-foreground hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
-                    >
+                    <span className="text-sm font-bold text-white">Statement Roast</span>
+                  </div>
+                  {statementRoast && (
+                    <button onClick={() => setStatementRoast(null)} data-testid="button-dismiss-roast"
+                      className="text-muted-foreground hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
                       <X className="w-4 h-4" />
                     </button>
+                  )}
+                </div>
+
+                {statementRoast ? (
+                  <div className="overflow-y-auto flex-1 pr-1">
+                    <p className="text-sm text-white/90 leading-relaxed whitespace-pre-line">{statementRoast}</p>
                   </div>
-                  <p className="text-sm text-white/90 leading-relaxed whitespace-pre-line">{statementRoast}</p>
-                </div>
-              </motion.div>
-            )}
-            <h2 className="text-xl font-bold text-white mb-4">Imported Expenses ({manualExpenses.length})</h2>
-            <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-1">
-              {manualExpenses.length === 0 ? (
-                <div className="glass-panel rounded-3xl p-10 text-center">
-                  <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">
-                    {isPremium ? "No statements imported yet. Upload your first one above." : "Upgrade to Premium to start importing statements."}
-                  </p>
-                </div>
-              ) : manualExpenses.map((exp, i) => (
-                <motion.div key={exp.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                ) : (
+                  <div className="flex flex-col items-center justify-center flex-1 text-center opacity-35">
+                    <Flame className="w-10 h-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground font-medium">Import a statement and Sergio will roast the whole thing here.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* ── Full-width transactions card ── */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          className="glass-panel rounded-3xl p-6">
+          <h2 className="text-xl font-bold text-white mb-4">
+            Imported Transactions {manualExpenses.length > 0 && <span className="text-base font-normal text-muted-foreground ml-1">({manualExpenses.length})</span>}
+          </h2>
+          {manualExpenses.length === 0 ? (
+            <div className="py-12 text-center">
+              <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+              <p className="text-muted-foreground text-sm">
+                {isPremium ? "No statements imported yet. Upload your first one above." : "Upgrade to Premium to start importing statements."}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 overflow-y-auto pr-1" style={{ maxHeight: 540 }}>
+              {manualExpenses.map((exp, i) => (
+                <motion.div key={exp.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                   data-testid={`card-manual-${exp.id}`}
                   className="glass-panel rounded-2xl group relative"
                   style={{ padding: "10px 14px 12px 14px" }}
                 >
-                  {/* Category pill — top left */}
                   <div style={{ marginBottom: 8 }}>
                     <EditableCategoryPill expenseId={exp.id} category={exp.category} />
                   </div>
-
-                  {/* Scrollable content area */}
-                  <div style={{ maxHeight: 120, overflowY: "auto", paddingRight: 4 }}>
-                    <div className="flex items-start gap-3">
-                      {/* Wallet icon — sits below pill */}
-                      <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0 mt-0.5">
-                        <Wallet className="w-4 h-4 text-[hsl(var(--secondary))]" />
+                  <div className="flex items-start gap-3">
+                    <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0 mt-0.5">
+                      <Wallet className="w-4 h-4 text-[hsl(var(--secondary))]" />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-6">
+                      <div className="flex justify-between items-start gap-2">
+                        <p className="font-bold text-white text-sm truncate">{exp.description}</p>
+                        <span className="text-base font-amount-card text-white shrink-0">
+                          {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
+                        </span>
                       </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start gap-2">
-                          <p className="font-bold text-white text-sm truncate">{exp.description}</p>
-                          <span className="text-base font-amount-card text-white shrink-0">
-                            {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                        </div>
-                        {exp.roast && <p className="text-xs italic text-muted-foreground mt-2">"{exp.roast}"</p>}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                       </div>
+                      {exp.roast && <p className="text-xs italic text-muted-foreground mt-2">"{exp.roast}"</p>}
                     </div>
                   </div>
-
-                  <button onClick={() => deleteMutation.mutate(exp.id)} disabled={deleteMutation.isPending} data-testid={`button-delete-manual-${exp.id}`}
+                  <button onClick={() => deleteMutation.mutate(exp.id)} disabled={deleteMutation.isPending}
+                    data-testid={`button-delete-manual-${exp.id}`}
                     className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </motion.div>
               ))}
             </div>
-          </motion.div>
-        </div>
+          )}
+        </motion.div>
       </main>
     </div>
   );
