@@ -1026,7 +1026,31 @@ export default function UploadScreen() {
                       <Text style={s.verdictLoading}>Generating your monthly verdict…</Text>
                     ) : monthlyRoastData?.roast ? (
                       <VerdictText roast={monthlyRoastData.roast} />
-                    ) : null}
+                    ) : !isPremium ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                        <Ionicons name="lock-closed" size={11} color="rgba(0,230,118,0.5)" />
+                        <Text style={{ fontSize: 12, color: 'rgba(0,230,118,0.6)' }}>Monthly verdicts require Premium.</Text>
+                      </View>
+                    ) : (
+                      <View style={{ gap: 8, marginTop: 2 }}>
+                        <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 17 }}>
+                          Your monthly verdict is ready — but you only get <Text style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '700' }}>3 per month</Text>, so make them count.
+                        </Text>
+                        <TouchableOpacity
+                          onPress={handleRegenerateVerdict}
+                          disabled={regenLoading}
+                          activeOpacity={0.8}
+                          style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: 'rgba(0,230,118,0.15)', borderWidth: 1, borderColor: 'rgba(0,230,118,0.3)' }}
+                        >
+                          {regenLoading ? (
+                            <ActivityIndicator size={12} color="#00E676" />
+                          ) : (
+                            <Ionicons name="flame" size={13} color="#00E676" />
+                          )}
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#00E676' }}>Get Your Verdict</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
                 </View>
               )}

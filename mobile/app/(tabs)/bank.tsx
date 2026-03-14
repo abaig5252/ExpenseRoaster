@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet,
   Alert, ActivityIndicator, SafeAreaView, Platform, Animated,
-  ActionSheetIOS, Modal, Share,
+  ActionSheetIOS, Modal, Share, Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { requestCameraPermission, requestPhotoLibraryPermission } from '../../src/lib/permissions';
@@ -360,16 +360,46 @@ export default function BankScreen() {
   }
 
   if (!isPremium) {
+    const FEATURES = [
+      { icon: '📄', text: 'Import PDF or photo statements — bank or credit card' },
+      { icon: '🔥', text: 'Every transaction individually roasted and categorised automatically' },
+      { icon: '🗂️', text: 'Full transaction history, organised by month and category' },
+      { icon: '⚖️', text: 'Monthly verdict: a brutal summary of your spending habits' },
+      { icon: '🎭', text: 'Choose your roast tone — Roasted 🔥 or Destroyed 💀' },
+      { icon: '🗑️', text: 'Bulk select and delete transactions you\'d rather forget' },
+    ];
     return (
       <SafeAreaView style={s.root}>
-        <View style={s.nav}>
-          <AppLogo size="xs" />
-        </View>
-        <View style={s.locked}>
-          <Ionicons name="lock-closed" size={48} color={colors.primary} />
-          <Text style={s.lockedTitle}>Premium Feature</Text>
-          <Text style={s.lockedSub}>Upgrade to Premium to import bank and credit card statements and track your spending history.</Text>
-        </View>
+        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+          <View style={s.nav}>
+            <AppLogo size="xs" />
+          </View>
+          <View style={s.lockScreen}>
+            <View style={s.lockIconWrap}>
+              <Ionicons name="wallet-outline" size={32} color={colors.secondary} />
+            </View>
+            <Text style={s.lockTitle}>Bank Statement Import</Text>
+            <Text style={s.lockDesc}>
+              Upload your bank or credit card statement and let Uncle Sergio roast every single transaction. Painful. Enlightening. Worth it.
+            </Text>
+            <View style={s.lockFeatureCard}>
+              {FEATURES.map(({ icon, text }) => (
+                <View key={text} style={s.lockFeatureRow}>
+                  <Text style={s.lockFeatureIcon}>{icon}</Text>
+                  <Text style={s.lockFeatureText}>{text}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={s.lockUpgradeBtn}
+              activeOpacity={0.85}
+              onPress={() => Linking.openURL(`${API_BASE_URL}/pricing`)}
+            >
+              <Text style={s.lockUpgradeBtnText}>Upgrade to Premium — $9.99/mo</Text>
+            </TouchableOpacity>
+            <Text style={s.lockFooter}>Also includes unlimited receipt uploads, monthly tracker, and more.</Text>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -715,7 +745,7 @@ export default function BankScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.catSheetTitle}>Edit Category</Text>
-              <Text style={s.catSheetSub}>AI will remember this for future imports</Text>
+              <Text style={s.catSheetSub}>Your changes will be remembered for future imports</Text>
             </View>
             <TouchableOpacity onPress={() => setCatPicker(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={20} color={colors.textMuted} />
@@ -977,6 +1007,18 @@ const s = StyleSheet.create({
   locked: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
   lockedTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
   lockedSub: { ...typography.body, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+
+  lockScreen: { alignItems: 'center', gap: spacing.lg, paddingTop: spacing.xl },
+  lockIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: 'rgba(255,180,0,0.12)', borderWidth: 1, borderColor: 'rgba(255,180,0,0.25)', alignItems: 'center', justifyContent: 'center' },
+  lockTitle: { fontSize: 26, fontWeight: '800', color: colors.text, textAlign: 'center' },
+  lockDesc: { ...typography.body, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  lockFeatureCard: { width: '100%', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: spacing.md, gap: spacing.sm },
+  lockFeatureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  lockFeatureIcon: { fontSize: 16, marginTop: 1 },
+  lockFeatureText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 19 },
+  lockUpgradeBtn: { width: '100%', paddingVertical: 14, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center' },
+  lockUpgradeBtnText: { fontSize: 15, fontWeight: '800', color: '#000' },
+  lockFooter: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
 
   catModalBackdrop: {
     ...StyleSheet.absoluteFillObject,
