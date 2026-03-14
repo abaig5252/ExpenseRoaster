@@ -2357,6 +2357,12 @@ All numeric monetary JSON fields must be integers in cents. All text/string fiel
     if (!updated) return res.status(404).json({ message: "Expense not found" });
     await storage.upsertCategoryRule(userId, updated.description, category);
 
+    // Mark statement roast dirty for this expense's month so the Refresh button appears
+    if (updated.date) {
+      const month = new Date(updated.date).toISOString().slice(0, 7);
+      await storage.markStatementRoastDirty(userId, month).catch(() => {});
+    }
+
     // Auto re-roast with the corrected category so the roast reflects what the charge is for
     try {
       const user = await storage.getUser(userId);
