@@ -1375,7 +1375,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
   "currency": "<3-letter ISO currency code from the receipt, e.g. USD, EUR, GBP, AUD>",
   "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
-  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Donations (churches, mosques, temples, synagogues, charities, foundations, nonprofits, religious organizations, ministries, cathedrals, parishes — look for keywords like church, charity, donate, foundation, ministry, cathedral, parish, zakat, tithe, nonprofit, relief fund), Other (only if nothing above fits)>",
+  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise — including phone hardware), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships — use for telecom providers when the specific service is unclear), Donations (churches, mosques, temples, synagogues, charities, foundations, nonprofits, religious organizations, ministries, cathedrals, parishes — keywords: church, charity, donate, foundation, ministry, cathedral, parish, zakat, tithe, nonprofit, relief fund), Insurance (any insurance provider or premium — auto, home, life, health, disability, travel, tenant, commercial), Professional Fees (professional membership dues, licensing fees, association dues — CPA, CFA, CMA, bar association, medical licensing, engineering, real estate boards), Internet (home internet / broadband / fiber / cable internet service — only when clearly internet-specific), Phone (mobile phone plan / cellular service — only when clearly phone/wireless-specific, NOT phone hardware), Other (only if nothing above fits)>",
   "location": "<city and country from receipt, or null>"
 }` },
               { type: "image_url", image_url: { url: imageUrl } },
@@ -1477,7 +1477,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         messages: [
           { role: "system", content: extractionPrompt },
           { role: "user", content: [
-            { type: "text", text: `First, decide if this is a single-transaction receipt or a bank/credit-card statement (multiple transaction rows, account number, statement period). Set "documentType" to "bank_statement" ONLY if it clearly shows a bank or credit card statement — otherwise "receipt". When in doubt, set "receipt".\n\nIf it IS a receipt, find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "documentType": "<'receipt' or 'bank_statement'>",\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>"\n}` },
+            { type: "text", text: `First, decide if this is a single-transaction receipt or a bank/credit-card statement (multiple transaction rows, account number, statement period). Set "documentType" to "bank_statement" ONLY if it clearly shows a bank or credit card statement — otherwise "receipt". When in doubt, set "receipt".\n\nIf it IS a receipt, find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "documentType": "<'receipt' or 'bank_statement'>",\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise — including phone hardware), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships — use for telecom when specific service is unclear), Donations (churches, mosques, temples, charities, nonprofits — keywords: church, charity, donate, foundation, ministry, zakat, tithe), Insurance (any insurance provider or premium — auto, home, life, health, disability, travel, tenant), Professional Fees (professional membership dues, licensing fees, association dues — CPA, CFA, bar association, medical licensing), Internet (home internet/broadband/fiber — only when clearly internet-specific), Phone (mobile phone plan/cellular service — only when clearly wireless-specific, NOT phone hardware), Other (only if nothing above fits)>"\n}` },
             { type: "image_url", image_url: { url: imageUrl } },
           ]},
         ],
@@ -1646,7 +1646,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
           const catOnly = await openai.chat.completions.create({
             model: "gpt-5.2",
             messages: [
-              { role: "system", content: `Categorize this merchant into exactly one of: Food & Drink, Groceries, Shopping, Transport, Travel, Entertainment, Health & Fitness, Subscriptions, Donations, Other.\n\nDonations = churches, mosques, temples, synagogues, charities, foundations, nonprofits, religious organizations, ministries, cathedrals, parishes — any merchant name containing words like church, charity, donate, foundation, ministry, cathedral, parish, zakat, tithe, nonprofit, relief fund.${rulesContext}\n\nRespond with ONLY the category name.` },
+              { role: "system", content: `Categorize this merchant into exactly one of: Food & Drink, Groceries, Shopping, Transport, Travel, Entertainment, Health & Fitness, Subscriptions, Donations, Insurance, Professional Fees, Internet, Phone, Other.\n\nDonations = churches, mosques, temples, synagogues, charities, foundations, nonprofits, religious organizations, ministries — keywords: church, charity, donate, foundation, ministry, cathedral, parish, zakat, tithe, nonprofit, relief fund.\nInsurance = any insurance provider or policy (auto, home, life, health, disability, travel, tenant, commercial).\nProfessional Fees = professional membership dues, licensing fees, regulatory fees, association dues (CPA, CFA, bar, medical, engineering, real estate boards).\nInternet = home internet / broadband / fiber / cable internet providers (e.g. Rogers internet, Bell Fibe, Shaw).\nPhone = mobile phone plans, cellular service charges (e.g. Rogers wireless, Fido, Koodo, Telus mobility).\nNOTE: Rogers, Bell, Telus etc. offer BOTH internet AND phone — only use Internet or Phone if the specific service is clearly indicated; otherwise use Subscriptions.${rulesContext}\n\nRespond with ONLY the category name.` },
               { role: "user", content: cleanedDescription },
             ],
             max_completion_tokens: 15,
@@ -1667,8 +1667,12 @@ Respond ONLY with this JSON (no markdown, no extra keys):
    - Travel (flights, hotels, Airbnb, car rental, accommodation, travel agencies)
    - Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife)
    - Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty salon, personal care)
-   - Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships)
+   - Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships — use this for telecom providers when specific service is unclear)
    - Donations (churches, mosques, temples, synagogues, charities, foundations, nonprofits, religious organizations, ministries, cathedrals, parishes — any name containing: church, charity, donate, foundation, ministry, cathedral, parish, zakat, tithe, nonprofit, relief fund)
+   - Insurance (auto, home, life, health, disability, travel, tenant, or commercial insurance providers and policies)
+   - Professional Fees (professional membership dues, licensing fees, regulatory fees, association dues — CPA, CFA, CMA, bar association, medical licensing, engineering associations, real estate boards)
+   - Internet (home internet / broadband / fiber / cable internet service — only when clearly internet-specific)
+   - Phone (mobile phone plans, cellular service — only when clearly phone/wireless-specific)
    - Other (only if nothing above clearly fits)${rulesContext}
 
 Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
@@ -2340,7 +2344,7 @@ All numeric monetary JSON fields must be integers in cents. All text/string fiel
     res.status(405).json({ message: "Method Not Allowed — use POST" });
   });
 
-  // ─── Expenses: Update category + teach AI ────────────────────────
+  // ─── Expenses: Update category + teach AI + auto re-roast ───────
   app.patch("/api/expenses/:id/category", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
     const expenseId = Number(req.params.id);
@@ -2348,10 +2352,27 @@ All numeric monetary JSON fields must be integers in cents. All text/string fiel
     if (!category || typeof category !== "string") {
       return res.status(400).json({ message: "category is required" });
     }
+    // Save category first
     const updated = await storage.updateExpense(expenseId, userId, { category });
     if (!updated) return res.status(404).json({ message: "Expense not found" });
     await storage.upsertCategoryRule(userId, updated.description, category);
-    return res.json(updated);
+
+    // Auto re-roast with the corrected category so the roast reflects what the charge is for
+    try {
+      const user = await storage.getUser(userId);
+      const currency = (updated as any).currency || user?.currency || "USD";
+      let newRoast: string;
+      if (updated.source === "receipt") {
+        newRoast = await generateRoast(updated.description, updated.amount, category, "sergio", undefined, currency, updated.date);
+      } else {
+        newRoast = await generateBankTransactionRoast(updated.description, updated.amount, category, "sergio", currency, updated.date);
+      }
+      const withRoast = await storage.updateExpense(expenseId, userId, { roast: newRoast });
+      return res.json(withRoast);
+    } catch (err) {
+      console.error("[category-update] re-roast failed:", err);
+      return res.json(updated);
+    }
   });
 
   // ─── Expenses: Re-roast after category change ────────────────────

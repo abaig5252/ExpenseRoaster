@@ -43,6 +43,10 @@ const categoryEmoji: Record<string, string> = {
   "Subscriptions":   "📱",
   "Coffee":          "☕",
   "Donations":       "🙏",
+  "Insurance":       "🛡️",
+  "Professional Fees":"💼",
+  "Internet":        "🌐",
+  "Phone":           "📞",
   "Other":           "🧾",
 };
 
@@ -58,6 +62,10 @@ const categoryPillColors: Record<string, string> = {
   "Subscriptions":   "#7B6FE8",
   "Coffee":          "#C4A832",
   "Donations":       "#5BA8A8",
+  "Insurance":       "#5B8EC4",
+  "Professional Fees":"#A07850",
+  "Internet":        "#4A7BE8",
+  "Phone":           "#9B5BE8",
   "Other":           "#4A5060",
 };
 

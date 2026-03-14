@@ -31,29 +31,27 @@ const TONES = [
 ];
 
 const ALL_CATEGORIES = [
-  "Food & Drink", "Donations",
-  "Groceries",
-  "Shopping",
-  "Transport",
-  "Travel",
-  "Entertainment",
-  "Health & Fitness",
-  "Subscriptions",
-  "Other",
+  "Food & Drink", "Groceries", "Shopping", "Transport", "Travel",
+  "Entertainment", "Health & Fitness", "Subscriptions", "Donations",
+  "Insurance", "Professional Fees", "Internet", "Phone", "Other",
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Food & Drink": "#E85D26",
-  "Groceries": "#C4A832",
-  "Shopping": "#C4A832",
-  "Transport": "#3BB8A0",
-  "Travel": "#4A9FE8",
-  "Entertainment": "#E8526A",
-  "Health & Fitness": "#5BA85E",
-  "Subscriptions": "#7B6FE8",
-  "Coffee": "#7B6FE8",
-  "Donations": "#5BA8A8",
-  "Other": "#4A5060",
+  "Food & Drink":    "#E85D26",
+  "Groceries":       "#C4A832",
+  "Shopping":        "#C4A832",
+  "Transport":       "#3BB8A0",
+  "Travel":          "#4A9FE8",
+  "Entertainment":   "#E8526A",
+  "Health & Fitness":"#5BA85E",
+  "Subscriptions":   "#7B6FE8",
+  "Coffee":          "#7B6FE8",
+  "Donations":       "#5BA8A8",
+  "Insurance":       "#5B8EC4",
+  "Professional Fees":"#A07850",
+  "Internet":        "#4A7BE8",
+  "Phone":           "#9B5BE8",
+  "Other":           "#4A5060",
 };
 
 function EditableCategoryPill({ expenseId, category, onCategoryChanged }: {
@@ -85,7 +83,7 @@ function EditableCategoryPill({ expenseId, category, onCategoryChanged }: {
       await apiRequest("PATCH", `/api/expenses/${expenseId}/category`, { category: cat });
       setCurrent(cat);
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      toast({ title: "Category updated", description: "Refreshing roast..." });
+      toast({ title: "Category updated", description: `Classified as ${cat} — roast updated.` });
       onCategoryChanged?.(expenseId);
     } catch {
       toast({ title: "Failed to update category", variant: "destructive" });
