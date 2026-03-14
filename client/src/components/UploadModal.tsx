@@ -18,7 +18,7 @@ interface UploadModalProps {
 }
 
 const TONES = [
-  { value: "sergio", label: "Uncle Sergio 🤌", desc: "Warm coach" },
+  { value: "sergio", label: "Uncle Sergio 🤌", desc: "Exasperated Italian Uncle" },
 ];
 
 const CATEGORIES = [

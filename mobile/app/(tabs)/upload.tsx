@@ -156,7 +156,7 @@ if (Platform.OS === 'android') {
 }
 
 const TONES = [
-  { value: 'sergio', label: '🤌 Uncle Sergio', desc: 'Warm coach' },
+  { value: 'sergio', label: '🤌 Uncle Sergio', desc: 'Exasperated Italian Uncle' },
 ];
 
 const CATEGORY_EMOJI: Record<string, string> = {
