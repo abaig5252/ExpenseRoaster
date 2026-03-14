@@ -721,22 +721,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/expenses/monthly-roast", isAuthenticated, async (req: any, res) => {
     const userId = getUserId(req);
     const user = await storage.getUser(userId);
-    if (!user || user.tier === "free") {
-      return res.status(403).json({ message: "Monthly roast requires Premium" });
-    }
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+
     const { month, source } = req.query as { month?: string; source?: string };
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       return res.status(400).json({ message: "month param must be YYYY-MM" });
     }
+
+    const srcKey = source || "all";
+
+    // Return stored verdict if it exists — never regenerate on GET
+    const existing = await storage.getMonthlyVerdict(userId, month, srcKey);
+    if (existing) {
+      let all = await storage.getExpenses(userId);
+      let filtered = all.filter(e => {
+        const d = e.date instanceof Date ? e.date : new Date(String(e.date));
+        return d.toISOString().slice(0, 7) === month;
+      });
+      if (source) filtered = filtered.filter(e => e.source === source);
+      const total = filtered.reduce((sum, e) => sum + e.amount, 0);
+      return res.json({ roast: existing.roast, total, count: filtered.length, regenCount: existing.regenCount, locked: true });
+    }
+
+    // First time this month — generate and store
     let all = await storage.getExpenses(userId);
     let filtered = all.filter(e => {
       const d = e.date instanceof Date ? e.date : new Date(String(e.date));
       return d.toISOString().slice(0, 7) === month;
     });
     if (source) filtered = filtered.filter(e => e.source === source);
-    if (filtered.length === 0) return res.json({ roast: null, total: 0, count: 0 });
+    if (filtered.length === 0) return res.json({ roast: null, total: 0, count: 0, regenCount: 0, locked: false });
     const total = filtered.reduce((sum, e) => sum + e.amount, 0);
-    // Derive currency from the expenses themselves, not the user profile
     const currencyCounts: Record<string, number> = {};
     for (const e of filtered) {
       const c = (e.currency as string | null | undefined) ?? user.currency ?? "USD";
@@ -752,7 +767,52 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       date: e.date instanceof Date ? e.date : new Date(String(e.date)),
     }));
     const roast = await generateMonthlyRoast(monthLabel, total, expensesForRoast, currency);
-    res.json({ roast, total, count: filtered.length });
+    await storage.saveMonthlyVerdict(userId, month, srcKey, roast);
+    res.json({ roast, total, count: filtered.length, regenCount: 0, locked: true });
+  });
+
+  // ─── Monthly verdict: premium regenerate (max 2/month) ───────────
+  app.post("/api/expenses/monthly-roast/regenerate", isAuthenticated, async (req: any, res) => {
+    const userId = getUserId(req);
+    const user = await storage.getUser(userId);
+    if (!user || user.tier === "free") {
+      return res.status(403).json({ message: "Regeneration requires Premium" });
+    }
+    const { month, source } = req.body as { month?: string; source?: string };
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ message: "month must be YYYY-MM" });
+    }
+    const srcKey = source || "all";
+    const existing = await storage.getMonthlyVerdict(userId, month, srcKey);
+    if (!existing) return res.status(404).json({ message: "No verdict found for this month" });
+    if (existing.regenCount >= 2) {
+      return res.status(429).json({ message: "Regeneration limit reached (2 per month)" });
+    }
+    let all = await storage.getExpenses(userId);
+    let filtered = all.filter(e => {
+      const d = e.date instanceof Date ? e.date : new Date(String(e.date));
+      return d.toISOString().slice(0, 7) === month;
+    });
+    if (source) filtered = filtered.filter(e => e.source === source);
+    if (filtered.length === 0) return res.status(400).json({ message: "No expenses to roast" });
+    const total = filtered.reduce((sum, e) => sum + e.amount, 0);
+    const currencyCounts: Record<string, number> = {};
+    for (const e of filtered) {
+      const c = (e.currency as string | null | undefined) ?? user.currency ?? "USD";
+      currencyCounts[c] = (currencyCounts[c] || 0) + 1;
+    }
+    const currency = Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? user.currency ?? "USD";
+    const [yr, mo] = month.split("-");
+    const monthLabel = new Date(Number(yr), Number(mo) - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+    const expensesForRoast: ExpenseForRoast[] = filtered.map(e => ({
+      description: e.description,
+      amountCents: e.amount,
+      category: e.category,
+      date: e.date instanceof Date ? e.date : new Date(String(e.date)),
+    }));
+    const roast = await generateMonthlyRoast(monthLabel, total, expensesForRoast, currency);
+    const updated = await storage.regenerateMonthlyVerdict(existing.id, roast);
+    res.json({ roast: updated.roast, regenCount: updated.regenCount, locked: true });
   });
 
   // ─── Expenses: Financial advice (premium) ───────────────────────

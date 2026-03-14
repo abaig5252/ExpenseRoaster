@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { expenses, users, contactSubmissions, categoryRules, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact, type CategoryRule } from "@shared/schema";
+import { expenses, users, contactSubmissions, categoryRules, monthlyVerdicts, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact, type CategoryRule, type MonthlyVerdict } from "@shared/schema";
 import { eq, desc, gte, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -28,6 +28,9 @@ export interface IStorage {
   verifyEmailCode(userId: string, code: string): Promise<'valid' | 'expired' | 'invalid'>;
   getCategoryRules(userId: string): Promise<CategoryRule[]>;
   upsertCategoryRule(userId: string, merchantPattern: string, category: string): Promise<void>;
+  getMonthlyVerdict(userId: string, month: string, source: string): Promise<MonthlyVerdict | null>;
+  saveMonthlyVerdict(userId: string, month: string, source: string, roast: string): Promise<MonthlyVerdict>;
+  regenerateMonthlyVerdict(id: number, roast: string): Promise<MonthlyVerdict>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -236,6 +239,31 @@ export class DatabaseStorage implements IStorage {
     } else {
       await db.insert(categoryRules).values({ userId, merchantPattern, category });
     }
+  }
+
+  async getMonthlyVerdict(userId: string, month: string, source: string): Promise<MonthlyVerdict | null> {
+    const [row] = await db.select().from(monthlyVerdicts)
+      .where(and(
+        eq(monthlyVerdicts.userId, userId),
+        eq(monthlyVerdicts.month, month),
+        eq(monthlyVerdicts.source, source),
+      ));
+    return row ?? null;
+  }
+
+  async saveMonthlyVerdict(userId: string, month: string, source: string, roast: string): Promise<MonthlyVerdict> {
+    const [row] = await db.insert(monthlyVerdicts)
+      .values({ userId, month, source, roast, regenCount: 0 })
+      .returning();
+    return row;
+  }
+
+  async regenerateMonthlyVerdict(id: number, roast: string): Promise<MonthlyVerdict> {
+    const [row] = await db.update(monthlyVerdicts)
+      .set({ roast, regenCount: sql`${monthlyVerdicts.regenCount} + 1` })
+      .where(eq(monthlyVerdicts.id, id))
+      .returning();
+    return row;
   }
 }
 

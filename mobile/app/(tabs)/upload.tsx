@@ -317,12 +317,24 @@ export default function UploadScreen() {
     return Math.round(filteredTotal * rateData.rate);
   }, [filteredTotal, needsConversion, rateData]);
 
-  const { data: monthlyRoastData, isFetching: roastLoading } = useQuery<{ roast: string | null; total: number; count: number }>({
+  const { data: monthlyRoastData, isFetching: roastLoading } = useQuery<{ roast: string | null; total: number; count: number; regenCount: number; locked: boolean }>({
     queryKey: ['/api/expenses/monthly-roast', selectedMonth],
     queryFn: () => apiGet(`/api/expenses/monthly-roast?month=${selectedMonth}&source=receipt`),
-    enabled: !!selectedMonth && filteredReceipts.length > 0 && isPremium,
-    staleTime: 5 * 60 * 1000,
+    enabled: !!selectedMonth && filteredReceipts.length > 0,
+    staleTime: 10 * 60 * 1000,
   });
+  const regenCount = monthlyRoastData?.regenCount ?? 0;
+  const regenRemaining = 2 - regenCount;
+  const [regenLoading, setRegenLoading] = useState(false);
+  const handleRegenerateVerdict = useCallback(async () => {
+    if (!selectedMonth || regenRemaining <= 0 || regenLoading) return;
+    setRegenLoading(true);
+    try {
+      await apiPost('/api/expenses/monthly-roast/regenerate', { month: selectedMonth, source: 'receipt' });
+      queryClient.invalidateQueries({ queryKey: ['/api/expenses/monthly-roast', selectedMonth] });
+    } catch (_e) {}
+    setRegenLoading(false);
+  }, [selectedMonth, regenRemaining, regenLoading, queryClient]);
 
   // ── Select Mode Callbacks ─────────────────────────────────────────
   const enterSelectMode = useCallback(() => {
@@ -956,19 +968,45 @@ export default function UploadScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <Text style={s.verdictLabel}>{fmtMonth(selectedMonth)} Verdict</Text>
-                      {monthlyRoastData?.roast && (
-                        <TouchableOpacity
-                          onPress={() => Share.share({ message: `🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData.roast}"\n\n— Expense Roaster` })}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="share-outline" size={16} color="rgba(0,230,118,0.65)" />
-                        </TouchableOpacity>
-                      )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={s.verdictLabel}>{fmtMonth(selectedMonth)} Verdict</Text>
+                        {monthlyRoastData?.locked && (
+                          <Ionicons name="lock-closed" size={11} color="rgba(0,230,118,0.45)" />
+                        )}
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {monthlyRoastData?.roast && isPremium && regenRemaining > 0 && (
+                          <TouchableOpacity
+                            onPress={handleRegenerateVerdict}
+                            disabled={regenLoading}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            activeOpacity={0.7}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+                          >
+                            {regenLoading ? (
+                              <ActivityIndicator size={12} color="rgba(0,230,118,0.7)" />
+                            ) : (
+                              <Ionicons name="refresh" size={13} color="rgba(0,230,118,0.7)" />
+                            )}
+                            <Text style={{ fontSize: 11, color: 'rgba(0,230,118,0.7)' }}>{regenRemaining} left</Text>
+                          </TouchableOpacity>
+                        )}
+                        {monthlyRoastData?.roast && isPremium && regenRemaining === 0 && (
+                          <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>No regens left</Text>
+                        )}
+                        {monthlyRoastData?.roast && (
+                          <TouchableOpacity
+                            onPress={() => Share.share({ message: `🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData.roast}"\n\n— Expense Roaster` })}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="share-outline" size={16} color="rgba(0,230,118,0.65)" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                     {roastLoading ? (
-                      <Text style={s.verdictLoading}>Generating your monthly roast…</Text>
+                      <Text style={s.verdictLoading}>Generating your monthly verdict…</Text>
                     ) : monthlyRoastData?.roast ? (
                       <VerdictText roast={monthlyRoastData.roast} />
                     ) : null}

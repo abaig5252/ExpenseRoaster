@@ -48,7 +48,7 @@ export function useExpenseSummary() {
 }
 
 export function useMonthlyRoast(month: string | null, source?: string) {
-  return useQuery<{ roast: string | null; total: number; count: number }>({
+  return useQuery<{ roast: string | null; total: number; count: number; regenCount: number; locked: boolean }>({
     queryKey: ['/api/expenses/monthly-roast', month, source],
     queryFn: async () => {
       const params = new URLSearchParams({ month: month! });
@@ -57,6 +57,28 @@ export function useMonthlyRoast(month: string | null, source?: string) {
       return res.json();
     },
     enabled: !!month,
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
+export function useRegenerateVerdict() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { roast: string; regenCount: number; locked: boolean },
+    Error,
+    { month: string; source?: string }
+  >({
+    mutationFn: async ({ month, source }) => {
+      const res = await apiFetch('/api/expenses/monthly-roast/regenerate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month, source }),
+      });
+      return res.json();
+    },
+    onSuccess: (_data, { month, source }) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/expenses/monthly-roast', month, source] });
+    },
   });
 }
 

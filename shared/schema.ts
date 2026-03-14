@@ -76,6 +76,17 @@ export const categoryRules = pgTable("category_rules", {
 
 export type CategoryRule = typeof categoryRules.$inferSelect;
 
+export const monthlyVerdicts = pgTable("monthly_verdicts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  month: varchar("month").notNull(),
+  source: varchar("source").default("all").notNull(),
+  roast: text("roast").notNull(),
+  regenCount: integer("regen_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export type MonthlyVerdict = typeof monthlyVerdicts.$inferSelect;
+
 export const contactSubmissions = pgTable("contact_submissions", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),

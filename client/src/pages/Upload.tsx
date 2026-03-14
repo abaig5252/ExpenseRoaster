@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Flame, Plus, Receipt, RefreshCw, Lock, Camera, Loader2, Trash2, X, ChevronDown } from "lucide-react";
 import { ShareButton } from "@/components/ShareButton";
 import { useQuery } from "@tanstack/react-query";
-import { useExpenses, useExpenseSummary, useDeleteExpense, useBulkDeleteExpenses, useMonthlyRoast, useUpdateExpense } from "@/hooks/use-expenses";
+import { useExpenses, useExpenseSummary, useDeleteExpense, useBulkDeleteExpenses, useMonthlyRoast, useRegenerateVerdict, useUpdateExpense } from "@/hooks/use-expenses";
 import { ReceiptCollageCard } from "@/components/ReceiptCollageCard";
 import { UploadModal } from "@/components/UploadModal";
 import { AppNav } from "@/components/AppNav";
@@ -147,11 +147,14 @@ export default function Upload() {
     return (cents / 100).toLocaleString(undefined, { style: "currency", currency: code || "USD" });
   }
 
-  // Monthly verdict roast
+  // Monthly verdict roast — open to all tiers; free users see the locked verdict
   const { data: monthlyRoastData, isLoading: roastLoading } = useMonthlyRoast(
-    !isFree && filteredReceipts.length > 0 ? selectedMonth : null,
+    filteredReceipts.length > 0 ? selectedMonth : null,
     "receipt"
   );
+  const regenerateMutation = useRegenerateVerdict();
+  const regenCount = monthlyRoastData?.regenCount ?? 0;
+  const regenRemaining = 2 - regenCount;
 
   // Average receipt amount across ALL receipts (not just filtered month)
   // Used to compute relative flame severity on each card
@@ -449,21 +452,47 @@ export default function Upload() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--primary))]">
-                        {fmtMonth(selectedMonth)} Verdict
-                      </p>
-                      {monthlyRoastData?.roast && (
-                        <ShareButton
-                          text={`🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData.roast}"\n\n— Expense Roaster`}
-                          variant="icon"
-                          className="flex items-center justify-center w-7 h-7 rounded-lg text-[hsl(var(--primary))]/60 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200"
-                        />
-                      )}
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--primary))]">
+                          {fmtMonth(selectedMonth)} Verdict
+                        </p>
+                        {monthlyRoastData?.locked && (
+                          <Lock className="w-3 h-3 text-[hsl(var(--primary))]/50" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {monthlyRoastData?.roast && !isFree && regenRemaining > 0 && (
+                          <button
+                            data-testid="button-regenerate-verdict"
+                            onClick={() => regenerateMutation.mutate({ month: selectedMonth!, source: "receipt" })}
+                            disabled={regenerateMutation.isPending}
+                            title={`Regenerate verdict (${regenRemaining} left)`}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[hsl(var(--primary))]/70 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200 disabled:opacity-50"
+                          >
+                            {regenerateMutation.isPending ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-3 h-3" />
+                            )}
+                            <span>{regenRemaining} left</span>
+                          </button>
+                        )}
+                        {monthlyRoastData?.roast && !isFree && regenRemaining === 0 && (
+                          <span className="text-xs text-muted-foreground/50 px-2">No regens left</span>
+                        )}
+                        {monthlyRoastData?.roast && (
+                          <ShareButton
+                            text={`🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData.roast}"\n\n— Expense Roaster`}
+                            variant="icon"
+                            className="flex items-center justify-center w-7 h-7 rounded-lg text-[hsl(var(--primary))]/60 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200"
+                          />
+                        )}
+                      </div>
                     </div>
                     {roastLoading ? (
                       <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Generating your monthly roast…
+                        Generating your monthly verdict…
                       </div>
                     ) : monthlyRoastData?.roast ? (
                       <VerdictText roast={monthlyRoastData.roast} />
