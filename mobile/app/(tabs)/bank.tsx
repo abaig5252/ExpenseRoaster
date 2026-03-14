@@ -738,8 +738,8 @@ export default function BankScreen() {
                           })}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="share-outline" size={13} color="rgba(0,230,118,0.8)" />
-                          <Text style={s.expShareBtnText}>Share</Text>
+                          <Ionicons name="share-outline" size={14} color="#00E676" />
+                          <Text style={s.expShareBtnText}>Share My Roast 🔥</Text>
                         </TouchableOpacity>
                       )}
                       <TouchableOpacity
@@ -889,8 +889,8 @@ export default function BankScreen() {
                 style={s.roastShareBtn}
                 activeOpacity={0.8}
               >
-                <Ionicons name="share-outline" size={16} color="rgba(0,230,118,0.85)" />
-                <Text style={s.roastShareBtnText}>Share This Roast</Text>
+                <Ionicons name="share-outline" size={18} color="#00E676" />
+                <Text style={s.roastShareBtnText}>Share My Roast 🔥</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setStatementRoast(null)} style={s.roastDismissBtn}>
                 <Text style={s.roastDismissBtnText}>Got it</Text>
@@ -1061,13 +1061,13 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap',
   },
   expShareBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: radius.md,
-    backgroundColor: 'rgba(0,230,118,0.07)',
-    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
+    backgroundColor: 'rgba(0,230,118,0.12)',
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.35)',
   },
-  expShareBtnText: { fontSize: 12, fontWeight: '600', color: 'rgba(0,230,118,0.85)' },
+  expShareBtnText: { fontSize: 13, fontWeight: '700', color: '#00E676' },
   deleteBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 6,
@@ -1186,11 +1186,11 @@ const s = StyleSheet.create({
   },
   roastShareBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 7, paddingVertical: 14, borderRadius: radius.lg,
-    backgroundColor: 'rgba(0,230,118,0.07)',
-    borderWidth: 1, borderColor: 'rgba(0,230,118,0.25)',
+    gap: 8, paddingVertical: 15, borderRadius: radius.lg,
+    backgroundColor: 'rgba(0,230,118,0.15)',
+    borderWidth: 1.5, borderColor: 'rgba(0,230,118,0.5)',
   },
-  roastShareBtnText: { fontSize: 14, fontWeight: '700', color: 'rgba(0,230,118,0.9)' },
+  roastShareBtnText: { fontSize: 15, fontWeight: '800', color: '#00E676' },
   roastDismissBtn: {
     flex: 1, paddingVertical: 14, borderRadius: radius.lg,
     backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primaryBorder,

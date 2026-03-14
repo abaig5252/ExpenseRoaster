@@ -250,21 +250,24 @@ export function ReceiptCollageCard({
         </div>
       ) : null}
 
-      {/* Severity + share */}
+      {/* Severity */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
         {[1, 2, 3, 4, 5].map(n => (
           <span key={n} style={{ fontSize: 11, opacity: n <= severity ? 1 : 0.15 }}>🔥</span>
         ))}
-        {expense.roast && !reRoasting && (
-          <div style={{ marginLeft: 6 }}>
-            <ShareButton
-              text={`🔥 "${expense.roast}"\n\n— ${(expense.amount / 100).toLocaleString(undefined, { style: "currency", currency: (expense as any).currency || "USD" })} at ${expense.description} · Expense Roaster`}
-              variant="icon"
-              className="flex items-center justify-center w-6 h-6 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200"
-            />
-          </div>
-        )}
       </div>
+
+      {/* Share My Roast button */}
+      {expense.roast && !reRoasting && (
+        <div style={{ marginTop: 8 }}>
+          <ShareButton
+            text={`🔥 "${expense.roast}"\n\n— ${(expense.amount / 100).toLocaleString(undefined, { style: "currency", currency: (expense as any).currency || "USD" })} at ${expense.description} · Expense Roaster`}
+            label="Share My Roast 🔥"
+            variant="full"
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl font-bold text-xs border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all duration-200"
+          />
+        </div>
+      )}
 
       {/* Delete confirmation overlay */}
       {showDeleteConfirm && (

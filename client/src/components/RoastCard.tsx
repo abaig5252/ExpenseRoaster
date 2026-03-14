@@ -84,9 +84,9 @@ export function RoastCard({ expense, watermark = false, onClose }: RoastCardProp
         {/* Share button */}
         <ShareButton
           text={shareText}
-          label="Share My Shame"
+          label="Share My Roast 🔥"
           variant="full"
-          className="w-full mt-4 py-3 rounded-2xl font-display font-bold text-white bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] btn-glow flex items-center justify-center gap-2 text-sm hover:opacity-90 transition-opacity"
+          className="w-full mt-4 py-3.5 rounded-2xl font-bold text-sm border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 flex items-center justify-center gap-2 transition-all duration-200"
         />
       </div>
     </div>

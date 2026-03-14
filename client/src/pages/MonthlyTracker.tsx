@@ -790,8 +790,9 @@ export default function MonthlyTracker() {
                     {exp.roast && (
                       <ShareButton
                         text={`🔥 "${exp.roast}"\n\n— ${makeFmt((exp as any).currency || bankCurrency)(exp.amount)} at ${exp.description} · Expense Roaster`}
-                        variant="icon"
-                        className="flex items-center justify-center w-6 h-6 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200"
+                        label="Share 🔥"
+                        variant="full"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-[hsl(var(--primary))]/35 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all duration-200 shrink-0"
                       />
                     )}
                   </div>

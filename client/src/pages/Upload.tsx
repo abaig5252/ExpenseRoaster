@@ -501,13 +501,6 @@ export default function Upload() {
                             <span>Regenerate</span>
                           </span>
                         )}
-                        {hasVerdict && (
-                          <ShareButton
-                            text={`🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData!.roast}"\n\n— Expense Roaster`}
-                            variant="icon"
-                            className="flex items-center justify-center w-7 h-7 rounded-lg text-[hsl(var(--primary))]/60 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200"
-                          />
-                        )}
                       </div>
                     </div>
 
@@ -518,15 +511,21 @@ export default function Upload() {
                         <span>Generating your {fmtMonth(selectedMonth)} verdict…</span>
                       </div>
                     ) : hasVerdict ? (
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-3">
                         <VerdictText roast={monthlyRoastData!.roast!} />
                         {/* Free users: show upgrade prompt below the locked verdict */}
                         {isFree && (
-                          <p className="text-xs text-[hsl(var(--primary))]/60 flex items-center gap-1 mt-1">
+                          <p className="text-xs text-[hsl(var(--primary))]/60 flex items-center gap-1">
                             <Lock className="w-3 h-3" />
                             Upgrade to Premium to regenerate your verdict.
                           </p>
                         )}
+                        <ShareButton
+                          text={`🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData!.roast}"\n\n— Expense Roaster`}
+                          label="Share My Roast 🔥"
+                          variant="full"
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all duration-200"
+                        />
                       </div>
                     ) : (
                       /* No verdict yet */

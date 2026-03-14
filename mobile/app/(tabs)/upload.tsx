@@ -1016,15 +1016,6 @@ export default function UploadScreen() {
                             <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>Regenerate</Text>
                           </View>
                         )}
-                        {hasVerdict && (
-                          <TouchableOpacity
-                            onPress={() => Share.share({ message: `🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData!.roast}"\n\n— Expense Roaster` })}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="share-outline" size={16} color="rgba(0,230,118,0.65)" />
-                          </TouchableOpacity>
-                        )}
                       </View>
                     </View>
                     {roastLoading ? (
@@ -1039,6 +1030,14 @@ export default function UploadScreen() {
                             <Text style={{ fontSize: 11, color: 'rgba(0,230,118,0.6)' }}>Upgrade to Premium to regenerate your verdict.</Text>
                           </View>
                         )}
+                        <TouchableOpacity
+                          onPress={() => Share.share({ message: `🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData!.roast}"\n\n— Expense Roaster` })}
+                          activeOpacity={0.8}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: 'rgba(0,230,118,0.35)', backgroundColor: 'rgba(0,230,118,0.1)' }}
+                        >
+                          <Ionicons name="share-outline" size={16} color="#00E676" />
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#00E676' }}>Share My Roast 🔥</Text>
+                        </TouchableOpacity>
                       </View>
                     ) : !isPremium ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
@@ -1189,8 +1188,8 @@ export default function UploadScreen() {
                   style={s.shareRoastBtn}
                   activeOpacity={0.85}
                 >
-                  <Ionicons name="share-outline" size={16} color="rgba(0,230,118,0.8)" />
-                  <Text style={s.shareRoastBtnText}>Share My Shame</Text>
+                  <Ionicons name="share-outline" size={18} color="#00E676" />
+                  <Text style={s.shareRoastBtnText}>Share My Roast 🔥</Text>
                 </TouchableOpacity>
 
                 {resultData.ephemeral && (
@@ -1631,7 +1630,7 @@ function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMod
           </View>
         ) : null}
 
-        {/* Severity flames + share + chevron */}
+        {/* Severity flames + chevron */}
         {!isSelectMode && (
           <View style={rc.footer}>
             <View style={rc.flames}>
@@ -1644,22 +1643,24 @@ function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMod
                 </Animated.Text>
               ))}
             </View>
-            {expanded && expense.roast && !reRoasting && (
-              <TouchableOpacity
-                onPress={() => Share.share({
-                  message: `🔥 "${expense.roast}"\n\n— ${formatMoney(expense.amount, expense.currency ?? currency)} at ${expense.description} · Expense Roaster`,
-                })}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                activeOpacity={0.7}
-                style={rc.shareBtn}
-              >
-                <Ionicons name="share-outline" size={14} color="rgba(0,230,118,0.75)" />
-              </TouchableOpacity>
-            )}
             <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
               <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.35)" />
             </Animated.View>
           </View>
+        )}
+
+        {/* Share My Roast — full-width button, shown when expanded */}
+        {expanded && expense.roast && !reRoasting && !isSelectMode && (
+          <TouchableOpacity
+            onPress={() => Share.share({
+              message: `🔥 "${expense.roast}"\n\n— ${formatMoney(expense.amount, expense.currency ?? currency)} at ${expense.description} · Expense Roaster`,
+            })}
+            activeOpacity={0.8}
+            style={rc.shareFullBtn}
+          >
+            <Ionicons name="share-outline" size={14} color="#00E676" />
+            <Text style={rc.shareFullBtnText}>Share My Roast 🔥</Text>
+          </TouchableOpacity>
         )}
 
       </TouchableOpacity>
@@ -1732,10 +1733,13 @@ const rc = StyleSheet.create({
     padding: 5, borderRadius: 7,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  shareBtn: {
-    padding: 4, borderRadius: 6,
-    backgroundColor: 'rgba(0,230,118,0.08)',
+  shareFullBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 12, borderRadius: 12, marginTop: 4,
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.35)',
+    backgroundColor: 'rgba(0,230,118,0.1)',
   },
+  shareFullBtnText: { fontSize: 13, fontWeight: '700', color: '#00E676' },
 });
 
 const s = StyleSheet.create({
@@ -2030,9 +2034,9 @@ const s = StyleSheet.create({
   resultDismissText: { fontSize: 16, fontWeight: '800', color: '#fff' },
   shareRoastBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 13, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: 'rgba(0,230,118,0.25)',
-    backgroundColor: 'rgba(0,230,118,0.06)',
+    gap: 10, paddingVertical: 15, borderRadius: radius.lg,
+    borderWidth: 1.5, borderColor: 'rgba(0,230,118,0.5)',
+    backgroundColor: 'rgba(0,230,118,0.15)',
   },
-  shareRoastBtnText: { fontSize: 14, fontWeight: '700', color: 'rgba(0,230,118,0.85)' },
+  shareRoastBtnText: { fontSize: 15, fontWeight: '800', color: '#00E676' },
 });

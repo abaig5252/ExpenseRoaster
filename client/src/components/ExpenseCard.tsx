@@ -251,16 +251,19 @@ export function ExpenseCard({ expense, index, avgAmountCents = 0, onDelete, isDe
         {[1, 2, 3, 4, 5].map(n => (
           <span key={n} style={{ fontSize: 12, opacity: n <= severity ? 1 : 0.2 }}>🔥</span>
         ))}
-        {expense.roast && (
-          <div style={{ marginLeft: "auto" }}>
-            <ShareButton
-              text={`🔥 "${expense.roast}"\n\n— ${formattedAmount} at ${expense.description} · Expense Roaster`}
-              variant="icon"
-              className="flex items-center justify-center w-7 h-7 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200"
-            />
-          </div>
-        )}
       </div>
+
+      {/* Share My Roast button */}
+      {expense.roast && (
+        <div style={{ marginTop: 10 }}>
+          <ShareButton
+            text={`🔥 "${expense.roast}"\n\n— ${formattedAmount} at ${expense.description} · Expense Roaster`}
+            label="Share My Roast 🔥"
+            variant="full"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all duration-200"
+          />
+        </div>
+      )}
 
       {/* Trash button — hidden until hover, not shown in select mode or when confirming */}
       {onDelete && deleteStep === 0 && !isSelectMode && (
