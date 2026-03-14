@@ -484,7 +484,7 @@ export default function BankStatement() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                       </div>
-                      {exp.roast && <p className="text-xs italic text-muted-foreground mt-2">"{exp.roast}"</p>}
+                      {exp.roast && <p className="text-sm italic text-white/70 mt-2 leading-relaxed">"{exp.roast}"</p>}
                     </div>
                   </div>
                   <button onClick={() => deleteMutation.mutate(exp.id)} disabled={deleteMutation.isPending}
