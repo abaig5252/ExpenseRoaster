@@ -55,7 +55,11 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Other": "#4A5060",
 };
 
-function EditableCategoryPill({ expenseId, category }: { expenseId: number; category: string }) {
+function EditableCategoryPill({ expenseId, category, onCategoryChanged }: {
+  expenseId: number;
+  category: string;
+  onCategoryChanged?: (id: number) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(category);
   const [saving, setSaving] = useState(false);
@@ -80,7 +84,8 @@ function EditableCategoryPill({ expenseId, category }: { expenseId: number; cate
       await apiRequest("PATCH", `/api/expenses/${expenseId}/category`, { category: cat });
       setCurrent(cat);
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      toast({ title: "Category updated", description: "AI will remember this for future imports." });
+      toast({ title: "Category updated", description: "Refreshing roast..." });
+      onCategoryChanged?.(expenseId);
     } catch {
       toast({ title: "Failed to update category", variant: "destructive" });
     } finally {
@@ -160,8 +165,19 @@ export default function BankStatement() {
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [editMonth, setEditMonth] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [reRoastingSet, setReRoastingSet] = useState<Set<number>>(new Set());
   const leftColRef = useRef<HTMLDivElement>(null);
   const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
+
+  const handleCategoryChanged = useCallback(async (expenseId: number) => {
+    setReRoastingSet(prev => new Set(prev).add(expenseId));
+    try {
+      await apiRequest("POST", `/api/expenses/${expenseId}/re-roast`, {});
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+    } finally {
+      setReRoastingSet(prev => { const next = new Set(prev); next.delete(expenseId); return next; });
+    }
+  }, []);
 
   useEffect(() => {
     const el = leftColRef.current;
@@ -528,7 +544,7 @@ export default function BankStatement() {
                   style={{ padding: "10px 14px 12px 14px" }}
                 >
                   <div style={{ marginBottom: 8 }}>
-                    <EditableCategoryPill expenseId={exp.id} category={exp.category} />
+                    <EditableCategoryPill expenseId={exp.id} category={exp.category} onCategoryChanged={handleCategoryChanged} />
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0 mt-0.5">
@@ -544,7 +560,12 @@ export default function BankStatement() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                       </div>
-                      {exp.roast && (
+                      {reRoastingSet.has(exp.id) ? (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Loader2 className="w-3.5 h-3.5 text-[hsl(var(--primary))] animate-spin shrink-0" />
+                          <p className="text-xs text-muted-foreground italic">Regenerating roast...</p>
+                        </div>
+                      ) : exp.roast ? (
                         <div className="flex items-start gap-2 mt-2">
                           <p className="text-sm italic text-white/70 leading-relaxed flex-1">"{exp.roast}"</p>
                           <ShareButton
@@ -553,7 +574,7 @@ export default function BankStatement() {
                             className="flex items-center justify-center w-6 h-6 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200 shrink-0 mt-0.5"
                           />
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                   <button onClick={() => deleteMutation.mutate(exp.id)} disabled={deleteMutation.isPending}

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flame, Plus, Receipt, RefreshCw, Lock, Camera, Loader2, Trash2, X, ChevronDown } from "lucide-react";
 import { ShareButton } from "@/components/ShareButton";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useExpenses, useExpenseSummary, useDeleteExpense, useBulkDeleteExpenses, useMonthlyRoast, useRegenerateVerdict, useUpdateExpense } from "@/hooks/use-expenses";
 import { ReceiptCollageCard } from "@/components/ReceiptCollageCard";
 import { UploadModal } from "@/components/UploadModal";
@@ -15,6 +15,7 @@ import { CURRENCIES } from "@/hooks/use-currency";
 import { parseReceiptDate } from "@/lib/dates";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 import type { ExpenseResponse } from "@shared/routes";
 
 function expenseMonth(exp: ExpenseResponse): string {
@@ -47,6 +48,8 @@ export default function Upload() {
   const bulkDeleteMutation = useBulkDeleteExpenses();
   const updateMutation = useUpdateExpense();
   const { toast } = useToast();
+  const qc = useQueryClient();
+  const [reRoastingSet, setReRoastingSet] = useState<Set<number>>(new Set());
 
   // ─── Edit Receipt ─────────────────────────────────────────────────
   const [editingExpense, setEditingExpense] = useState<ExpenseResponse | null>(null);
@@ -75,11 +78,23 @@ export default function Upload() {
     if (!editingExpense) return;
     const amountCents = Math.round(parseFloat(editAmount) * 100);
     if (isNaN(amountCents) || amountCents <= 0) return;
+    const categoryChanged = editCategory !== editingExpense.category;
+    const expenseId = editingExpense.id;
     updateMutation.mutate(
-      { id: editingExpense.id, description: editDesc.trim(), amount: amountCents, category: editCategory, date: editDate, currency: editCurrency },
-      { onSuccess: () => { setEditingExpense(null); } }
+      { id: expenseId, description: editDesc.trim(), amount: amountCents, category: editCategory, date: editDate, currency: editCurrency },
+      {
+        onSuccess: () => {
+          setEditingExpense(null);
+          if (categoryChanged) {
+            setReRoastingSet(prev => new Set(prev).add(expenseId));
+            apiRequest("POST", `/api/expenses/${expenseId}/re-roast`, {})
+              .then(() => qc.invalidateQueries({ queryKey: ["/api/expenses"] }))
+              .finally(() => setReRoastingSet(prev => { const next = new Set(prev); next.delete(expenseId); return next; }));
+          }
+        },
+      }
     );
-  }, [editingExpense, editDesc, editAmount, editCategory, editDate, editCurrency, updateMutation]);
+  }, [editingExpense, editDesc, editAmount, editCategory, editDate, editCurrency, updateMutation, qc]);
 
   const isFree = !me || me.tier === "free";
   const uploadsUsed = me?.monthlyUploadCount || 0;
@@ -565,6 +580,7 @@ export default function Upload() {
                     isSelected={selectedIds.has(expense.id)}
                     onSelect={() => toggleSelect(expense.id)}
                     isExiting={exitingIds.has(expense.id)}
+                    reRoasting={reRoastingSet.has(expense.id)}
                   />
                 ))}
               </div>

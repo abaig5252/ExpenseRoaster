@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Pencil, Trash2, Check } from "lucide-react";
+import { AlertTriangle, Pencil, Trash2, Check, Loader2 } from "lucide-react";
 import type { ExpenseResponse } from "@shared/routes";
 import { parseReceiptDate } from "@/lib/dates";
 import { ShareButton } from "@/components/ShareButton";
@@ -15,6 +15,7 @@ interface Props {
   isSelected?: boolean;
   onSelect?: () => void;
   isExiting?: boolean;
+  reRoasting?: boolean;
 }
 
 function computeSeverity(amountCents: number, avgCents: number): number {
@@ -62,7 +63,7 @@ const ROTATIONS = [-2, 1, -1.5, 2, -0.5, 1.5, -1, 0.5, -2.5, 0];
 
 export function ReceiptCollageCard({
   expense, index, avgAmountCents = 0, onDelete, onEdit, isDeleting,
-  isSelectMode = false, isSelected = false, onSelect, isExiting = false,
+  isSelectMode = false, isSelected = false, onSelect, isExiting = false, reRoasting = false,
 }: Props) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -215,7 +216,21 @@ export function ReceiptCollageCard({
       </div>
 
       {/* Roast */}
-      {expense.roast && (
+      {reRoasting ? (
+        <div style={{
+          background: "rgba(0,230,118,0.04)",
+          border: "1px solid rgba(0,230,118,0.12)",
+          borderRadius: 10, padding: "10px 12px",
+          marginBottom: 10,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <Loader2 style={{ width: 13, height: 13, color: "#69FF9C", flexShrink: 0 }} className="animate-spin" />
+          <p style={{
+            fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+            color: "#4A5060", margin: 0, fontStyle: "italic",
+          }}>Regenerating roast...</p>
+        </div>
+      ) : expense.roast ? (
         <div style={{
           background: "rgba(0,230,118,0.06)",
           border: "1px solid rgba(0,230,118,0.18)",
@@ -231,14 +246,14 @@ export function ReceiptCollageCard({
             "{expense.roast}"
           </p>
         </div>
-      )}
+      ) : null}
 
       {/* Severity + share */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
         {[1, 2, 3, 4, 5].map(n => (
           <span key={n} style={{ fontSize: 11, opacity: n <= severity ? 1 : 0.15 }}>🔥</span>
         ))}
-        {expense.roast && (
+        {expense.roast && !reRoasting && (
           <div style={{ marginLeft: 6 }}>
             <ShareButton
               text={`🔥 "${expense.roast}"\n\n— ${(expense.amount / 100).toLocaleString(undefined, { style: "currency", currency: (expense as any).currency || "USD" })} at ${expense.description} · Expense Roaster`}

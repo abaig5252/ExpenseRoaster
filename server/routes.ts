@@ -1973,6 +1973,45 @@ All monetary values in JSON must be integers in cents.`;
     return res.json(updated);
   });
 
+  // ─── Expenses: Re-roast after category change ────────────────────
+  app.post("/api/expenses/:id/re-roast", isAuthenticated, async (req: any, res: Response) => {
+    const userId = getUserId(req);
+    const expenseId = Number(req.params.id);
+    if (isNaN(expenseId)) return res.status(400).json({ message: "Invalid expense ID" });
+
+    const all = await storage.getExpenses(userId);
+    const expense = all.find(e => e.id === expenseId);
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+
+    const tone = (req.body?.tone as string) || (expense.source === "receipt" ? "sergio" : "sergio");
+    const currency = (expense as any).currency || "USD";
+
+    let newRoast: string;
+    if (expense.source === "receipt") {
+      newRoast = await generateRoast(
+        expense.description,
+        expense.amount,
+        expense.category,
+        tone,
+        undefined,
+        currency,
+        expense.date
+      );
+    } else {
+      newRoast = await generateBankTransactionRoast(
+        expense.description,
+        expense.amount,
+        expense.category,
+        tone,
+        currency,
+        expense.date
+      );
+    }
+
+    const updated = await storage.updateExpense(expenseId, userId, { roast: newRoast });
+    return res.json({ roast: newRoast, expense: updated });
+  });
+
   // ─── Expenses: Delete ────────────────────────────────────────────
   app.delete(buildUrl(api.expenses.delete.path).replace(":id", ":id"), isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
