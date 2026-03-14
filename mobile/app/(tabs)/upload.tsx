@@ -235,6 +235,7 @@ export default function UploadScreen() {
   const [editingCurrencyPickerVisible, setEditingCurrencyPickerVisible] = useState(false);
   const [editingDate, setEditingDate] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [reRoastingSet, setReRoastingSet] = useState<Set<number>>(new Set());
 
   const isPremium = user?.tier === 'premium';
   const uploadsUsed = user?.monthlyUploadCount ?? 0;
@@ -453,10 +454,12 @@ export default function UploadScreen() {
       Alert.alert('Invalid Amount', 'Please enter a valid amount.');
       return;
     }
+    const categoryChanged = editingCategory !== editingExpense.category;
+    const expenseId = editingExpense.id;
     setSavingEdit(true);
     try {
       const params = new URLSearchParams({
-        id: String(editingExpense.id),
+        id: String(expenseId),
         description: editingDesc.trim(),
         amount: String(amountCents),
         category: editingCategory,
@@ -467,6 +470,18 @@ export default function UploadScreen() {
       setEditingExpense(null);
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['/api/expenses/summary'] });
+      if (categoryChanged) {
+        setReRoastingSet(prev => { const n = new Set(prev); n.add(expenseId); return n; });
+        try {
+          const updated = await apiPost<{ expense: Expense }>(`/api/expenses/${expenseId}/re-roast`, {});
+          queryClient.setQueryData(['/api/expenses'], (old: Expense[] | undefined) =>
+            old?.map(e => e.id === expenseId ? { ...e, roast: updated.expense.roast } : e) ?? old
+          );
+        } catch {
+        } finally {
+          setReRoastingSet(prev => { const n = new Set(prev); n.delete(expenseId); return n; });
+        }
+      }
     } catch (e: unknown) {
       Alert.alert('Save Failed', (e as Error).message);
     } finally {
@@ -1049,6 +1064,7 @@ export default function UploadScreen() {
                       isSelectMode={selectMode}
                       isSelected={selectedIds.has(exp.id)}
                       isExiting={deletingIds.has(exp.id)}
+                      reRoasting={reRoastingSet.has(exp.id)}
                       onSelect={() => toggleSelect(exp.id)}
                       onEdit={() => openEditSheet(exp)}
                       onDelete={() => handleSingleDelete(exp.id)}
@@ -1350,6 +1366,7 @@ interface ReceiptCardProps {
   isSelectMode?: boolean;
   isSelected?: boolean;
   isExiting?: boolean;
+  reRoasting?: boolean;
   onSelect?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -1368,7 +1385,7 @@ function computeSeverity(amountCents: number, avgCents: number): number {
   return 5;
 }
 
-function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMode = false, isSelected = false, isExiting = false, onSelect, onEdit, onDelete }: ReceiptCardProps) {
+function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMode = false, isSelected = false, isExiting = false, reRoasting = false, onSelect, onEdit, onDelete }: ReceiptCardProps) {
   const translateY = useRef(new Animated.Value(44)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
   const exitScale  = useRef(new Animated.Value(1)).current;
@@ -1565,7 +1582,12 @@ function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMod
         </View>
 
         {/* Roast quote */}
-        {expense.roast ? (
+        {reRoasting ? (
+          <View style={[rc.roastBox, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+            <ActivityIndicator size="small" color="#00E676" />
+            <Text style={[rc.roastText, { fontStyle: 'italic', color: 'rgba(255,255,255,0.4)' }]}>Regenerating roast...</Text>
+          </View>
+        ) : expense.roast ? (
           <View style={rc.roastBox}>
             <Text style={rc.roastText} numberOfLines={expanded ? undefined : 4}>"{expense.roast.replace(/\*+/g, '')}"</Text>
           </View>
@@ -1584,7 +1606,7 @@ function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMod
                 </Animated.Text>
               ))}
             </View>
-            {expanded && expense.roast && (
+            {expanded && expense.roast && !reRoasting && (
               <TouchableOpacity
                 onPress={() => Share.share({
                   message: `🔥 "${expense.roast}"\n\n— ${formatMoney(expense.amount, expense.currency ?? currency)} at ${expense.description} · Expense Roaster`,

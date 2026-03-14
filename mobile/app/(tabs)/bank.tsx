@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
-import { apiGet, apiDelete, apiPatch, API_BASE_URL, getToken } from '../../src/lib/api';
+import { apiGet, apiDelete, apiPatch, apiPost, API_BASE_URL, getToken } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
 import { CurrencyPickerModal } from '../../src/components/CurrencyPickerModal';
 import { colors, spacing, radius, typography } from '../../src/theme';
@@ -90,6 +90,7 @@ export default function BankScreen() {
   const [statementRoast, setStatementRoast] = useState<string | null>(null);
   const [savingCatId, setSavingCatId] = useState<number | null>(null);
   const [catOverrides, setCatOverrides] = useState<Record<number, string>>({});
+  const [reRoastingSet, setReRoastingSet] = useState<Set<number>>(new Set());
 
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ['/api/expenses'],
@@ -252,11 +253,20 @@ export default function BankScreen() {
     try {
       await apiPatch(`/api/expenses/${id}/category`, { category });
       qc.invalidateQueries({ queryKey: ['/api/expenses'] });
-      Alert.alert('Category Updated', `AI will remember "${category}" for this merchant on future imports.`);
+      setSavingCatId(null);
+      setReRoastingSet(prev => { const n = new Set(prev); n.add(id); return n; });
+      try {
+        const updated = await apiPost<{ expense: Expense }>(`/api/expenses/${id}/re-roast`, { tone });
+        qc.setQueryData(['/api/expenses'], (old: Expense[] | undefined) =>
+          old?.map(e => e.id === id ? { ...e, roast: updated.expense.roast } : e) ?? old
+        );
+      } catch {
+      } finally {
+        setReRoastingSet(prev => { const n = new Set(prev); n.delete(id); return n; });
+      }
     } catch (e: unknown) {
       setCatOverrides(prev => { const n = { ...prev }; delete n[id]; return n; });
       Alert.alert('Error', (e as Error).message);
-    } finally {
       setSavingCatId(null);
     }
   }
@@ -493,10 +503,17 @@ export default function BankScreen() {
                       <Text style={s.expDate}>{new Date(exp.date ?? exp.createdAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                     )}
                   </View>
-                  {exp.roast && <Text style={s.expRoast} numberOfLines={isExpanded ? undefined : 2}>"{exp.roast.replace(/\*+/g, '')}"</Text>}
+                  {reRoastingSet.has(exp.id) ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={[s.expRoast, { fontStyle: 'italic', color: colors.textMuted }]}>Regenerating roast...</Text>
+                    </View>
+                  ) : exp.roast ? (
+                    <Text style={s.expRoast} numberOfLines={isExpanded ? undefined : 2}>"{exp.roast.replace(/\*+/g, '')}"</Text>
+                  ) : null}
                   {isExpanded && (
                     <View style={s.expExpandedActions}>
-                      {exp.roast && (
+                      {exp.roast && !reRoastingSet.has(exp.id) && (
                         <TouchableOpacity
                           style={s.expShareBtn}
                           onPress={() => Share.share({
