@@ -969,7 +969,7 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
       const userId = getUserId(req);
       let user = await storage.checkAndResetMonthlyUpload(userId);
 
-      const tone = req.body.tone || "hells_kitchen";
+      const tone = req.body.tone || "sergio";
       const isFree = user.tier === "free";
 
       if (isFree && user.monthlyUploadCount >= FREE_UPLOAD_LIMIT) {
@@ -988,14 +988,13 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
         const jpegBuffer = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer();
         imageUrl = `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
       }
-      const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}
 
-Extract expense data from this receipt image. Keep the receipt's native currency — do NOT convert. For the roast field, be specific to this merchant and this amount — not generic. No addresses or neighbourhoods. Do not use em dashes (—).`;
-
+      // Step 1: extract structured data only — roast is generated separately via
+      // generateRoast() so the persona prompt is never overridden by a JSON field description
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: `You are a receipt data extractor. Extract structured data from this receipt image and return ONLY valid JSON. Keep the receipt's native currency — do NOT convert.` },
           {
             role: "user",
             content: [
@@ -1021,8 +1020,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
   "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",
   "date": "<ISO date from receipt, e.g. 2024-03-15>",
   "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",
-  "location": "<city and country from receipt, or null>",
-  "roast": "<1-2 sentences roasting this specific merchant and exact amount — cheeky and specific, not generic. No 'bold choice', no 'treating yourself'. Don't start with 'You'. No addresses or neighbourhoods.>"
+  "location": "<city and country from receipt, or null>"
 }` },
               { type: "image_url", image_url: { url: imageUrl } },
             ],
@@ -1052,18 +1050,23 @@ Respond ONLY with this JSON (no markdown, no extra keys):
 
       const detectedCurrency = (extracted.currency || "USD").toUpperCase();
       const cleanedDescription = await cleanMerchantName(extracted.description || "Unknown Purchase");
+      const uploadCategory = extracted.category || "Other";
+      const uploadAmountCents = Math.round(extracted.amount);
+
+      // Step 2: generate the roast using the proper persona prompt (no JSON constraints)
+      const uploadRoast = await generateRoast(cleanedDescription, uploadAmountCents, uploadCategory, tone, extracted.location || undefined, detectedCurrency, dateToUse);
 
       // For free users: return roast data but don't store
       if (isFree) {
         return res.status(201).json({
           id: -1,
           userId,
-          amount: Math.round(extracted.amount),
+          amount: uploadAmountCents,
           currency: detectedCurrency,
           description: cleanedDescription,
           date: dateToUse.toISOString(),
-          category: extracted.category || "Other",
-          roast: extracted.roast || "I'm speechless.",
+          category: uploadCategory,
+          roast: uploadRoast,
           imageUrl: null,
           source: "receipt",
           ephemeral: true,
@@ -1074,11 +1077,11 @@ Respond ONLY with this JSON (no markdown, no extra keys):
 
       const expense = await storage.createExpense({
         userId,
-        amount: Math.round(extracted.amount),
+        amount: uploadAmountCents,
         description: cleanedDescription,
         date: dateToUse,
-        category: extracted.category || "Other",
-        roast: extracted.roast || "I'm speechless.",
+        category: uploadCategory,
+        roast: uploadRoast,
         imageUrl: null,
         source: "receipt",
         currency: detectedCurrency,
@@ -1101,7 +1104,7 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       if (isFree && user.monthlyUploadCount >= FREE_UPLOAD_LIMIT) {
         return res.status(403).json({ message: `Free tier limit reached.`, code: "UPLOAD_LIMIT_REACHED" });
       }
-      const tone = req.body.tone || "hells_kitchen";
+      const tone = req.body.tone || "sergio";
       const input = api.expenses.upload.input.parse(req.body);
       let imageUrl = input.image;
       if (/^data:image\/(heic|heif)/i.test(imageUrl)) {
@@ -1110,13 +1113,15 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         const jpegBuffer = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer();
         imageUrl = `data:image/jpeg;base64,${jpegBuffer.toString("base64")}`;
       }
-      const systemPrompt = `${ROAST_PROMPTS[tone] || ROAST_PROMPTS.savage}\n\nExtract expense data from this receipt image. Keep the receipt's native currency — do NOT convert. For the roast field, be specific to this merchant and amount. No addresses or neighbourhoods. Do not use em dashes (—).`;
+      // Step 1: extract structured data only (no roast — roast is generated separately so
+      // the persona prompt is never overridden by a JSON field description)
+      const extractionPrompt = `You are a receipt data extractor. Extract structured data from this receipt image and return ONLY valid JSON. Keep the receipt's native currency — do NOT convert.`;
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: extractionPrompt },
           { role: "user", content: [
-            { type: "text", text: `First, decide if this is a single-transaction receipt or a bank/credit-card statement (multiple transaction rows, account number, statement period). Set "documentType" to "bank_statement" ONLY if it clearly shows a bank or credit card statement — otherwise "receipt". When in doubt, set "receipt".\n\nIf it IS a receipt, find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "documentType": "<'receipt' or 'bank_statement'>",\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>",\n  "roast": "<1-2 cheeky sentences about this merchant and exact amount>"\n}` },
+            { type: "text", text: `First, decide if this is a single-transaction receipt or a bank/credit-card statement (multiple transaction rows, account number, statement period). Set "documentType" to "bank_statement" ONLY if it clearly shows a bank or credit card statement — otherwise "receipt". When in doubt, set "receipt".\n\nIf it IS a receipt, find the final "Total", "Grand Total", "Amount Due", or "Amount Paid" line — NOT Subtotal. Keep the receipt's own currency.\n\nRespond ONLY with this JSON:\n{\n  "documentType": "<'receipt' or 'bank_statement'>",\n  "amount": <cents integer>,\n  "currency": "<3-letter ISO code from receipt, e.g. USD, EUR, GBP, AUD>",\n  "description": "<clean merchant name — proper brand name, Title Case, no codes or suffixes, e.g. 'Walmart', 'Starbucks', 'Spotify'>",\n  "date": "<ISO date e.g. 2024-03-15>",\n  "category": "<Pick the single best match — Food & Drink (restaurants, cafes, bars, takeout, food delivery), Groceries (supermarkets, Walmart, Costco, grocery stores), Shopping (clothing, retail, electronics, department stores, Amazon, general merchandise), Transport (gas stations, parking, Uber, Lyft, taxi, bus, subway, train, tolls, car wash), Travel (flights, hotels, Airbnb, car rental, accommodation), Entertainment (movies, concerts, events, gaming, theme parks, sports, nightlife), Health & Fitness (pharmacy, gym, doctor, dentist, spa, beauty, personal care), Subscriptions (recurring monthly/annual services, streaming, software, apps, memberships), Other (only if nothing above fits)>"\n}` },
             { type: "image_url", image_url: { url: imageUrl } },
           ]},
         ],
@@ -1133,13 +1138,19 @@ Respond ONLY with this JSON (no markdown, no extra keys):
       }
       const parsedDate = new Date(extracted.date);
       const dateToUse = isNaN(parsedDate.getTime()) || parsedDate.getFullYear() < 1990 ? new Date() : parsedDate;
+      const previewCurrency = (extracted.currency || "USD").toUpperCase();
+      const previewDescription = await cleanMerchantName(extracted.description || "Unknown Purchase");
+      const previewAmountCents = Math.round(extracted.amount);
+      const previewCategory = extracted.category || "Other";
+      // Step 2: generate roast using the full persona prompt (no JSON format constraints)
+      const roast = await generateRoast(previewDescription, previewAmountCents, previewCategory, tone, undefined, previewCurrency, dateToUse);
       res.json({
-        amount: Math.round(extracted.amount),
-        currency: (extracted.currency || "USD").toUpperCase(),
-        description: extracted.description || "Unknown Purchase",
+        amount: previewAmountCents,
+        currency: previewCurrency,
+        description: previewDescription,
         date: dateToUse.toISOString(),
-        category: extracted.category || "Other",
-        roast: extracted.roast || "I'm speechless.",
+        category: previewCategory,
+        roast,
       });
     } catch (err) {
       console.error("Preview receipt error:", err);
