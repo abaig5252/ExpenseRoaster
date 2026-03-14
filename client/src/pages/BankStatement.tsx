@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { parseReceiptDate } from "@/lib/dates";
 import { motion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown } from "lucide-react";
+import { VerdictText } from "@/components/VerdictText";
 import { ShareButton } from "@/components/ShareButton";
 import { useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
@@ -468,42 +469,43 @@ export default function BankStatement() {
             </motion.div>
           </div>
 
-          {/* Right: Statement roast — matches left column height, scrollable content */}
+          {/* Right: Statement roast — verdict style */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
             className="flex flex-col"
             style={{ height: leftColHeight ?? "auto" }}>
             {isPremium && <div className="mb-5 h-[52px] shrink-0" />}
             <div
               data-testid="card-statement-roast"
-              className="glass-panel rounded-3xl border border-[hsl(var(--primary))]/20 relative overflow-hidden flex flex-col flex-1"
+              className="glass-panel rounded-2xl p-5 border border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/5 flex flex-col flex-1"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/8 to-[hsl(var(--secondary))]/4 pointer-events-none" />
-              <div className="relative flex flex-col h-full p-6 min-h-0">
-                <div className="flex items-center gap-2 mb-4 shrink-0">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center shrink-0">
-                    <MessageSquare className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-bold text-white block">Monthly Statement Roast</span>
-                    {activeMonth && <span className="text-xs text-muted-foreground">{formatMonthLabel(activeMonth)}</span>}
-                  </div>
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[hsl(var(--primary))]/20 flex items-center justify-center shrink-0">
+                  <Flame className="w-5 h-5 text-[hsl(var(--primary))]" />
                 </div>
-
-                {roastLoading ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-center">
-                    <Loader2 className="w-7 h-7 text-[hsl(var(--primary))] mb-3 animate-spin" />
-                    <p className="text-xs text-muted-foreground">Loading roast...</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--primary))]">
+                      {activeMonth ? `${formatMonthLabel(activeMonth)} ` : ""}Monthly Statement Roast
+                    </p>
+                    {statementRoast && (
+                      <ShareButton
+                        text={`🔥 Monthly Statement Roast${activeMonth ? ` — ${formatMonthLabel(activeMonth)}` : ""}:\n\n"${statementRoast}"\n\n— Expense Roaster`}
+                        variant="icon"
+                        className="flex items-center justify-center w-7 h-7 rounded-lg text-[hsl(var(--primary))]/60 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200"
+                      />
+                    )}
                   </div>
-                ) : statementRoast ? (
-                  <div className="overflow-y-auto flex-1 min-h-0 pr-1">
-                    <p className="text-sm text-white/90 leading-relaxed whitespace-pre-line">{statementRoast}</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center flex-1 text-center opacity-35">
-                    <Flame className="w-10 h-10 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground font-medium">Import a statement and Sergio will roast the whole thing here.</p>
-                  </div>
-                )}
+                  {roastLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating your monthly statement roast…
+                    </div>
+                  ) : statementRoast ? (
+                    <VerdictText roast={statementRoast} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground/50">Import a statement to generate your monthly roast.</p>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
