@@ -349,6 +349,39 @@ function ordinalSuffix(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+// Pre-computes exact savings figures so the model never has to invent them.
+// Assumes the purchase recurs weekly (52/12 = 4.333 weeks/month).
+function buildMathAnchors(amountCents: number, currency: string): string {
+  const amt = amountCents / 100;
+  const weeksPerMonth = 52 / 12; // 4.333
+  const monthlyIfWeekly = amt * weeksPerMonth;
+
+  const caps = [
+    Math.ceil(amt * 0.75 / 5) * 5,  // ~75% of spend, rounded to nearest $5
+    Math.ceil(amt * 0.60 / 5) * 5,  // ~60%
+    Math.ceil(amt * 0.50 / 5) * 5,  // ~50%
+  ].filter((cap, i, arr) => cap < amt && arr.indexOf(cap) === i); // unique, below current spend
+
+  const lines = caps.map(cap => {
+    const weekSaving = amt - cap;
+    const monthSaving = weekSaving * weeksPerMonth;
+    return `  - Cap at ${currency === "USD" ? "$" : currency + " "}${cap}/week → saves ${currency === "USD" ? "$" : currency + " "}${monthSaving.toFixed(2)}/month`;
+  });
+
+  const pct20 = (amt * 0.20 * weeksPerMonth).toFixed(2);
+  const pct30 = (amt * 0.30 * weeksPerMonth).toFixed(2);
+
+  return [
+    `MATH ANCHORS — use these exact figures in LINE 3. Do not invent, round, or estimate any financial number:`,
+    `  - This receipt: ${amt.toFixed(2)} ${currency}`,
+    `  - Monthly total if weekly purchase: ${monthlyIfWeekly.toFixed(2)} ${currency}`,
+    ...lines,
+    `  - 20% cut per purchase saves: ${pct20} ${currency}/month`,
+    `  - 30% cut per purchase saves: ${pct30} ${currency}/month`,
+    `MATH RULE: LINE 3 must contain one number from the MATH ANCHORS above. Any figure not listed above is wrong.`,
+  ].join("\n");
+}
+
 async function generateRoast(description: string, amountCents: number, category: string, tone = "sergio", _location?: string, currency = "USD", date?: Date | string): Promise<string> {
   description = await cleanMerchantName(description);
   const prompt = ROAST_PROMPTS[tone] || ROAST_PROMPTS.sergio;
@@ -359,13 +392,15 @@ async function generateRoast(description: string, amountCents: number, category:
       timeNote = ` on ${d.toLocaleString('en-US', { weekday: 'long' })} the ${ordinalSuffix(d.getDate())}`;
     }
   }
+  // Inject pre-computed math anchors for Tier 1 only (Tier 2 never gives tips)
+  const mathAnchors = tone === "sergio" ? `\n\n${buildMathAnchors(amountCents, currency)}` : "";
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
       { role: "system", content: `${prompt}\n\nCurrency: ${currency}. Use the local currency symbol. Make any comparisons specific to real things that cost similar amounts in the ${currency} region. NEVER mention city names, street addresses, or neighbourhoods. Do not use em dashes (—).` },
-      { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}.` },
+      { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}.${mathAnchors}` },
     ],
-    max_completion_tokens: 130,
+    max_completion_tokens: 160,
   });
   return response.choices[0]?.message?.content || "Your accountant has left the chat.";
 }
@@ -379,13 +414,15 @@ async function generateBankTransactionRoast(description: string, amountCents: nu
       timeNote = ` on ${d.toLocaleString('en-US', { weekday: 'long' })} the ${ordinalSuffix(d.getDate())}`;
     }
   }
+  // Inject pre-computed math anchors for Tier 1 only (Tier 2 never gives tips)
+  const mathAnchors = tone === "sergio" ? `\n\n${buildMathAnchors(amountCents, currency)}` : "";
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
       { role: "system", content: `${prompt}\n\nCurrency: ${currency}. Use the local currency symbol. Make any comparisons specific to real things that cost similar amounts in the ${currency} region. NEVER mention city names, street addresses, or neighbourhoods.` },
-      { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}.` },
+      { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}.${mathAnchors}` },
     ],
-    max_completion_tokens: 130,
+    max_completion_tokens: 160,
   });
   return response.choices[0]?.message?.content || "Your accountant has left the chat.";
 }
