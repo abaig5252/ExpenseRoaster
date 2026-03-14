@@ -30,8 +30,8 @@ interface Expense {
 }
 
 const TONES = [
-  { value: 'sergio',        label: '🤌 Uncle Sergio',     desc: 'Exasperated Italian Uncle' },
-  { value: 'sergio_savage', label: '🔥 Sergio Unleashed', desc: 'Has Given Up On You' },
+  { value: 'sergio',        label: 'Roasted 🔥',   desc: 'Exasperated Italian uncle' },
+  { value: 'sergio_savage', label: 'Destroyed 💀', desc: 'Italian uncle who is done with you' },
 ];
 
 const ALL_CATEGORIES = [

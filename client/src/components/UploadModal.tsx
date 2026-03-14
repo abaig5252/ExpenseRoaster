@@ -18,8 +18,8 @@ interface UploadModalProps {
 }
 
 const TONES = [
-  { value: "sergio",        label: "Uncle Sergio 🤌",  desc: "Exasperated Italian Uncle" },
-  { value: "sergio_savage", label: "Sergio Unleashed 🔥", desc: "Italian Uncle Who Is Done" },
+  { value: "sergio",        label: "Roasted 🔥",  desc: "Exasperated Italian uncle" },
+  { value: "sergio_savage", label: "Destroyed 💀", desc: "Italian uncle who is done with you" },
 ];
 
 const CATEGORIES = [
@@ -405,9 +405,10 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
 
                   {/* Tone selector */}
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
-                      Roast Tone {!isPremium && <span className="text-[hsl(var(--primary))]">(Premium)</span>}
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
+                      Roast Tone — Uncle Sergio 🤌 {!isPremium && <span className="text-[hsl(var(--primary))]">(Premium)</span>}
                     </label>
+                    <p className="text-xs text-muted-foreground/70 mb-2">Your fictional Italian uncle who can't believe what you're spending money on. Choose how hard he comes for you.</p>
                     <div className="grid grid-cols-2 gap-2">
                       {TONES.map((t) => (
                         <button
