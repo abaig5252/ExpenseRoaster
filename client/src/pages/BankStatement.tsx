@@ -380,7 +380,7 @@ export default function BankStatement() {
             <div className="w-full glass-panel rounded-3xl p-6 text-left flex flex-col gap-3">
               {[
                 { icon: "📄", text: "Import PDF or photo statements — bank or credit card" },
-                { icon: "🔥", text: "Every transaction individually roasted by AI" },
+                { icon: "🔥", text: "Every transaction individually roasted and categorised automatically" },
                 { icon: "🗂️", text: "Full transaction history, organised by month and category" },
                 { icon: "⚖️", text: "Monthly verdict: a brutal summary of your spending habits" },
                 { icon: "🎭", text: "Choose your roast tone — Roasted 🔥 or Destroyed 💀" },

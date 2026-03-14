@@ -315,7 +315,7 @@ export default function MonthlyTracker() {
               {[
                 { icon: "📊", text: "Month-by-month spending trends with interactive charts" },
                 { icon: "🗂️", text: "Full category breakdown — Food, Transport, Entertainment, and more" },
-                { icon: "🤖", text: "AI financial advice tailored to your actual spending patterns" },
+                { icon: "🤖", text: "Automated financial advice tailored to your actual spending patterns" },
                 { icon: "📅", text: "Filter by month, year, or category to drill into the damage" },
                 { icon: "📉", text: "Compare your best and worst months side by side" },
                 { icon: "💡", text: "Savings opportunities with specific, actionable alternatives" },
