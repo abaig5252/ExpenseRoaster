@@ -338,22 +338,8 @@ export default function BankStatement() {
         {/* ── Top row: import + roast side by side ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 items-start">
 
-          {/* Left: Tone selector + Import card */}
+          {/* Left: Import card */}
           <div ref={leftColRef}>
-            {isPremium && (
-              <div className="mb-5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Roast Tone</label>
-                <div className="flex gap-2">
-                  {TONES.map(t => (
-                    <button key={t.value} type="button" onClick={() => setTone(t.value)}
-                      data-testid={`button-tone-${t.value}`}
-                      className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tone === t.value ? "bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/40" : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"}`}>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
               <div>
@@ -456,7 +442,6 @@ export default function BankStatement() {
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
             className="flex flex-col"
             style={{ height: leftColHeight ?? "auto" }}>
-            {isPremium && <div className="mb-5 h-[52px] shrink-0" />}
             <div
               data-testid="card-statement-roast"
               className="glass-panel rounded-3xl border border-[hsl(var(--primary))]/20 relative overflow-hidden flex flex-col flex-1"
@@ -496,7 +481,7 @@ export default function BankStatement() {
         {/* ── Full-width transactions card ── */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
           className="glass-panel rounded-3xl p-6">
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
             <h2 className="text-xl font-bold text-white">
               Imported Transactions {manualExpenses.length > 0 && <span className="text-base font-normal text-muted-foreground ml-1">({manualExpenses.length})</span>}
             </h2>
@@ -512,6 +497,20 @@ export default function BankStatement() {
               </div>
             )}
           </div>
+          {isPremium && (
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground shrink-0">Roast Tone</span>
+              <div className="flex gap-2 flex-1">
+                {TONES.map(t => (
+                  <button key={t.value} type="button" onClick={() => setTone(t.value)}
+                    data-testid={`button-tone-${t.value}`}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tone === t.value ? "bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/40" : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"}`}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {manualExpenses.length === 0 ? (
             <div className="py-12 text-center">
               <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
