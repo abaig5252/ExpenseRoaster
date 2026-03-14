@@ -884,7 +884,7 @@ export default function UploadScreen() {
               <View style={s.categoryPill}>
                 <Text style={s.categoryPillText}>{ephemeral.category.toUpperCase()}</Text>
               </View>
-              <Text style={s.ephRoast}>"{ephemeral.roast}"</Text>
+              <Text style={s.ephRoast}>"{ephemeral.roast.replace(/\*+/g, '')}"</Text>
             </View>
           )}
 
@@ -1123,7 +1123,7 @@ export default function UploadScreen() {
                     <Ionicons name="flame" size={11} color="#fff" />
                     <Text style={s.resultRoastBadgeText}>THE ROAST</Text>
                   </View>
-                  <Text style={s.resultRoastText}>"{resultData.expense.roast}"</Text>
+                  <Text style={s.resultRoastText}>"{resultData.expense.roast.replace(/\*+/g, '')}"</Text>
                 </View>
 
                 <TouchableOpacity
@@ -1209,7 +1209,7 @@ export default function UploadScreen() {
 
                 <View style={s.previewRoastBox}>
                   <Ionicons name="flame" size={13} color="#00E676" style={{ marginTop: 1 }} />
-                  <Text style={s.previewRoastText} numberOfLines={3}>"{previewData?.roast}"</Text>
+                  <Text style={s.previewRoastText} numberOfLines={3}>"{previewData?.roast?.replace(/\*+/g, '')}"</Text>
                 </View>
 
                 <View style={s.previewBtns}>
@@ -1567,7 +1567,7 @@ function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMod
         {/* Roast quote */}
         {expense.roast ? (
           <View style={rc.roastBox}>
-            <Text style={rc.roastText} numberOfLines={expanded ? undefined : 4}>"{expense.roast}"</Text>
+            <Text style={rc.roastText} numberOfLines={expanded ? undefined : 4}>"{expense.roast.replace(/\*+/g, '')}"</Text>
           </View>
         ) : null}
 

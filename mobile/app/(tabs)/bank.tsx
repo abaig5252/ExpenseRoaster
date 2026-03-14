@@ -493,7 +493,7 @@ export default function BankScreen() {
                       <Text style={s.expDate}>{new Date(exp.date ?? exp.createdAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                     )}
                   </View>
-                  {exp.roast && <Text style={s.expRoast} numberOfLines={isExpanded ? undefined : 2}>"{exp.roast}"</Text>}
+                  {exp.roast && <Text style={s.expRoast} numberOfLines={isExpanded ? undefined : 2}>"{exp.roast.replace(/\*+/g, '')}"</Text>}
                   {isExpanded && (
                     <View style={s.expExpandedActions}>
                       {exp.roast && (
@@ -623,7 +623,7 @@ export default function BankScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView style={s.roastScroll} contentContainerStyle={s.roastScrollContent} showsVerticalScrollIndicator={false}>
-              <Text style={s.roastText}>{statementRoast}</Text>
+              <Text style={s.roastText}>{statementRoast?.replace(/\*+/g, '')}</Text>
             </ScrollView>
             <View style={s.roastActionRow}>
               <TouchableOpacity
