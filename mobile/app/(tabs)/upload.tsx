@@ -156,7 +156,8 @@ if (Platform.OS === 'android') {
 }
 
 const TONES = [
-  { value: 'sergio', label: '🤌 Uncle Sergio', desc: 'Exasperated Italian Uncle' },
+  { value: 'sergio',        label: '🤌 Uncle Sergio',     desc: 'Exasperated Italian Uncle' },
+  { value: 'sergio_savage', label: '🔥 Sergio Unleashed', desc: 'Italian Uncle Who Is Done' },
 ];
 
 const CATEGORY_EMOJI: Record<string, string> = {
