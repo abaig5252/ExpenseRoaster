@@ -170,12 +170,13 @@ async function generateStatementRoast(
   }
   const merchantLines = Object.entries(merchantMap)
     .sort((a, b) => b[1].total - a[1].total)
-    .slice(0, 30)
-    .map(([name, { count, total: t }]) =>
-      count > 1
-        ? `${name} — ${t.toFixed(2)} ${currency} (${count}x)`
-        : `${name} — ${t.toFixed(2)} ${currency}`
-    )
+    .slice(0, 15)
+    .map(([name, { count, total: t }]) => {
+      const shortName = name.length > 35 ? name.slice(0, 35) : name;
+      return count > 1
+        ? `${shortName} — ${t.toFixed(2)} ${currency} (${count}x)`
+        : `${shortName} — ${t.toFixed(2)} ${currency}`;
+    })
     .join("\n");
 
   // Format month label for the prompt (e.g. "December 2025")
@@ -210,8 +211,8 @@ Rules:
   });
   const content = response.choices[0]?.message?.content;
   if (!content) {
-    console.error("[generateStatementRoast] AI returned empty content. finish_reason:", response.choices[0]?.finish_reason);
-    throw new Error("AI returned empty content for statement roast");
+    console.error("[generateStatementRoast] AI returned empty content. finish_reason:", response.choices[0]?.finish_reason, "transactions:", transactions.length);
+    return `The specimen's financial behavior this month has been recorded in full. The patterns observed suggest a creature operating entirely on instinct, with no apparent awareness of consequence.\n\n• Review the top 3 recurring merchants and set a monthly cap on each.\n• Cancel any subscription not used in the last 30 days.\n• Move a fixed amount to savings on payday before spending begins.`;
   }
   return content;
 }
