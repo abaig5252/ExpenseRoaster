@@ -107,7 +107,9 @@ export class DatabaseStorage implements IStorage {
 
     const now = new Date();
     const resetDate = user.monthlyUploadResetDate;
-    const shouldReset = !resetDate || now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear();
+    // Weekly reset: reset if no date recorded or 7+ days have passed
+    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+    const shouldReset = !resetDate || (now.getTime() - new Date(resetDate).getTime()) >= msPerWeek;
 
     if (shouldReset) {
       const [updated] = await db

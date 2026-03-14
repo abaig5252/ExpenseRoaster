@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, TrendingUp, TrendingDown, Flame, Lightbulb,
-  DollarSign, AlertTriangle, Zap, Check, X,
+  DollarSign, AlertTriangle, Zap, Check, X, Lock,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, type AdviceBreakdown } from "@/hooks/use-expenses";
@@ -10,6 +10,8 @@ import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parseReceiptDate } from "@/lib/dates";
 import { ShareButton } from "@/components/ShareButton";
+import { useMe } from "@/hooks/use-subscription";
+import { Link } from "wouter";
 
 function fmtMonth(ym: string) {
   const [year, month] = ym.split("-");
@@ -84,6 +86,8 @@ const SOURCE_TABS: { value: SourceFilter; label: string }[] = [
 ];
 
 export default function MonthlyTracker() {
+  const { data: me } = useMe();
+  const isFree = !me || me.tier === "free";
   const { isLoading: seriesLoading } = useMonthlySeries();
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary();
   const { data: expenses } = useExpenses();
@@ -289,6 +293,37 @@ export default function MonthlyTracker() {
     setSelectedCats(new Set());
     setSelectedMonth(null);
     setSelectedYear(null);
+  }
+
+  if (isFree) {
+    return (
+      <div className="min-h-screen pb-24">
+        <div className="bg-noise" />
+        <AppNav />
+        <main className="max-w-xl mx-auto px-4 sm:px-6 pt-24 relative z-10 flex flex-col items-center text-center gap-6">
+          <div className="w-16 h-16 rounded-3xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 flex items-center justify-center">
+            <Lock className="w-8 h-8 text-[hsl(var(--primary))]" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-3">Monthly Tracker</h1>
+            <p className="text-muted-foreground text-base leading-relaxed">
+              Track your spending across months, get AI-powered financial advice, and see where your money actually goes — this is a Premium feature.
+            </p>
+          </div>
+          <Link href="/pricing">
+            <button
+              data-testid="button-upgrade-tracker"
+              className="px-8 py-3 rounded-2xl bg-[hsl(var(--primary))] text-white font-bold text-base hover:opacity-90 transition-opacity"
+            >
+              Upgrade to Premium
+            </button>
+          </Link>
+          <p className="text-xs text-muted-foreground">
+            Also unlocks unlimited uploads, monthly verdicts, bank statement import, and more.
+          </p>
+        </main>
+      </div>
+    );
   }
 
   return (

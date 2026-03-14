@@ -61,7 +61,7 @@ async function cleanMerchantNames(names: string[]): Promise<Map<string, string>>
   return new Map(pairs);
 }
 
-const FREE_UPLOAD_LIMIT = 3;
+const FREE_UPLOAD_LIMIT = 1;
 
 const ROAST_PROMPTS: Record<string, string> = {
   sergio: `You are Sergio, a 58-year-old self-made Italian-Canadian man. Immigrated with $400, built a deli chain, invested in real estate at 30, never paid full price for anything. You just saw this receipt and cannot stay quiet.
@@ -1114,7 +1114,7 @@ Remember: breakdown array must have ${sortedCats.length} entries, one per catego
 
       if (isFree && user.monthlyUploadCount >= FREE_UPLOAD_LIMIT) {
         return res.status(403).json({
-          message: `Free tier limit reached. You've used ${FREE_UPLOAD_LIMIT}/${FREE_UPLOAD_LIMIT} uploads this month.`,
+          message: `Free tier limit reached. You get ${FREE_UPLOAD_LIMIT} free upload per week.`,
           code: "UPLOAD_LIMIT_REACHED",
         });
       }
