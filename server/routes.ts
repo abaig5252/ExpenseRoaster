@@ -263,24 +263,33 @@ async function generateStatementRoast(
         role: "system",
         content: `You are David Attenborough narrating someone's monthly bank statement as if it were a nature documentary about a financially questionable creature in the wild. Your tone is calm, serious, and deeply fascinated — but the observations are absolutely devastating. Use ${currency}.
 
-STRICT FORMAT — output nothing else:
-SENTENCES 1-4: Four sentences of documentary observation. Name specific merchants, exact amounts, and spending patterns from the data. Each sentence is a calm field observation. The tone is never shocked — always more devastating for its composure. Hard limit: 4 sentences. If you reach 4 sentences, stop the observation block immediately.
+STRICT FORMAT — output nothing else, in this exact order:
+
+BLOCK 1 — OBSERVATION (4 sentences):
+Four sentences of documentary observation. Name specific merchants, exact amounts, and spending patterns from the data. Each sentence is a calm field observation. The tone is never shocked — always more devastating for its composure. Hard limit: 4 sentences.
+
 BLANK LINE
-CLOSING LINE: One final standalone sentence. This is the documentary's last word on this creature. Deadpan. Certain. Complete. It does not explain itself. It does not offer hope. Hard limit: 20 words.
+
+BLOCK 2 — CLOSING LINE (1 sentence):
+One final standalone sentence. Deadpan. Certain. Complete. It does not explain itself. It does not offer hope. Hard limit: 20 words.
+
+BLANK LINE
+
+BLOCK 3 — SAVING TIPS (exactly 3 lines):
+Three practical, specific saving tips based on the actual merchants and amounts in the data. Each tip is one plain prose sentence on its own line. Reference real merchant names and real amounts from the data. No bullet points. No numbers. No dashes. No headers. Just three plain sentences, one per line.
 
 ENFORCEMENT:
-- Count your observation sentences before outputting. If you have written more than 4, delete the extras.
-- No numbered points. No bullet points. No recommendations. No headers. No sections.
-- No exclamation marks. No ellipsis. No em dashes. No markdown. Plain text only.
-- The closing line must be separated from the 4 sentences by a blank line.
-- The humor is entirely in the composure.`,
+- Exactly 4 observation sentences, exactly 1 closing line, exactly 3 tip sentences.
+- No numbered points. No bullet points. No dashes before tips. No headers. No sections. No markdown.
+- No exclamation marks. No ellipsis. No em dashes. Plain text only.
+- Blank line between Block 1 and Block 2. Blank line between Block 2 and Block 3.`,
       },
       {
         role: "user",
         content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.${forceRefresh ? ` [Observation run #${Date.now()}]` : ""}\n\nTop merchants by spend:\n${merchantLines}`,
       },
     ],
-    max_completion_tokens: 220,
+    max_completion_tokens: 420,
     temperature: forceRefresh ? 0.95 : 0.7,
   });
   const content = response.choices[0]?.message?.content;
@@ -353,18 +362,39 @@ function ordinalSuffix(n: number): string {
 // Splits on the blank-line separator the model is instructed to produce.
 // If the model ignored the format, falls back to sentence-level truncation.
 function enforceStatementLength(text: string): string {
-  const parts = text.split(/\n\s*\n/);
-  if (parts.length >= 2) {
-    // Model used the blank-line separator — enforce 4 sentences in the body
-    const body = parts[0].trim();
-    const closing = parts[parts.length - 1].trim();
+  // Strip any stray markdown artifacts the model might add
+  const clean = text.replace(/\*+/g, "").replace(/^[-•]\s*/gm, "").trim();
+
+  const parts = clean.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+
+  if (parts.length >= 3) {
+    // 3-block format: observations | closing | tips
+    const observationBlock = parts[0];
+    const closingBlock = parts[1];
+    const tipsBlock = parts.slice(2).join("\n").trim();
+
+    // Cap observations at 4 sentences
+    const sentences = observationBlock.match(/[^.!?]+[.!?]+(\s|$)/g) || [observationBlock];
+    const trimmedObs = sentences.slice(0, 4).join(" ").trim();
+
+    // Keep up to 3 tip lines
+    const tipLines = tipsBlock.split("\n").map(l => l.trim()).filter(Boolean).slice(0, 3);
+
+    return `${trimmedObs}\n\n${closingBlock}\n\n${tipLines.join("\n")}`;
+  }
+
+  if (parts.length === 2) {
+    // Old 2-block format: observations | closing (no tips yet)
+    const body = parts[0];
+    const closing = parts[1];
     const sentences = body.match(/[^.!?]+[.!?]+(\s|$)/g) || [body];
     const trimmedBody = sentences.slice(0, 4).join(" ").trim();
     return `${trimmedBody}\n\n${closing}`;
   }
-  // Fallback: no blank line — treat last sentence as closing, keep first 4 as body
-  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g) || [text];
-  if (sentences.length <= 5) return text;
+
+  // Fallback: single block — split by sentence
+  const sentences = clean.match(/[^.!?]+[.!?]+(\s|$)/g) || [clean];
+  if (sentences.length <= 5) return clean;
   const body = sentences.slice(0, 4).join(" ").trim();
   const closing = sentences[sentences.length - 1].trim();
   return `${body}\n\n${closing}`;
