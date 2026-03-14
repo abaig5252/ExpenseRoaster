@@ -21,6 +21,17 @@ function fmtDate(dt: string | Date) {
   return new Date(dt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
+function cleanErrorMessage(err: unknown): string {
+  const raw = (err as Error)?.message || "Something went wrong";
+  // Strip leading HTTP status code like "400: " or "500: "
+  return raw.replace(/^\d{3}:\s*/, "");
+}
+
+function isDataError(err: unknown): boolean {
+  const msg = cleanErrorMessage(err).toLowerCase();
+  return msg.includes("transaction") || msg.includes("upload");
+}
+
 export default function AnnualReport() {
   const { data: me, isLoading: meLoading } = useMe();
   const { data: products } = useStripeProducts();
@@ -311,9 +322,13 @@ ${reportData.improvements?.length ? `
               Analyzes every transaction you've uploaded this year — merchants, patterns, habits — and projects your full-year spend. Give it 20–30 seconds.
             </p>
             {reportMutation.isError && (
-              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 mb-6 max-w-md mx-auto">
-                <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-                <p className="text-sm text-muted-foreground">{(reportMutation.error as Error)?.message}</p>
+              <div className={`flex items-center gap-2 rounded-xl px-4 py-3 mb-6 max-w-md mx-auto ${
+                isDataError(reportMutation.error)
+                  ? "bg-amber-500/10 border border-amber-500/20"
+                  : "bg-destructive/10 border border-destructive/20"
+              }`}>
+                <AlertTriangle className={`w-4 h-4 shrink-0 ${isDataError(reportMutation.error) ? "text-amber-400" : "text-destructive"}`} />
+                <p className="text-sm text-muted-foreground text-left">{cleanErrorMessage(reportMutation.error)}</p>
               </div>
             )}
             <button
@@ -376,8 +391,8 @@ ${reportData.improvements?.length ? `
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 {reportMutation.isError && (
-                  <span className="text-xs text-destructive flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" />{(reportMutation.error as Error)?.message}
+                  <span className={`text-xs flex items-center gap-1 ${isDataError(reportMutation.error) ? "text-amber-400" : "text-destructive"}`}>
+                    <AlertTriangle className="w-3 h-3 shrink-0" />{cleanErrorMessage(reportMutation.error)}
                   </span>
                 )}
                 {reportMutation.isPending ? (
