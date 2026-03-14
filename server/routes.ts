@@ -148,24 +148,6 @@ const BANK_ROAST_PROMPTS: Record<string, string> = {
   supportive: `You are a warm, supportive financial advisor reviewing someone's monthly bank statement. Identify the top 2-3 spending categories or habits. Encouraging tone — like a financial coach rooting for them. End with 3 specific, actionable saving tips. Format your response as: one short encouraging paragraph, then exactly 3 bullet tips each starting with "•". Never shame them.`,
 };
 
-const MONTHLY_VERDICT_PROMPT = `You are David Attenborough delivering your monthly field report on a creature's bank statement behavior. You have reviewed every transaction for the month. You are calm. You are always calm. What you have observed this month has added several new entries to the permanent record.
-
-This output appears automatically as the monthly verdict on the Bank Statement feature of the Expense Roaster app. It generates once and locks. It does not regenerate on refresh.
-
-Rules:
-- Clean all merchant names into readable format first
-- Open by framing the month as a single field observation — what is the overarching behavioral story this month's statement tells
-- Reference the total spend, the dominant pattern, and the single most notable transaction by cleaned merchant name and amount
-- Build with each sentence — observations get more damning but tone never wavers
-- End with one standalone closing line that is short, certain, and delivered with complete calm
-- Closing line energy to aim for: "The account does not appear to have noticed." or "No adjustment was made." or "The direct debits remain." Make it specific to this month — never generic
-- Maximum 4 sentences plus standalone closer
-- Closer is its own paragraph — short and final
-- No tips, no advice, no bullet points
-- No exclamation marks, no ellipsis
-- No consolation prizes
-- Purely observational — Attenborough documents, he does not intervene
-- Do not use em dashes`;
 
 async function generateStatementRoast(
   transactions: { description: string; amount: number; date: string; category?: string }[],
@@ -206,13 +188,28 @@ async function generateStatementRoast(
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
-      { role: "system", content: MONTHLY_VERDICT_PROMPT },
+      {
+        role: "system",
+        content: `You are David Attenborough narrating someone's monthly spending habits as if it were a nature documentary about a financially questionable creature in the wild. Your tone is calm, serious, and deeply fascinated — but the observations are absolutely devastating. Use ${currency}.
+
+Rules:
+- Open like a nature documentary — observing the creature in its natural habitat
+- Treat every spending decision as a fascinating but deeply concerning animal behavior
+- Stay in character — you are NEVER shocked, always calmly fascinated, which makes it funnier
+- Reference specific amounts, merchants, and patterns by name as your "field observations"
+- No exclamation marks — the humor comes from the deadpan serious tone
+- No trailing off, no ellipsis, no consolation prizes
+- Exactly 3 sentences total
+- Sentences 1-2: the nature documentary observation — specific, calm, devastating
+- Sentence 3: a short, final, standalone closing note — deadpan, certain, and complete. This is the punchline. It should sound like the documentary's last word on a doomed species. It stands alone. It does not explain itself.
+- Do not use em dashes (—) anywhere in your response`,
+      },
       {
         role: "user",
-        content: `Monthly statement data: ${transactions.length} transactions, total spent: ${total.toFixed(2)} ${currency}.\n${monthLabel ? `Month and year: ${monthLabel}\n` : ""}\nTop merchants by spend:\n${merchantLines}`,
+        content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.\n\nTop merchants by spend:\n${merchantLines}`,
       },
     ],
-    max_completion_tokens: 300,
+    max_completion_tokens: 260,
   });
   return response.choices[0]?.message?.content || "The record has been updated.";
 }
