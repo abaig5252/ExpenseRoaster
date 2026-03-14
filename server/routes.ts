@@ -1744,7 +1744,7 @@ Return ONLY valid JSON, no other text.`,
   app.post("/api/expenses/annual-report", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
     const user = await storage.getUser(userId);
-    if (!user || (user.tier === "free" && !user.hasAnnualReport)) {
+    if (!user || !user.hasAnnualReport) {
       return res.status(403).json({ message: "Annual Report requires purchase", code: "ANNUAL_REQUIRED" });
     }
 
@@ -1865,10 +1865,8 @@ All monetary values in JSON must be integers in cents.`;
 
       const aiData = JSON.parse(aiResponse.choices[0]?.message?.content || "{}");
 
-      // Reset the flag so users must pay $29.99 again for each new report (premium users bypass this anyway)
-      if (user.tier !== "premium") {
-        await storage.updateUserAnnualReport(userId, false);
-      }
+      // Reset the flag so all users must pay $29.99 again for each new report
+      await storage.updateUserAnnualReport(userId, false);
 
       res.json({
         totalSpend,

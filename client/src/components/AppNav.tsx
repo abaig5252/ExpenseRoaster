@@ -42,7 +42,7 @@ export function AppNav() {
           {navLinks.map(({ href, label, icon: Icon }) => {
             const isActive = location === href;
             const isLocked = href === "/bank" && !isPremium;
-            const isAnnualLocked = href === "/annual-report" && !hasAnnualReport && !isPremium;
+            const isAnnualLocked = href === "/annual-report" && !hasAnnualReport;
 
             return (
               <Link key={href} href={href} data-testid={`link-nav-${label.toLowerCase().replace(/\s/g, "-")}`}>

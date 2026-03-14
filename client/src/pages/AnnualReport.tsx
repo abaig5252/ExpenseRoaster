@@ -26,7 +26,7 @@ export default function AnnualReport() {
   const reportCurrency = reportData?.currency || "USD";
   const fmt = (cents: number) => fmtAmt(cents, reportCurrency);
 
-  const canAccess = me?.hasAnnualReport || me?.tier === "premium";
+  const canAccess = me?.hasAnnualReport;
   const annualPrice = products?.find((p: any) => p.price_metadata?.plan === "annual_report" || p.metadata?.plan === "annual_report");
 
   const handleGenerate = () => {
@@ -52,7 +52,7 @@ export default function AnnualReport() {
             </div>
             <h1 className="text-4xl font-bold text-white mb-4">Annual Roast Report</h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Get a full year of financial analysis with brutal honesty, behavioral insights, and a 5-year projection. $29.99 per report — premium subscribers generate for free.
+              Get a full year of financial analysis with brutal honesty, behavioral insights, and a 5-year projection. $29.99 per report, every time.
             </p>
             <div className="glass-panel rounded-3xl p-8 mb-6 text-left">
               <div className="text-5xl font-amount-card text-white mb-1">$29.99</div>
