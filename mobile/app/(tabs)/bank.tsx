@@ -65,6 +65,11 @@ function formatMoney(cents: number, currency: string) {
 
 const PAGE_SIZE = 10;
 
+function fmtMonth(ym: string): string {
+  const [y, m] = ym.split('-');
+  return new Date(Number(y), Number(m) - 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+}
+
 export default function BankScreen() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -89,6 +94,7 @@ export default function BankScreen() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [catPicker, setCatPicker] = useState<{ id: number; current: string } | null>(null);
   const [statementRoast, setStatementRoast] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [savingCatId, setSavingCatId] = useState<number | null>(null);
   const [catOverrides, setCatOverrides] = useState<Record<number, string>>({});
   const [reRoastingSet, setReRoastingSet] = useState<Set<number>>(new Set());
@@ -129,7 +135,28 @@ export default function BankScreen() {
     enabled: isPremium,
   });
 
-  const loggedExpenses = expenses?.filter(e => e.source === 'manual' || e.source === 'bank_statement') ?? [];
+  const { data: monthsData } = useQuery<{ months: string[] }>({
+    queryKey: ['/api/statement-months'],
+    queryFn: () => apiGet('/api/statement-months'),
+    enabled: isPremium,
+  });
+  const availableMonths = monthsData?.months ?? [];
+  const activeMonth = selectedMonth ?? availableMonths[0] ?? null;
+
+  const { data: roastData, isLoading: roastLoading } = useQuery<{ roast: string | null }>({
+    queryKey: ['/api/statement-roast', activeMonth],
+    queryFn: () => apiGet(`/api/statement-roast/${activeMonth}`),
+    enabled: !!activeMonth && isPremium,
+  });
+  const persistedRoast = roastData?.roast ?? null;
+
+  const allBankExpenses = expenses?.filter(e => e.source === 'manual' || e.source === 'bank_statement') ?? [];
+  const loggedExpenses = activeMonth
+    ? allBankExpenses.filter(e => {
+        const d = new Date(e.date ?? e.createdAt ?? Date.now());
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === activeMonth;
+      })
+    : allBankExpenses;
   const totalPages = Math.ceil(loggedExpenses.length / PAGE_SIZE);
   const pageExpenses = loggedExpenses.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const allSelected = loggedExpenses.length > 0 && loggedExpenses.every(e => selectedIds.has(e.id));
@@ -297,6 +324,9 @@ export default function BankScreen() {
       setImportFileType('image');
       setPreviewResult(null);
       qc.invalidateQueries({ queryKey: ['/api/expenses'] });
+      qc.invalidateQueries({ queryKey: ['/api/statement-months'] });
+      qc.invalidateQueries({ queryKey: ['/api/statement-roast', editMonth] });
+      setSelectedMonth(editMonth);
       if (data.statementRoast) {
         setStatementRoast(data.statementRoast);
       } else {
@@ -562,12 +592,64 @@ export default function BankScreen() {
           )}
         </View>
 
+        {/* ── Month filter pills ── */}
+        {availableMonths.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.monthPillsRow}
+          >
+            {availableMonths.map(m => (
+              <TouchableOpacity
+                key={m}
+                style={[s.monthPill, activeMonth === m && s.monthPillActive]}
+                onPress={() => { setSelectedMonth(m); setPage(0); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.monthPillText, activeMonth === m && s.monthPillTextActive]}>
+                  {fmtMonth(m)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ── Monthly Statement Roast card ── */}
+        {activeMonth && (
+          <View style={s.roastCard}>
+            <View style={s.roastCardHeader}>
+              <View style={s.roastCardIconWrap}>
+                <Ionicons name="flame" size={16} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.roastCardTitle}>Monthly Statement Roast</Text>
+                <Text style={s.roastCardSub}>{fmtMonth(activeMonth)}</Text>
+              </View>
+            </View>
+            {roastLoading ? (
+              <View style={s.roastCardEmpty}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={s.roastCardEmptyText}>Loading roast...</Text>
+              </View>
+            ) : persistedRoast ? (
+              <Text style={s.roastCardText}>{persistedRoast.replace(/\*+/g, '')}</Text>
+            ) : (
+              <View style={s.roastCardEmpty}>
+                <Ionicons name="flame-outline" size={28} color={colors.textDim} />
+                <Text style={s.roastCardEmptyText}>Import a statement and it will be roasted here.</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* ── Imported expenses ── */}
-        {loggedExpenses.length > 0 && (
+        {allBankExpenses.length > 0 && (
           <View style={s.historySection}>
             {/* Header row with title + select controls */}
             <View style={s.historyHeader}>
-              <Text style={s.historyTitle}>Imported Expenses ({loggedExpenses.length})</Text>
+              <Text style={s.historyTitle}>
+                {activeMonth ? `${fmtMonth(activeMonth)} Transactions` : 'Imported Expenses'} ({loggedExpenses.length})
+              </Text>
               <View style={s.selectControls}>
                 {selectMode ? (
                   <>
@@ -1115,6 +1197,43 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   roastDismissBtnText: { fontSize: 15, fontWeight: '700', color: colors.primary },
+
+  monthPillsRow: { gap: 8, paddingVertical: 2 },
+  monthPill: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  monthPillActive: {
+    backgroundColor: 'rgba(0,230,118,0.15)',
+    borderColor: 'rgba(0,230,118,0.4)',
+  },
+  monthPillText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+  monthPillTextActive: { color: colors.primary },
+
+  roastCard: {
+    backgroundColor: '#111A14',
+    borderRadius: 18,
+    borderWidth: 1, borderColor: 'rgba(0,230,118,0.18)',
+    padding: spacing.md,
+  },
+  roastCardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12,
+  },
+  roastCardIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: 'rgba(0,230,118,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  roastCardTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  roastCardSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  roastCardText: {
+    fontSize: 14, lineHeight: 22, color: 'rgba(255,255,255,0.88)',
+  },
+  roastCardEmpty: {
+    alignItems: 'center', gap: 8, paddingVertical: 16,
+  },
+  roastCardEmptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
 
   deleteBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
