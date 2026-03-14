@@ -410,21 +410,47 @@ function enforceStatementLength(text: string): string {
 
 // Pre-computes exact savings figures so the model never has to invent them.
 // Assumes the purchase recurs weekly (52/12 = 4.333 weeks/month).
-function buildMathAnchors(amountCents: number, currency: string): string {
+// Categories where the billing period is unknown or annual — weekly/monthly math is meaningless
+const LUMP_SUM_CATEGORIES = new Set([
+  "Insurance", "Professional Fees",
+]);
+
+function buildMathAnchors(amountCents: number, currency: string, category?: string): string {
+  const sym = currency === "USD" ? "$" : currency + " ";
   const amt = amountCents / 100;
+
+  // For lump-sum / annual categories, skip weekly math entirely and give amortized figures instead
+  if (category && LUMP_SUM_CATEGORIES.has(category)) {
+    const perMonth = (amt / 12).toFixed(2);
+    const perDay  = (amt / 365).toFixed(2);
+    const save15pct = (amt * 0.15).toFixed(2);
+    const save25pct = (amt * 0.25).toFixed(2);
+    return [
+      `MATH ANCHORS — use ONE of these exact figures in LINE 3. Do not invent, round, or estimate any financial number:`,
+      `  - This charge: ${sym}${amt.toFixed(2)} ${currency}`,
+      `  - Amortized per month: ${sym}${perMonth} ${currency}/month`,
+      `  - Amortized per day: ${sym}${perDay} ${currency}/day`,
+      `  - 15% saving at renewal: ${sym}${save15pct} ${currency}`,
+      `  - 25% saving at renewal: ${sym}${save25pct} ${currency}`,
+      `PERIOD NOTE: This appears to be a one-time, annual, or irregular charge — NOT a weekly purchase. LINE 3 MUST NOT say "per week" or "per month savings". Give renewal/negotiation/comparison advice using the amortized or saving figures above.`,
+      `MATH RULE: LINE 3 must contain one number from the MATH ANCHORS above. Any figure not listed is wrong.`,
+    ].join("\n");
+  }
+
+  // Standard weekly-recurring math anchors
   const weeksPerMonth = 52 / 12; // 4.333
   const monthlyIfWeekly = amt * weeksPerMonth;
 
   const caps = [
-    Math.ceil(amt * 0.75 / 5) * 5,  // ~75% of spend, rounded to nearest $5
-    Math.ceil(amt * 0.60 / 5) * 5,  // ~60%
-    Math.ceil(amt * 0.50 / 5) * 5,  // ~50%
-  ].filter((cap, i, arr) => cap < amt && arr.indexOf(cap) === i); // unique, below current spend
+    Math.ceil(amt * 0.75 / 5) * 5,
+    Math.ceil(amt * 0.60 / 5) * 5,
+    Math.ceil(amt * 0.50 / 5) * 5,
+  ].filter((cap, i, arr) => cap < amt && arr.indexOf(cap) === i);
 
   const lines = caps.map(cap => {
     const weekSaving = amt - cap;
     const monthSaving = weekSaving * weeksPerMonth;
-    return `  - Cap at ${currency === "USD" ? "$" : currency + " "}${cap}/week → saves ${currency === "USD" ? "$" : currency + " "}${monthSaving.toFixed(2)}/month`;
+    return `  - Cap at ${sym}${cap}/week → saves ${sym}${monthSaving.toFixed(2)}/month`;
   });
 
   const pct20 = (amt * 0.20 * weeksPerMonth).toFixed(2);
@@ -432,11 +458,11 @@ function buildMathAnchors(amountCents: number, currency: string): string {
 
   return [
     `MATH ANCHORS — use these exact figures in LINE 3. Do not invent, round, or estimate any financial number:`,
-    `  - This receipt: ${amt.toFixed(2)} ${currency}`,
-    `  - Monthly total if weekly purchase: ${monthlyIfWeekly.toFixed(2)} ${currency}`,
+    `  - This receipt: ${sym}${amt.toFixed(2)} ${currency}`,
+    `  - Monthly total if weekly purchase: ${sym}${monthlyIfWeekly.toFixed(2)} ${currency}`,
     ...lines,
-    `  - 20% cut per purchase saves: ${pct20} ${currency}/month`,
-    `  - 30% cut per purchase saves: ${pct30} ${currency}/month`,
+    `  - 20% cut per purchase saves: ${sym}${pct20} ${currency}/month`,
+    `  - 30% cut per purchase saves: ${sym}${pct30} ${currency}/month`,
     `MATH RULE: LINE 3 must contain one number from the MATH ANCHORS above. Any figure not listed above is wrong.`,
   ].join("\n");
 }
@@ -452,7 +478,7 @@ async function generateRoast(description: string, amountCents: number, category:
     }
   }
   // Inject pre-computed math anchors for Tier 1 only (Tier 2 never gives tips)
-  const mathAnchors = tone === "sergio" ? `\n\n${buildMathAnchors(amountCents, currency)}` : "";
+  const mathAnchors = tone === "sergio" ? `\n\n${buildMathAnchors(amountCents, currency, category)}` : "";
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
@@ -474,7 +500,7 @@ async function generateBankTransactionRoast(description: string, amountCents: nu
     }
   }
   // Inject pre-computed math anchors for Tier 1 only (Tier 2 never gives tips)
-  const mathAnchors = tone === "sergio" ? `\n\n${buildMathAnchors(amountCents, currency)}` : "";
+  const mathAnchors = tone === "sergio" ? `\n\n${buildMathAnchors(amountCents, currency, category)}` : "";
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
