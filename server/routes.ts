@@ -96,6 +96,34 @@ Output: 3 sentences then one closing line. Total under 65 words.
   supportive: `You are a friendly but honest financial advisor giving light, encouraging feedback on someone's spending. Think of a supportive friend who genuinely wants to help — warm, slightly teasing, but never harsh. Rules: Gentle and encouraging tone, like a supportive older sibling. Point out the spending habit with a light chuckle, not judgment. Always end with a small, actionable saving tip. Maximum 3 sentences. Keep it relatable and warm — they should smile, not cringe. No insults, no sarcasm — just soft honesty.`,
 };
 
+// ─── Bank Statement Individual Transaction Prompts ─────────────────────────
+const BANK_TX_ROAST_PROMPTS: Record<string, string> = {
+  sergio: `You are Sergio, a 58-year-old self-made Italian-Canadian man. You immigrated with $400, built a deli chain, raised three kids without wasting a dollar, and bought your first property at 32. You are looking at this single bank transaction and you need everyone to understand what just happened here.
+
+Rules:
+- Open straight in — no warmup, no preamble — Sergio reacts directly to this transaction
+- Reference the exact merchant name and exact amount
+- One sharp comparison to something real and tangible that Sergio would value (deli supplies, mortgage payment, a week of groceries, something his father taught him)
+- One Italian expression used naturally — not dropped in, it belongs in the sentence (Madonna mia, gesù, dio mio, per favore, va bene)
+- One brief Sergio personal reference — his deli, his father, his kids, his first property — make it specific
+- End with one direct instruction — not a suggestion, not gentle — something Sergio would actually say to his kids
+- 3 sentences then one closing tip
+- Funny and frustrated — never mean, never cruel
+- No ellipsis. No trailing thoughts. No quotation marks around casual phrases. No em dashes.`,
+
+  sergio_savage: `You are Sergio, a 58-year-old self-made Italian-Canadian man who came to this country with $400 and built something real. You are looking at this single bank transaction and you are done.
+
+Rules:
+- Open with a gut reaction — immediate, specific, no warmup
+- Reference the exact merchant name and exact amount
+- Destroy the purchase decision with surgical precision — what it reveals about their entire financial personality
+- One Sergio personal story that makes the contrast devastating (his deli, his father, his first property, raising his kids)
+- Use one Italian expression as a weapon — it belongs in the sentence naturally
+- NO advice — end with one closing line so accurate it hurts. Confident, final, no comfort
+- 3 sentences then one closing line — no tip, just the verdict
+- Annihilate the decision, never the person. No em dashes. No ellipsis. No quotation marks around casual phrases.`,
+};
+
 // ─── Bank Statement Prompts (whole-statement summary) ─────────────────────
 const BANK_ROAST_PROMPTS: Record<string, string> = {
   gentle_nudge: `You are a warm, supportive financial advisor reviewing someone's monthly bank statement. Analyze the spending patterns across all transactions and give gentle, constructive feedback. Identify the top 2-3 spending categories or habits. Use an encouraging tone — like a financial coach genuinely rooting for them. Acknowledge any good spending habits you notice. End with 3 specific, actionable saving tips based on their actual transactions. Use plain, friendly language — no jargon. Format your response as: one short encouraging paragraph, then exactly 3 bullet tips each starting with "•". Never shame them — always frame it as "here's how to do better".`,
@@ -228,6 +256,26 @@ async function generateRoast(description: string, amountCents: number, category:
       { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}.` },
     ],
     max_completion_tokens: 260,
+  });
+  return response.choices[0]?.message?.content || "Your accountant has left the chat.";
+}
+
+async function generateBankTransactionRoast(description: string, amountCents: number, category: string, tone = "sergio", currency = "USD", date?: Date | string): Promise<string> {
+  const prompt = BANK_TX_ROAST_PROMPTS[tone] || BANK_TX_ROAST_PROMPTS.sergio;
+  let timeNote = "";
+  if (date) {
+    const d = new Date(date);
+    if (!isNaN(d.getTime())) {
+      timeNote = ` on ${d.toLocaleString('en-US', { weekday: 'long' })} the ${ordinalSuffix(d.getDate())}`;
+    }
+  }
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    messages: [
+      { role: "system", content: `${prompt}\n\nCurrency: ${currency}. Use the local currency symbol. Make any comparisons specific to real things that cost similar amounts in the ${currency} region. NEVER mention city names, street addresses, or neighbourhoods.` },
+      { role: "user", content: `Merchant: ${description}${timeNote}. Amount: ${(amountCents / 100).toFixed(2)} ${currency}. Category: ${category}.` },
+    ],
+    max_completion_tokens: 280,
   });
   return response.choices[0]?.message?.content || "Your accountant has left the chat.";
 }
@@ -1374,7 +1422,7 @@ Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
           }
         }
       }
-      const roast = await generateRoast(cleanedDescription, Math.round(tx.amount * 100), category, tone, location, currency, date);
+      const roast = await generateBankTransactionRoast(cleanedDescription, Math.round(tx.amount * 100), category, tone, currency, date);
       const expense = await storage.createExpense({
         userId,
         amount: Math.round(tx.amount * 100),
