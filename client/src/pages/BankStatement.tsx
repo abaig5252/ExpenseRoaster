@@ -288,7 +288,7 @@ export default function BankStatement() {
         )}
 
         {/* ── Top row: import + roast side by side ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 
           {/* Left: Tone selector + Import card */}
           <div>
@@ -404,13 +404,13 @@ export default function BankStatement() {
             </motion.div>
           </div>
 
-          {/* Right: Statement roast — fixed height, scrollable content */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-            {isPremium && <div className="mb-5 h-[52px]" />}
+          {/* Right: Statement roast — fills column height, scrollable content */}
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+            className="flex flex-col h-full">
+            {isPremium && <div className="mb-5 h-[52px] shrink-0" />}
             <div
               data-testid="card-statement-roast"
-              className="glass-panel rounded-3xl border border-[hsl(var(--primary))]/20 relative overflow-hidden flex flex-col"
-              style={{ height: 340 }}
+              className="glass-panel rounded-3xl border border-[hsl(var(--primary))]/20 relative overflow-hidden flex flex-col flex-1"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/8 to-[hsl(var(--secondary))]/4 pointer-events-none" />
               <div className="relative flex flex-col h-full p-6 min-h-0">
