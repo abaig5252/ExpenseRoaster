@@ -262,33 +262,31 @@ async function generateStatementRoast(
         role: "system",
         content: `You are David Attenborough narrating someone's monthly bank statement as if it were a nature documentary about a financially questionable creature in the wild. Your tone is calm, serious, and deeply fascinated — but the observations are absolutely devastating. Use ${currency}.
 
-Format your response exactly as follows:
+STRICT FORMAT — output nothing else:
+SENTENCES 1-4: Four sentences of documentary observation. Name specific merchants, exact amounts, and spending patterns from the data. Each sentence is a calm field observation. The tone is never shocked — always more devastating for its composure. Hard limit: 4 sentences. If you reach 4 sentences, stop the observation block immediately.
+BLANK LINE
+CLOSING LINE: One final standalone sentence. This is the documentary's last word on this creature. Deadpan. Certain. Complete. It does not explain itself. It does not offer hope. Hard limit: 20 words.
 
-One opening paragraph (4-6 sentences): Set the scene as a nature documentary. Observe the creature's overall monthly behavior. Name the dominant spending categories and the single most alarming merchant by name and amount. The tone is calm fascination — never shocked, never judgmental, always more devastating for it.
-
-Three numbered roast points (1. 2. 3.): Each one targets a specific merchant or spending category from the data. Name the merchant or category, quote the amount and frequency. Treat each as a field observation of a baffling but consistent behavioral loop. Escalate — point 3 is the most damning. Each point is 2-3 sentences.
-
-Three bullet recommendations (each starting with "•"): Delivered in Attenborough's voice — specific to the actual merchants and amounts seen. Calm, authoritative, and with the quiet acceptance that this creature may not act on any of them.
-
-Rules:
-- Reference actual merchant names and amounts throughout
-- No exclamation marks, no ellipsis, no em dashes, no consolation prizes
-- No markdown formatting — no asterisks, no bold, no italics, plain text only
-- The humor is entirely in the composure`,
+ENFORCEMENT:
+- Count your observation sentences before outputting. If you have written more than 4, delete the extras.
+- No numbered points. No bullet points. No recommendations. No headers. No sections.
+- No exclamation marks. No ellipsis. No em dashes. No markdown. Plain text only.
+- The closing line must be separated from the 4 sentences by a blank line.
+- The humor is entirely in the composure.`,
       },
       {
         role: "user",
         content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.\n\nTop merchants by spend:\n${merchantLines}`,
       },
     ],
-    max_completion_tokens: 750,
+    max_completion_tokens: 220,
   });
   const content = response.choices[0]?.message?.content;
   if (!content) {
     console.error("[generateStatementRoast] AI returned empty content. finish_reason:", response.choices[0]?.finish_reason, "transactions:", transactions.length);
-    return `The specimen's financial behavior this month has been recorded in full. The patterns observed suggest a creature operating entirely on instinct, with no apparent awareness of consequence.\n\n• Review the top 3 recurring merchants and set a monthly cap on each.\n• Cancel any subscription not used in the last 30 days.\n• Move a fixed amount to savings on payday before spending begins.`;
+    return `The specimen has distributed ${total} ${currency} across ${transactions.length} transactions this month with a consistency that suggests not spending is simply not something it has considered.\n\nIt will do this again next month.`;
   }
-  return content.replace(/\*+/g, "");
+  return enforceStatementLength(content.replace(/\*+/g, ""));
 }
 
 function getUserId(req: any): string {
@@ -347,6 +345,27 @@ function ordinalSuffix(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+// Hard-enforces the statement roast format: max 4 observation sentences + 1 closing line.
+// Splits on the blank-line separator the model is instructed to produce.
+// If the model ignored the format, falls back to sentence-level truncation.
+function enforceStatementLength(text: string): string {
+  const parts = text.split(/\n\s*\n/);
+  if (parts.length >= 2) {
+    // Model used the blank-line separator — enforce 4 sentences in the body
+    const body = parts[0].trim();
+    const closing = parts[parts.length - 1].trim();
+    const sentences = body.match(/[^.!?]+[.!?]+(\s|$)/g) || [body];
+    const trimmedBody = sentences.slice(0, 4).join(" ").trim();
+    return `${trimmedBody}\n\n${closing}`;
+  }
+  // Fallback: no blank line — treat last sentence as closing, keep first 4 as body
+  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g) || [text];
+  if (sentences.length <= 5) return text;
+  const body = sentences.slice(0, 4).join(" ").trim();
+  const closing = sentences[sentences.length - 1].trim();
+  return `${body}\n\n${closing}`;
 }
 
 // Pre-computes exact savings figures so the model never has to invent them.
