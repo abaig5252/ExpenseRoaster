@@ -396,36 +396,6 @@ export default function Upload() {
                 </span>
               )}
 
-              {/* Select mode controls — right side */}
-              <div className="ml-auto flex items-center gap-3">
-                {selectMode ? (
-                  <>
-                    <button
-                      data-testid="button-select-all"
-                      onClick={toggleSelectAll}
-                      className="text-sm font-semibold text-[hsl(var(--primary))] hover:opacity-80 transition-opacity"
-                    >
-                      {allSelected ? "Deselect All" : "Select All"}
-                    </button>
-                    <button
-                      data-testid="button-cancel-select"
-                      onClick={exitSelectMode}
-                      className="flex items-center gap-1.5 text-sm font-semibold text-white/60 hover:text-white transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                      Cancel
-                    </button>
-                  </>
-                ) : receiptExpenses.length > 0 ? (
-                  <button
-                    data-testid="button-enter-select-mode"
-                    onClick={enterSelectMode}
-                    className="text-sm font-semibold text-white/50 hover:text-white/90 transition-colors"
-                  >
-                    Select Mode
-                  </button>
-                ) : null}
-              </div>
             </div>
 
             {/* Month filter pills — always shown when there is at least 1 receipt */}
@@ -554,6 +524,39 @@ export default function Upload() {
                   </div>
                 </div>
               </motion.div>
+            )}
+
+            {/* Select mode controls — below verdict, right-aligned */}
+            {receiptExpenses.length > 0 && (
+              <div className="flex justify-end items-center gap-3 mb-4">
+                {selectMode ? (
+                  <>
+                    <button
+                      data-testid="button-select-all"
+                      onClick={toggleSelectAll}
+                      className="text-sm font-semibold text-[hsl(var(--primary))] hover:opacity-80 transition-opacity"
+                    >
+                      {allSelected ? "Deselect All" : "Select All"}
+                    </button>
+                    <button
+                      data-testid="button-cancel-select"
+                      onClick={exitSelectMode}
+                      className="flex items-center gap-1.5 text-sm font-semibold text-white/60 hover:text-white transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    data-testid="button-enter-select-mode"
+                    onClick={enterSelectMode}
+                    className="text-sm font-semibold text-white/50 hover:text-white/90 transition-colors"
+                  >
+                    Select Mode
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Receipt cards */}
