@@ -52,11 +52,11 @@ export default function AnnualReport() {
             </div>
             <h1 className="text-4xl font-bold text-white mb-4">Annual Roast Report</h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Get a full year of financial analysis with brutal honesty, behavioral insights, and a 5-year projection. One-time purchase, no subscription needed.
+              Get a full year of financial analysis with brutal honesty, behavioral insights, and a 5-year projection. $29.99 per report — premium subscribers generate for free.
             </p>
             <div className="glass-panel rounded-3xl p-8 mb-6 text-left">
               <div className="text-5xl font-amount-card text-white mb-1">$29.99</div>
-              <div className="text-muted-foreground mb-6">One-time payment</div>
+              <div className="text-muted-foreground mb-6">Per report — generate a fresh one any time</div>
               <ul className="flex flex-col gap-3 mb-8">
                 {[
                   "Brutal full-year roast",

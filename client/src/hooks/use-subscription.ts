@@ -71,6 +71,7 @@ export function useMonthlyRoast() {
 }
 
 export function useAnnualReport() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/expenses/annual-report", {});
@@ -79,6 +80,10 @@ export function useAnnualReport() {
         throw new Error(err.message || "Failed to generate report");
       }
       return res.json();
+    },
+    onSuccess: () => {
+      // Refresh user so hasAnnualReport reflects false — gate re-appears for next report
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
     },
   });
 }

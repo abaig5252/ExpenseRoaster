@@ -1865,6 +1865,11 @@ All monetary values in JSON must be integers in cents.`;
 
       const aiData = JSON.parse(aiResponse.choices[0]?.message?.content || "{}");
 
+      // Reset the flag so users must pay $29.99 again for each new report (premium users bypass this anyway)
+      if (user.tier !== "premium") {
+        await storage.updateUserAnnualReport(userId, false);
+      }
+
       res.json({
         totalSpend,
         currency: annualCurrency,
