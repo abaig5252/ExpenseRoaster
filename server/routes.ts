@@ -204,6 +204,7 @@ Three bullet recommendations (each starting with "•"): Delivered in Attenborou
 Rules:
 - Reference actual merchant names and amounts throughout
 - No exclamation marks, no ellipsis, no em dashes, no consolation prizes
+- No markdown formatting — no asterisks, no bold, no italics, plain text only
 - The humor is entirely in the composure`,
       },
       {
@@ -218,7 +219,7 @@ Rules:
     console.error("[generateStatementRoast] AI returned empty content. finish_reason:", response.choices[0]?.finish_reason, "transactions:", transactions.length);
     return `The specimen's financial behavior this month has been recorded in full. The patterns observed suggest a creature operating entirely on instinct, with no apparent awareness of consequence.\n\n• Review the top 3 recurring merchants and set a monthly cap on each.\n• Cancel any subscription not used in the last 30 days.\n• Move a fixed amount to savings on payday before spending begins.`;
   }
-  return content;
+  return content.replace(/\*+/g, "");
 }
 
 function getUserId(req: any): string {
@@ -1699,7 +1700,7 @@ Return ONLY valid JSON, no other text.`,
     const needsGeneration = !row || !row.roast || row.roast === FALLBACK;
 
     if (!needsGeneration) {
-      return res.json({ roast: row.roast, tone: row.tone });
+      return res.json({ roast: row.roast.replace(/\*+/g, ""), tone: row.tone });
     }
 
     // Auto-generate from stored transactions for this month
