@@ -387,8 +387,8 @@ ${reportData.improvements?.length ? `
                     data-testid="button-buy-regenerate"
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))] hover:opacity-90 transition-all text-sm font-bold text-white"
                   >
-                    {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Generate Again — $29.99
+                    {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4" />}
+                    Generate Annual Report — $29.99
                   </button>
                 )}
               </div>
