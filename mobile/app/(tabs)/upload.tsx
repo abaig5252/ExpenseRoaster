@@ -1590,20 +1590,18 @@ function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMod
         activeOpacity={0.85}
         style={rc.cardInner}
       >
-        {/* Emoji + amount */}
+        {/* Emoji left | amount + merchant + category right */}
         <View style={rc.topBlock}>
           <Text style={rc.emoji}>{emoji}</Text>
-          <Text style={rc.amount}>{formatMoney(expense.amount, expense.currency ?? currency)}</Text>
-        </View>
-
-        {/* Description + meta */}
-        <View style={rc.metaBlock}>
-          <Text style={rc.desc} numberOfLines={expanded ? undefined : 1}>{expense.description}</Text>
-          <View style={rc.pillRow}>
-            <View style={[rc.pill, { backgroundColor: pillColor }]}>
-              <Text style={rc.pillText}>{expense.category.toUpperCase()}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={rc.amount}>{formatMoney(expense.amount, expense.currency ?? currency)}</Text>
+            <Text style={rc.desc} numberOfLines={1}>{expense.description}</Text>
+            <View style={rc.pillRow}>
+              <View style={[rc.pill, { backgroundColor: pillColor }]}>
+                <Text style={rc.pillText}>{expense.category.toUpperCase()}</Text>
+              </View>
+              {dateStr ? <Text style={rc.date}>{dateStr}</Text> : null}
             </View>
-            {dateStr ? <Text style={rc.date}>{dateStr}</Text> : null}
           </View>
         </View>
 
@@ -1657,10 +1655,9 @@ function ReceiptCard({ expense, currency, index, avgAmountCents = 0, isSelectMod
 
 const rc = StyleSheet.create({
   card: {
-    width: '48%', backgroundColor: '#1A1A1A',
+    width: '100%', backgroundColor: '#1A1A1A',
     borderRadius: 18,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    marginBottom: 14,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
     overflow: 'hidden',
@@ -1675,24 +1672,24 @@ const rc = StyleSheet.create({
     shadowColor: '#00E676', shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
   },
   cardInner: { padding: 16 },
-  topBlock: { alignItems: 'center', marginBottom: 10 },
-  emoji: { fontSize: 30, marginBottom: 6 },
-  amount: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1, lineHeight: 30 },
-  metaBlock: { alignItems: 'center', marginBottom: 10 },
-  desc: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', marginBottom: 6 },
-  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
+  topBlock: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 14 },
+  emoji: { fontSize: 32 },
+  amount: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1, lineHeight: 32 },
+  metaBlock: { marginBottom: 10 },
+  desc: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', marginBottom: 6 },
+  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   pill: { borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
   pillText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
-  date: { fontSize: 10, color: '#4A5060' },
+  date: { fontSize: 11, color: '#4A5060' },
   roastBox: {
     backgroundColor: 'rgba(0,230,118,0.06)',
     borderWidth: 1, borderColor: 'rgba(0,230,118,0.18)',
-    borderRadius: 10, padding: 10, marginBottom: 10,
+    borderRadius: 10, padding: 12, marginBottom: 10,
   },
-  roastText: { fontSize: 11, fontStyle: 'italic', color: '#69FF9C', lineHeight: 17 },
+  roastText: { fontSize: 13, fontStyle: 'italic', color: '#69FF9C', lineHeight: 20 },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   flames: { flexDirection: 'row', gap: 2 },
-  flame: { fontSize: 11 },
+  flame: { fontSize: 13 },
   checkbox: {
     position: 'absolute', top: 10, left: 10, zIndex: 10,
     width: 22, height: 22, borderRadius: 11,
@@ -1823,7 +1820,7 @@ const s = StyleSheet.create({
   freePanelSub: { ...typography.caption, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
 
   wallSection: { gap: spacing.md },
-  cardGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  cardGrid: { flexDirection: 'column', gap: 12 },
 
   wallHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   wallTitle: { ...typography.h3, fontSize: 20 },
