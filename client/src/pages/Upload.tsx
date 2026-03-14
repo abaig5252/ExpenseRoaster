@@ -265,7 +265,7 @@ export default function Upload() {
                     <span className="animate-pulse bg-white/10 rounded-2xl w-48 h-20 block" />
                   ) : rateLoading ? (
                     <span className="animate-pulse bg-white/10 rounded-2xl w-36 h-16 md:w-48 md:h-20 block" />
-                  ) : convertedTotal !== null
+                  ) : needsConversion && convertedTotal !== null
                     ? `≈ ${fmtInCurrency(convertedTotal, displayCurrency)}`
                     : fmtInCurrency(filteredTotal, baseCurrency)}
                 </h1>
