@@ -241,7 +241,7 @@ export default function UploadScreen() {
 
   const isPremium = user?.tier === 'premium';
   const uploadsUsed = user?.monthlyUploadCount ?? 0;
-  const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
+  const uploadsRemaining = Math.max(0, 3 - uploadsUsed);
   const atLimit = !isPremium && uploadsRemaining === 0;
 
   const currency = user?.currency ?? 'USD';
@@ -607,7 +607,7 @@ export default function UploadScreen() {
 
   function promptImageSource() {
     if (atLimit) {
-      Alert.alert('Limit Reached', 'Free plan: 1 upload per week. Upgrade to Premium for unlimited.', [{ text: 'OK' }]);
+      Alert.alert('Limit Reached', 'Free plan: 3 uploads per month. Upgrade to Premium for unlimited.', [{ text: 'OK' }]);
       return;
     }
     if (Platform.OS === 'ios') {
@@ -813,7 +813,7 @@ export default function UploadScreen() {
                 ? (selectedMonth && filteredReceipts.length > 0
                     ? `spent on receipts in ${fmtMonth(selectedMonth)}.`
                     : 'spent this month on things you definitely needed.')
-                : uploadsRemaining > 0 ? `${uploadsRemaining}/1 free upload remaining this week.` : `Free upload used this week.`}
+                : `${uploadsRemaining}/3 free uploads remaining this month.`}
             </Animated.Text>
           </View>
 

@@ -98,7 +98,7 @@ export default function Upload() {
 
   const isFree = !me || me.tier === "free";
   const uploadsUsed = me?.monthlyUploadCount || 0;
-  const uploadsRemaining = Math.max(0, 1 - uploadsUsed);
+  const uploadsRemaining = Math.max(0, 3 - uploadsUsed);
   const firstName = user?.firstName || user?.email?.split("@")[0] || "friend";
 
   // Only receipt-type expenses
@@ -303,7 +303,7 @@ export default function Upload() {
             )}
             <p className="text-muted-foreground mt-3 text-lg">
               {isFree
-                ? uploadsRemaining > 0 ? `${uploadsRemaining}/1 free upload remaining this week.` : `Free upload used this week.`
+                ? `${uploadsRemaining}/3 free uploads remaining this month.`
                 : selectedMonth && filteredReceipts.length > 0
                   ? `spent on receipts in ${fmtMonth(selectedMonth)}.`
                   : `spent this month on things you definitely needed.`}
@@ -329,7 +329,7 @@ export default function Upload() {
               {isFree && uploadsRemaining === 0 && (
                 <Link href="/pricing">
                   <span className="text-xs text-[hsl(var(--primary))] hover:underline cursor-pointer">
-                    Upgrade for unlimited uploads + all features →
+                    Upgrade for unlimited uploads →
                   </span>
                 </Link>
               )}
@@ -350,7 +350,7 @@ export default function Upload() {
               <div>
                 <p className="text-sm font-bold text-white">You're on the Free plan</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Get 1 free receipt roast per week. Upgrade for unlimited uploads, spending history, monthly verdicts, and more.
+                  Upgrade to Premium for unlimited uploads, spending history, and more.
                 </p>
               </div>
             </div>
