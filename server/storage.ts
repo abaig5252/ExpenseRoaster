@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { expenses, users, contactSubmissions, categoryRules, monthlyVerdicts, statementRoasts, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact, type CategoryRule, type MonthlyVerdict, type StatementRoast } from "@shared/schema";
+import { expenses, users, contactSubmissions, categoryRules, monthlyVerdicts, statementRoasts, annualReports, type Expense, type InsertExpense, type User, type UpsertUser, type InsertContact, type CategoryRule, type MonthlyVerdict, type StatementRoast } from "@shared/schema";
 import { eq, desc, gte, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -34,6 +34,8 @@ export interface IStorage {
   getStatementRoast(userId: string, month: string): Promise<StatementRoast | null>;
   saveStatementRoast(userId: string, month: string, roast: string, tone: string): Promise<StatementRoast>;
   getStatementMonths(userId: string): Promise<string[]>;
+  saveAnnualReport(userId: string, reportYear: number, ytdLabel: string, reportData: Record<string, unknown>): Promise<void>;
+  getLatestAnnualReport(userId: string): Promise<Record<string, unknown> | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -297,6 +299,26 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(expenses.userId, userId), eq(expenses.source, "bank_statement")))
       .orderBy(desc(sql`to_char(${expenses.date}, 'YYYY-MM')`));
     return rows.map(r => r.month);
+  }
+
+  async saveAnnualReport(userId: string, reportYear: number, ytdLabel: string, reportData: Record<string, unknown>): Promise<void> {
+    await db.insert(annualReports).values({ userId, reportYear, ytdLabel, reportData });
+  }
+
+  async getLatestAnnualReport(userId: string): Promise<Record<string, unknown> | null> {
+    const [row] = await db
+      .select()
+      .from(annualReports)
+      .where(eq(annualReports.userId, userId))
+      .orderBy(desc(annualReports.generatedAt))
+      .limit(1);
+    if (!row) return null;
+    return {
+      ...(row.reportData as Record<string, unknown>),
+      reportYear: row.reportYear,
+      ytdLabel: row.ytdLabel,
+      generatedAt: row.generatedAt,
+    };
   }
 }
 

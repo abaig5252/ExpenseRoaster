@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { FileText, Flame, TrendingUp, TrendingDown, Calendar, Target, Download, AlertTriangle, Loader2, Lock, Sparkles, Lightbulb, BarChart2, Users, Zap } from "lucide-react";
+import { FileText, Flame, TrendingUp, TrendingDown, Calendar, Target, Download, AlertTriangle, Loader2, Lock, Sparkles, Lightbulb, BarChart2, Users, Zap, RefreshCw } from "lucide-react";
 import { AppNav } from "@/components/AppNav";
 import { useMe, useAnnualReport } from "@/hooks/use-subscription";
 import { useCheckout, useStripeProducts } from "@/hooks/use-subscription";
@@ -16,13 +17,26 @@ function fmtAmt(cents: number, currency: string) {
   return formatAmount(cents, currency);
 }
 
+function fmtDate(dt: string | Date) {
+  return new Date(dt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
 export default function AnnualReport() {
-  const { data: me } = useMe();
+  const { data: me, isLoading: meLoading } = useMe();
   const { data: products } = useStripeProducts();
   const checkoutMutation = useCheckout();
   const reportMutation = useAnnualReport();
   const reportRef = useRef<HTMLDivElement>(null);
-  const [reportData, setReportData] = useState<any>(null);
+  const [freshReport, setFreshReport] = useState<any>(null);
+
+  // Load previously saved report from DB
+  const { data: savedReport, isLoading: savedLoading } = useQuery<any>({
+    queryKey: ["/api/expenses/annual-report/latest"],
+    retry: false,
+  });
+
+  // Freshly generated report takes priority over saved; fall back to saved
+  const reportData = freshReport || savedReport || null;
   const reportCurrency = reportData?.currency || "USD";
   const fmt = (cents: number) => fmtAmt(cents, reportCurrency);
 
@@ -31,7 +45,7 @@ export default function AnnualReport() {
 
   const handleGenerate = () => {
     reportMutation.mutate(undefined, {
-      onSuccess: (data) => setReportData(data),
+      onSuccess: (data) => setFreshReport(data),
     });
   };
 
@@ -200,7 +214,21 @@ ${reportData.improvements?.length ? `
     setTimeout(() => { w.print(); }, 600);
   };
 
-  if (!canAccess) {
+  // Loading state
+  if (meLoading || savedLoading) {
+    return (
+      <div className="min-h-screen pb-24">
+        <div className="bg-noise" />
+        <AppNav />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  // No saved report + no purchase → purchase screen
+  if (!reportData && !canAccess) {
     return (
       <div className="min-h-screen pb-24">
         <div className="bg-noise" />
@@ -216,10 +244,10 @@ ${reportData.improvements?.length ? `
             </p>
             <div className="glass-panel rounded-3xl p-8 mb-6 text-left">
               <div className="text-5xl font-amount-card text-white mb-1">$29.99</div>
-              <div className="text-muted-foreground mb-6">Per report — generate a fresh one any time</div>
+              <div className="text-muted-foreground mb-6">Per report — stays saved, generate again any time</div>
               <ul className="flex flex-col gap-3 mb-8">
                 {[
-                  "Brutal full-year roast",
+                  "Brutal year-to-date roast",
                   "Your personal spending personality type",
                   "Deep behavioral analysis",
                   "Top 5 categories with spending bars",
@@ -255,6 +283,46 @@ ${reportData.improvements?.length ? `
     );
   }
 
+  // No saved report + has purchase → generate screen
+  if (!reportData && canAccess) {
+    return (
+      <div className="min-h-screen pb-24">
+        <div className="bg-noise" />
+        <AppNav />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-10 relative z-10">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
+            <h1 className="text-4xl font-bold text-white">Annual Roast Report</h1>
+            <p className="text-muted-foreground mt-2 text-lg">The full year-to-date financial post-mortem. No sugarcoating.</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-16 text-center">
+            <div className="w-20 h-20 rounded-full bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/20 flex items-center justify-center mx-auto mb-6">
+              <Flame className="w-10 h-10 text-[hsl(var(--primary))]" />
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-3">Ready to face the truth?</h2>
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+              Analyzes every transaction you've uploaded this year — merchants, patterns, habits — and projects your full-year spend. Give it 20–30 seconds.
+            </p>
+            {reportMutation.isError && (
+              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 mb-6 max-w-md mx-auto">
+                <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                <p className="text-sm text-muted-foreground">{(reportMutation.error as Error)?.message}</p>
+              </div>
+            )}
+            <button
+              onClick={handleGenerate}
+              disabled={reportMutation.isPending}
+              data-testid="button-generate-report"
+              className="px-10 py-5 rounded-2xl font-display font-bold text-xl text-white bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] btn-glow hover:opacity-90 transition-all flex items-center gap-3 mx-auto"
+            >
+              {reportMutation.isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <Flame className="w-6 h-6" />}
+              {reportMutation.isPending ? "Digging through every receipt…" : "Generate My Annual Report"}
+            </button>
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pb-24">
       <div className="bg-noise" />
@@ -283,33 +351,48 @@ ${reportData.improvements?.length ? `
           <p className="text-muted-foreground mt-2 text-lg">The full year-to-date financial post-mortem. No sugarcoating.</p>
         </motion.div>
 
-        {!reportData ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-16 text-center">
-            <div className="w-20 h-20 rounded-full bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/20 flex items-center justify-center mx-auto mb-6">
-              <Flame className="w-10 h-10 text-[hsl(var(--primary))]" />
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-3">Ready to face the truth?</h2>
-            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Analyzes every transaction you've uploaded this year — merchants, patterns, habits — and projects your full-year spend. Give it 20–30 seconds.
-            </p>
-            {reportMutation.isError && (
-              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 mb-6 max-w-md mx-auto">
-                <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-                <p className="text-sm text-muted-foreground">{(reportMutation.error as Error)?.message}</p>
+        <div ref={reportRef} className="flex flex-col gap-6">
+
+            {/* Generate Again banner */}
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+              className="glass-panel rounded-2xl px-6 py-4 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="text-sm font-semibold text-white">
+                  {reportData?.generatedAt ? `Generated ${fmtDate(reportData.generatedAt)}` : "Your saved report"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Generate again with latest data — $29.99 per report
+                </div>
               </div>
-            )}
-            <button
-              onClick={handleGenerate}
-              disabled={reportMutation.isPending}
-              data-testid="button-generate-report"
-              className="px-10 py-5 rounded-2xl font-display font-bold text-xl text-white bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] btn-glow hover:opacity-90 transition-all flex items-center gap-3 mx-auto"
-            >
-              {reportMutation.isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <Flame className="w-6 h-6" />}
-              {reportMutation.isPending ? "Digging through every receipt…" : "Generate My Annual Report"}
-            </button>
-          </motion.div>
-        ) : (
-          <div ref={reportRef} className="flex flex-col gap-6">
+              <div className="flex items-center gap-3 shrink-0">
+                {reportMutation.isError && (
+                  <span className="text-xs text-destructive flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />{(reportMutation.error as Error)?.message}
+                  </span>
+                )}
+                {canAccess ? (
+                  <button
+                    onClick={handleGenerate}
+                    disabled={reportMutation.isPending}
+                    data-testid="button-generate-again"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 hover:bg-[hsl(var(--primary))]/30 transition-all text-sm font-semibold text-[hsl(var(--primary))]"
+                  >
+                    {reportMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    {reportMutation.isPending ? "Generating…" : "Generate Again"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => checkoutMutation.mutate({ priceId: annualPrice?.price_id || "", mode: "payment" })}
+                    disabled={checkoutMutation.isPending}
+                    data-testid="button-buy-regenerate"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))] hover:opacity-90 transition-all text-sm font-bold text-white"
+                  >
+                    {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    Generate Again — $29.99
+                  </button>
+                )}
+              </div>
+            </motion.div>
 
             {/* Stats grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -522,11 +605,7 @@ ${reportData.improvements?.length ? `
               </div>
             </motion.div>
 
-            <button onClick={handleGenerate} disabled={reportMutation.isPending} className="text-center text-sm text-muted-foreground hover:text-white transition-colors mt-2">
-              {reportMutation.isPending ? <span className="flex items-center gap-2 justify-center"><Loader2 className="w-3 h-3 animate-spin" /> Regenerating…</span> : "Regenerate report"}
-            </button>
-          </div>
-        )}
+        </div>
       </main>
     </div>
   );

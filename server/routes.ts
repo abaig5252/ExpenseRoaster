@@ -1899,7 +1899,7 @@ All monetary values in JSON must be integers in cents.`;
       // Reset the flag so all users must pay $29.99 again for each new report
       await storage.updateUserAnnualReport(userId, false);
 
-      res.json({
+      const responsePayload = {
         totalSpend,
         currency: annualCurrency,
         transactionCount: allExpenses.length,
@@ -1921,21 +1921,29 @@ All monetary values in JSON must be integers in cents.`;
         savingsOpportunities: aiData.savingsOpportunities || [],
         improvements: aiData.improvements || ["Save more", "Spend less", "Touch grass"],
         funFact: aiData.funFact || "",
-      });
+      };
+
+      // Persist the report so it survives page refreshes
+      await storage.saveAnnualReport(userId, reportYear, ytdLabel, responsePayload as unknown as Record<string, unknown>);
+
+      res.json(responsePayload);
     } catch (err) {
       console.error("Annual report error:", err);
       res.status(500).json({ message: "Failed to generate annual report" });
     }
   });
 
-  // GET alias for mobile proxy compatibility
-  app.get("/api/expenses/annual-report", isAuthenticated, async (req: any, res: Response) => {
-    const userId = getUserId(req);
-    const user = await storage.getUser(userId);
-    if (!user || !user.hasAnnualReport) {
-      return res.status(403).json({ message: "Annual Report requires purchase", code: "ANNUAL_REQUIRED" });
+  // GET latest saved annual report (persisted — no re-generation)
+  app.get("/api/expenses/annual-report/latest", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      const report = await storage.getLatestAnnualReport(userId);
+      if (!report) return res.status(404).json({ message: "No report generated yet" });
+      res.json(report);
+    } catch (err) {
+      console.error("Fetch annual report error:", err);
+      res.status(500).json({ message: "Failed to fetch report" });
     }
-    return res.status(405).json({ message: "Use POST to generate the annual report" });
   });
 
   // ─── Contact Form ─────────────────────────────────────────────────

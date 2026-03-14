@@ -97,6 +97,16 @@ export const statementRoasts = pgTable("statement_roasts", {
 });
 export type StatementRoast = typeof statementRoasts.$inferSelect;
 
+export const annualReports = pgTable("annual_reports", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  reportYear: integer("report_year").notNull(),
+  ytdLabel: varchar("ytd_label"),
+  reportData: jsonb("report_data").notNull(),
+  generatedAt: timestamp("generated_at").defaultNow(),
+});
+export type AnnualReport = typeof annualReports.$inferSelect;
+
 export const contactSubmissions = pgTable("contact_submissions", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
