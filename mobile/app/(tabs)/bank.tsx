@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet,
-  Alert, ActivityIndicator, SafeAreaView, Platform,
+  Alert, ActivityIndicator, SafeAreaView, Platform, Animated,
   ActionSheetIOS, Modal, Share,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../src/lib/auth';
-import { apiGet, apiDelete, apiPatch, apiPost, API_BASE_URL, getToken } from '../../src/lib/api';
+import { apiGet, apiDelete, apiPatch, apiPost, apiFetch, API_BASE_URL, getToken } from '../../src/lib/api';
 import { AppLogo } from '../../src/components/AppLogo';
 import { CurrencyPickerModal } from '../../src/components/CurrencyPickerModal';
 import { colors, spacing, radius, typography } from '../../src/theme';
@@ -91,6 +91,36 @@ export default function BankScreen() {
   const [savingCatId, setSavingCatId] = useState<number | null>(null);
   const [catOverrides, setCatOverrides] = useState<Record<number, string>>({});
   const [reRoastingSet, setReRoastingSet] = useState<Set<number>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const deleteBarY = useRef(new Animated.Value(100)).current;
+
+  useEffect(() => {
+    Animated.spring(deleteBarY, {
+      toValue: selectMode ? 0 : 100,
+      useNativeDriver: true,
+      tension: 65, friction: 11,
+    }).start();
+  }, [selectMode]);
+
+  const enterSelectMode = useCallback(() => {
+    setSelectMode(true);
+    setSelectedIds(new Set());
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ['/api/expenses'],
@@ -101,6 +131,47 @@ export default function BankScreen() {
   const loggedExpenses = expenses?.filter(e => e.source === 'manual' || e.source === 'bank_statement') ?? [];
   const totalPages = Math.ceil(loggedExpenses.length / PAGE_SIZE);
   const pageExpenses = loggedExpenses.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const allSelected = loggedExpenses.length > 0 && loggedExpenses.every(e => selectedIds.has(e.id));
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(loggedExpenses.map(e => e.id)));
+    }
+  }, [allSelected, loggedExpenses]);
+
+  const handleBulkDelete = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    Alert.alert(
+      `Delete ${ids.length} transaction${ids.length !== 1 ? 's' : ''}?`,
+      'This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setBulkDeleting(true);
+            try {
+              const res = await apiFetch('/api/expenses/bulk', {
+                method: 'DELETE',
+                body: JSON.stringify({ ids }),
+              });
+              if (!res.ok) throw new Error('Delete failed');
+              qc.invalidateQueries({ queryKey: ['/api/expenses'] });
+              exitSelectMode();
+            } catch {
+              Alert.alert('Error', 'Failed to delete transactions. Please try again.');
+            } finally {
+              setBulkDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [selectedIds, qc, exitSelectMode]);
 
   async function pickStatementImage() {
     if (Platform.OS === 'ios') {
@@ -463,31 +534,64 @@ export default function BankScreen() {
         {/* ── Imported expenses ── */}
         {loggedExpenses.length > 0 && (
           <View style={s.historySection}>
-            <Text style={s.historyTitle}>Imported Expenses ({loggedExpenses.length})</Text>
+            {/* Header row with title + select controls */}
+            <View style={s.historyHeader}>
+              <Text style={s.historyTitle}>Imported Expenses ({loggedExpenses.length})</Text>
+              <View style={s.selectControls}>
+                {selectMode ? (
+                  <>
+                    <TouchableOpacity onPress={toggleSelectAll} activeOpacity={0.7} style={s.selectBtn}>
+                      <Text style={s.selectBtnText}>{allSelected ? 'Deselect All' : 'Select All'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={exitSelectMode} activeOpacity={0.7} style={s.cancelBtn}>
+                      <Ionicons name="close" size={14} color="rgba(255,255,255,0.5)" />
+                      <Text style={s.cancelBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity onPress={enterSelectMode} activeOpacity={0.7}>
+                    <Text style={s.selectModeText}>Select</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
             {pageExpenses.map(exp => {
-              const isExpanded = expandedId === exp.id;
+              const isExpanded = expandedId === exp.id && !selectMode;
+              const isSelected = selectedIds.has(exp.id);
               const displayCat = catOverrides[exp.id] ?? exp.category;
               const catColor = CATEGORY_COLORS[displayCat] ?? '#4A5060';
               const isSavingCat = savingCatId === exp.id;
               return (
                 <TouchableOpacity
                   key={exp.id}
-                  style={s.expItem}
-                  onPress={() => setExpandedId(isExpanded ? null : exp.id)}
+                  style={[s.expItem, isSelected && s.expItemSelected]}
+                  onPress={() => selectMode ? toggleSelect(exp.id) : setExpandedId(isExpanded ? null : exp.id)}
                   activeOpacity={0.75}
                 >
                   <View style={s.expTop}>
+                    {/* Checkbox in select mode */}
+                    {selectMode && (
+                      <TouchableOpacity
+                        onPress={() => toggleSelect(exp.id)}
+                        style={[s.expCheckbox, isSelected && s.expCheckboxSelected]}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        {isSelected && <Ionicons name="checkmark" size={13} color="#000000" />}
+                      </TouchableOpacity>
+                    )}
                     <Text style={[s.expDesc, isExpanded && s.expDescExpanded]} numberOfLines={isExpanded ? undefined : 1}>
                       {exp.description}
                     </Text>
                     <Text style={s.expAmount}>{formatMoney(exp.amount, exp.currency ?? currency)}</Text>
                   </View>
                   <View style={s.expMeta}>
-                    {/* Tappable category pill */}
+                    {/* Tappable category pill — disabled in select mode */}
                     <TouchableOpacity
                       style={[s.catPill, { backgroundColor: `${catColor}22`, borderColor: `${catColor}55` }]}
-                      onPress={() => openCategoryPicker(exp)}
-                      activeOpacity={0.7}
+                      onPress={() => !selectMode && openCategoryPicker(exp)}
+                      activeOpacity={selectMode ? 1 : 0.7}
                       hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                     >
                       {isSavingCat
@@ -495,7 +599,7 @@ export default function BankScreen() {
                         : <>
                             <View style={[s.catDot, { backgroundColor: catColor }]} />
                             <Text style={[s.catPillText, { color: catColor }]}>{displayCat}</Text>
-                            <Ionicons name="chevron-down" size={10} color={catColor} />
+                            {!selectMode && <Ionicons name="chevron-down" size={10} color={catColor} />}
                           </>
                       }
                     </TouchableOpacity>
@@ -503,15 +607,15 @@ export default function BankScreen() {
                       <Text style={s.expDate}>{new Date(exp.date ?? exp.createdAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                     )}
                   </View>
-                  {reRoastingSet.has(exp.id) ? (
+                  {!selectMode && (reRoastingSet.has(exp.id) ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
                       <ActivityIndicator size="small" color={colors.primary} />
                       <Text style={[s.expRoast, { fontStyle: 'italic', color: colors.textMuted }]}>Regenerating roast...</Text>
                     </View>
                   ) : exp.roast ? (
                     <Text style={s.expRoast} numberOfLines={isExpanded ? undefined : 2}>"{exp.roast.replace(/\*+/g, '')}"</Text>
-                  ) : null}
-                  {isExpanded && (
+                  ) : null)}
+                  {isExpanded && !selectMode && (
                     <View style={s.expExpandedActions}>
                       {exp.roast && !reRoastingSet.has(exp.id) && (
                         <TouchableOpacity
@@ -569,6 +673,30 @@ export default function BankScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Sticky Bulk Delete Bar ── */}
+      <Animated.View
+        style={[s.deleteBar, { transform: [{ translateY: deleteBarY }] }]}
+        pointerEvents={selectMode ? 'auto' : 'none'}
+      >
+        <TouchableOpacity
+          onPress={handleBulkDelete}
+          disabled={selectedIds.size === 0 || bulkDeleting}
+          activeOpacity={0.85}
+          style={[s.deleteBarBtn, selectedIds.size === 0 && s.deleteBarBtnDisabled]}
+        >
+          {bulkDeleting ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Ionicons name="trash-outline" size={18} color={selectedIds.size === 0 ? 'rgba(255,82,82,0.4)' : '#FFFFFF'} />
+          )}
+          <Text style={[s.deleteBarText, selectedIds.size === 0 && s.deleteBarTextDisabled]}>
+            {selectedIds.size === 0
+              ? 'Select transactions to delete'
+              : `Delete (${selectedIds.size} selected)`}
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* ── Android category picker Modal ── */}
       <Modal
@@ -774,11 +902,32 @@ const s = StyleSheet.create({
   roastResultText: { ...typography.body, fontStyle: 'italic', color: colors.text, lineHeight: 22 },
 
   historySection: { gap: spacing.sm },
+  historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   historyTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  selectControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  selectModeText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.45)' },
+  selectBtn: { paddingVertical: 4, paddingHorizontal: 2 },
+  selectBtnText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4 },
+  cancelBtnText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.45)' },
   expItem: {
     backgroundColor: CARD_BG, borderRadius: radius.lg,
     padding: spacing.md, gap: spacing.xs,
     borderWidth: 1, borderColor: colors.border,
+  },
+  expItemSelected: {
+    borderColor: colors.primary, borderWidth: 2,
+    shadowColor: colors.primary, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
+  },
+  expCheckbox: {
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 8,
+  },
+  expCheckboxSelected: {
+    backgroundColor: colors.primary, borderColor: colors.primary,
   },
   expTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   expDesc: { ...typography.body, fontWeight: '600', flex: 1, marginRight: spacing.sm },
@@ -923,4 +1072,19 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   roastDismissBtnText: { fontSize: 15, fontWeight: '700', color: colors.primary },
+
+  deleteBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, paddingTop: spacing.sm,
+    backgroundColor: 'rgba(10,10,10,0.97)',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  deleteBarBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    paddingVertical: 16, borderRadius: 16,
+    backgroundColor: '#FF5252',
+  },
+  deleteBarBtnDisabled: { backgroundColor: 'rgba(255,82,82,0.12)' },
+  deleteBarText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  deleteBarTextDisabled: { color: 'rgba(255,82,82,0.4)' },
 });
