@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { FileText, Flame, TrendingUp, TrendingDown, Calendar, Target, Download, AlertTriangle, Loader2, Lock, Sparkles, Lightbulb, BarChart2, Users, Zap, RefreshCw } from "lucide-react";
@@ -48,6 +48,14 @@ export default function AnnualReport() {
       onSuccess: (data) => setFreshReport(data),
     });
   };
+
+  // After paying, auto-generate when returning to page with a saved report already showing
+  useEffect(() => {
+    if (canAccess && savedReport && !freshReport && !reportMutation.isPending) {
+      handleGenerate();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canAccess, savedReport]);
 
   const handleDownload = () => {
     if (!reportData) return;
@@ -361,7 +369,9 @@ ${reportData.improvements?.length ? `
                   {reportData?.generatedAt ? `Generated ${fmtDate(reportData.generatedAt)}` : "Your saved report"}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  Generate again with latest data — $29.99 per report
+                  {reportMutation.isPending
+                    ? "Generating your updated report…"
+                    : "Want fresher numbers? Generate again with latest uploads — $29.99"}
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -370,16 +380,10 @@ ${reportData.improvements?.length ? `
                     <AlertTriangle className="w-3 h-3" />{(reportMutation.error as Error)?.message}
                   </span>
                 )}
-                {canAccess ? (
-                  <button
-                    onClick={handleGenerate}
-                    disabled={reportMutation.isPending}
-                    data-testid="button-generate-again"
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 hover:bg-[hsl(var(--primary))]/30 transition-all text-sm font-semibold text-[hsl(var(--primary))]"
-                  >
-                    {reportMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    {reportMutation.isPending ? "Generating…" : "Generate Again"}
-                  </button>
+                {reportMutation.isPending ? (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Generating…
+                  </div>
                 ) : (
                   <button
                     onClick={() => checkoutMutation.mutate({ priceId: annualPrice?.price_id || "", mode: "payment" })}
@@ -387,8 +391,8 @@ ${reportData.improvements?.length ? `
                     data-testid="button-buy-regenerate"
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))] hover:opacity-90 transition-all text-sm font-bold text-white"
                   >
-                    {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4" />}
-                    Generate Annual Report — $29.99
+                    {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    Generate Again — $29.99
                   </button>
                 )}
               </div>
