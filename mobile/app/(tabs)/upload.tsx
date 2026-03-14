@@ -156,10 +156,7 @@ if (Platform.OS === 'android') {
 }
 
 const TONES = [
-  { value: 'sergio',        label: '🤌 Uncle Sergio', desc: 'Warm coach' },
-  { value: 'gentle_nudge',  label: '🌱 Accountant',   desc: 'Tough love' },
-  { value: 'medium_rare',   label: '🔥 No Filter',    desc: 'Slightly savage' },
-  { value: 'hells_kitchen', label: '💀 Ramsay Mode',  desc: 'Full brutality' },
+  { value: 'sergio', label: '🤌 Uncle Sergio', desc: 'Warm coach' },
 ];
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -210,7 +207,7 @@ export default function UploadScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageMime, setImageMime] = useState<string>('image/jpeg');
-  const [tone, setTone] = useState('hells_kitchen');
+  const [tone, setTone] = useState('sergio');
   const [ephemeral, setEphemeral] = useState<Expense | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);

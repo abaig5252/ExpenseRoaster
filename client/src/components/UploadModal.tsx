@@ -18,10 +18,7 @@ interface UploadModalProps {
 }
 
 const TONES = [
-  { value: "sergio",        label: "Uncle Sergio 🤌", desc: "Warm coach" },
-  { value: "gentle_nudge",  label: "Accountant 🌱",   desc: "Tough love" },
-  { value: "medium_rare",   label: "No Filter 🔥",    desc: "Slightly savage" },
-  { value: "hells_kitchen", label: "Ramsay Mode 💀",  desc: "Full brutality" },
+  { value: "sergio", label: "Uncle Sergio 🤌", desc: "Warm coach" },
 ];
 
 const CATEGORIES = [
@@ -44,7 +41,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, isFree }: UploadModalP
   const [stage, setStage] = useState<Stage>("upload");
   const [preview, setPreview] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
-  const [tone, setTone] = useState("hells_kitchen");
+  const [tone, setTone] = useState("sergio");
   const [dropError, setDropError] = useState<string | null>(null);
   const [loadingMsg] = useState(() => analysingMessages[Math.floor(Math.random() * analysingMessages.length)]);
 
