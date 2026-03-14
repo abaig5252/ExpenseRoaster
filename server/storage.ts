@@ -33,6 +33,7 @@ export interface IStorage {
   regenerateMonthlyVerdict(id: number, roast: string): Promise<MonthlyVerdict>;
   updateVerdictRoast(id: number, roast: string): Promise<MonthlyVerdict>;
   getStatementRoast(userId: string, month: string): Promise<StatementRoast | null>;
+  deleteStatementRoast(userId: string, month: string): Promise<void>;
   saveStatementRoast(userId: string, month: string, roast: string, tone: string): Promise<StatementRoast>;
   getStatementMonths(userId: string): Promise<string[]>;
   saveAnnualReport(userId: string, reportYear: number, ytdLabel: string, reportData: Record<string, unknown>): Promise<void>;
@@ -286,6 +287,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(statementRoasts.createdAt))
       .limit(1);
     return row ?? null;
+  }
+
+  async deleteStatementRoast(userId: string, month: string): Promise<void> {
+    await db.delete(statementRoasts)
+      .where(and(eq(statementRoasts.userId, userId), eq(statementRoasts.month, month)));
   }
 
   async saveStatementRoast(userId: string, month: string, roast: string, tone: string): Promise<StatementRoast> {

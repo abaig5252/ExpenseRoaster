@@ -1973,8 +1973,10 @@ Return ONLY valid JSON, no other text.`,
 
     try {
       const roast = await generateStatementRoast(txsForRoast, "sergio", currency, month, true);
+      // Delete the old roast entirely, then insert a fresh row
+      await storage.deleteStatementRoast(userId, month);
       await storage.saveStatementRoast(userId, month, roast, "sergio");
-      console.log(`[statement-roast/regenerate] saved new roast for ${userId}/${month}, length=${roast.length}`);
+      console.log(`[statement-roast/regenerate] replaced roast for ${userId}/${month}, length=${roast.length}`);
       res.setHeader("Cache-Control", "no-store");
       return res.json({ roast, tone: "sergio" });
     } catch (err) {
