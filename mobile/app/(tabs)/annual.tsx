@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, SafeAreaView, TouchableOpacity,
-  ActivityIndicator, Alert, Linking,
+  ActivityIndicator, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../../src/lib/auth';
-import { apiGet } from '../../src/lib/api';
+import { apiGet, apiPost } from '../../src/lib/api';
 import { colors, spacing, radius, typography } from '../../src/theme';
 
 interface MerchantInsight {
@@ -27,11 +28,15 @@ interface AnnualReportData {
   totalSpend: number;
   currency: string;
   transactionCount: number;
+  reportYear: number;
+  ytdLabel?: string;
   top5Categories: Array<{ category: string; amount: number }>;
   worstMonth: { month: string; amount: number };
   bestMonth: { month: string; amount: number };
   avgMonthlySpend: number;
   projection5yr: number;
+  allTimeYearsRange?: string;
+  allTimeTotalSpend?: number;
   roast: string;
   spendingPersonality: { title: string; description: string };
   behavioralAnalysis: string;
@@ -40,6 +45,7 @@ interface AnnualReportData {
   savingsOpportunities: SavingsOpportunity[];
   improvements: string[];
   funFact: string;
+  generatedAt?: string;
 }
 
 function fmt(cents: number, currency: string) {
@@ -50,6 +56,15 @@ function fmtMonth(ym: string) {
   if (!ym) return '—';
   const [year, month] = ym.split('-');
   return new Date(Number(year), Number(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function fmtDate(dt: string) {
+  return new Date(dt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function isDataError(msg: string): boolean {
+  const lower = msg.toLowerCase();
+  return lower.includes('transaction') || lower.includes('upload');
 }
 
 function SectionHeader({ icon, label, color = colors.primary }: { icon: string; label: string; color?: string }) {
@@ -65,10 +80,33 @@ export default function AnnualScreen() {
   const { user, refreshUser } = useAuth();
   const [purchasing, setPurchasing] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [report, setReport] = useState<AnnualReportData | null>(null);
+  const [freshReport, setFreshReport] = useState<AnnualReportData | null>(null);
+  const [savedReport, setSavedReport] = useState<AnnualReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const prevHasAccess = useRef<boolean | undefined>(undefined);
 
-  const hasAccess = user?.hasAnnualReport || user?.tier === 'premium';
+  const hasAccess = !!(user?.hasAnnualReport);
+  const reportData = freshReport || savedReport;
+
+  // Load saved report on mount
+  useEffect(() => {
+    apiGet<AnnualReportData>('/api/expenses/annual-report/latest')
+      .then(data => setSavedReport(data))
+      .catch(() => {});
+  }, []);
+
+  // Refresh user when tab comes back into focus (detects payment return from browser)
+  useFocusEffect(useCallback(() => {
+    refreshUser();
+  }, []));
+
+  // Auto-generate when payment is detected: hasAccess just flipped true and a saved report exists
+  useEffect(() => {
+    if (hasAccess && prevHasAccess.current === false && savedReport && !generating) {
+      generateReport();
+    }
+    prevHasAccess.current = hasAccess;
+  }, [hasAccess]);
 
   async function purchaseReport() {
     setPurchasing(true);
@@ -85,7 +123,7 @@ export default function AnnualScreen() {
       );
       if (data.url) await Linking.openURL(data.url);
     } catch (e: unknown) {
-      Alert.alert('Error', (e as Error).message);
+      setError((e as Error).message || 'Could not open checkout.');
     } finally {
       setPurchasing(false);
     }
@@ -95,8 +133,9 @@ export default function AnnualScreen() {
     setGenerating(true);
     setError(null);
     try {
-      const data = await apiGet<AnnualReportData>('/api/expenses/annual-report');
-      setReport(data);
+      const data = await apiPost<AnnualReportData>('/api/expenses/annual-report');
+      setFreshReport(data);
+      setSavedReport(data);
     } catch (e: unknown) {
       setError((e as Error).message || 'Failed to generate report');
     } finally {
@@ -104,7 +143,8 @@ export default function AnnualScreen() {
     }
   }
 
-  if (!hasAccess) {
+  // No purchase → full purchase screen
+  if (!hasAccess && !savedReport) {
     return (
       <SafeAreaView style={styles.root}>
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -139,6 +179,12 @@ export default function AnnualScreen() {
               <Text style={styles.price}>$29.99</Text>
               <Text style={styles.priceNote}>one-time payment</Text>
             </View>
+            {error && (
+              <View style={isDataError(error) ? styles.amberBox : styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={isDataError(error) ? '#F59E0B' : '#FF6B6B'} />
+                <Text style={isDataError(error) ? styles.amberText : styles.errorText}>{error}</Text>
+              </View>
+            )}
             <TouchableOpacity style={styles.purchaseBtn} onPress={purchaseReport} disabled={purchasing} activeOpacity={0.85}>
               {purchasing ? <ActivityIndicator color="#0D0D0D" /> : (
                 <>
@@ -153,7 +199,8 @@ export default function AnnualScreen() {
     );
   }
 
-  if (!report) {
+  // Has purchase but no saved report yet → generate screen
+  if (!reportData) {
     return (
       <SafeAreaView style={styles.root}>
         <ScrollView contentContainerStyle={[styles.scroll, styles.centerContent]}>
@@ -163,9 +210,9 @@ export default function AnnualScreen() {
             This analyzes every transaction you've uploaded — merchants, patterns, habits — and generates a deep financial post-mortem. Takes about 20–30 seconds.
           </Text>
           {error && (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={16} color="#FF6B6B" />
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={isDataError(error) ? styles.amberBox : styles.errorBox}>
+              <Ionicons name="alert-circle" size={16} color={isDataError(error) ? '#F59E0B' : '#FF6B6B'} />
+              <Text style={isDataError(error) ? styles.amberText : styles.errorText}>{error}</Text>
             </View>
           )}
           <TouchableOpacity style={styles.generateBtn} onPress={generateReport} disabled={generating} activeOpacity={0.85}>
@@ -186,9 +233,9 @@ export default function AnnualScreen() {
     );
   }
 
-  const currency = report.currency;
+  const currency = reportData.currency;
   const catColors = ['#E85D26', '#C4A832', '#7B6FE8', '#3BB8A0', '#E8526A'];
-  const maxCatAmt = report.top5Categories[0]?.amount || 1;
+  const maxCatAmt = reportData.top5Categories[0]?.amount || 1;
 
   return (
     <SafeAreaView style={styles.root}>
@@ -200,23 +247,53 @@ export default function AnnualScreen() {
           <Text style={styles.pageTitle}>Annual Report</Text>
         </View>
 
+        {/* Generate Again banner — always requires payment */}
+        <View style={styles.regenBanner}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.regenBannerTitle}>
+              {reportData.generatedAt ? `Generated ${fmtDate(reportData.generatedAt)}` : 'Your saved report'}
+            </Text>
+            <Text style={styles.regenBannerSub}>
+              {generating ? 'Generating your updated report…' : 'Want fresher numbers? — $29.99'}
+            </Text>
+          </View>
+          {generating ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <TouchableOpacity style={styles.regenBannerBtn} onPress={purchaseReport} disabled={purchasing} activeOpacity={0.85}>
+              {purchasing
+                ? <ActivityIndicator color="#0D0D0D" size="small" />
+                : <Text style={styles.regenBannerBtnText}>Generate Again</Text>
+              }
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Error notice */}
+        {error && (
+          <View style={isDataError(error) ? styles.amberBox : styles.errorBox}>
+            <Ionicons name="alert-circle" size={16} color={isDataError(error) ? '#F59E0B' : '#FF6B6B'} />
+            <Text style={isDataError(error) ? styles.amberText : styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         {/* Stats row */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Total Spent</Text>
-            <Text style={styles.statValue}>{fmt(report.totalSpend, currency)}</Text>
+            <Text style={styles.statValue}>{fmt(reportData.totalSpend, currency)}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Monthly Avg</Text>
-            <Text style={styles.statValue}>{fmt(report.avgMonthlySpend, currency)}</Text>
+            <Text style={styles.statValue}>{fmt(reportData.avgMonthlySpend, currency)}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Transactions</Text>
-            <Text style={styles.statValue}>{report.transactionCount}</Text>
+            <Text style={styles.statValue}>{reportData.transactionCount}</Text>
           </View>
           <View style={[styles.statCard, styles.statCardDanger]}>
             <Text style={styles.statLabel}>5-yr Projection</Text>
-            <Text style={[styles.statValue, { color: '#FF6B6B' }]}>{fmt(report.projection5yr, currency)}</Text>
+            <Text style={[styles.statValue, { color: '#FF6B6B' }]}>{fmt(reportData.projection5yr, currency)}</Text>
           </View>
         </View>
 
@@ -225,31 +302,31 @@ export default function AnnualScreen() {
           <View style={[styles.monthCard, { borderColor: 'rgba(74,222,128,0.3)' }]}>
             <Ionicons name="trending-down" size={14} color="#4ADE80" />
             <Text style={[styles.monthBadge, { color: '#4ADE80' }]}>BEST MONTH</Text>
-            <Text style={styles.monthName}>{fmtMonth(report.bestMonth?.month)}</Text>
-            <Text style={styles.monthAmount}>{fmt(report.bestMonth?.amount || 0, currency)}</Text>
+            <Text style={styles.monthName}>{fmtMonth(reportData.bestMonth?.month)}</Text>
+            <Text style={styles.monthAmount}>{fmt(reportData.bestMonth?.amount || 0, currency)}</Text>
           </View>
           <View style={[styles.monthCard, { borderColor: 'rgba(255,107,107,0.3)' }]}>
             <Ionicons name="trending-up" size={14} color="#FF6B6B" />
             <Text style={[styles.monthBadge, { color: '#FF6B6B' }]}>WORST MONTH</Text>
-            <Text style={styles.monthName}>{fmtMonth(report.worstMonth?.month)}</Text>
-            <Text style={styles.monthAmount}>{fmt(report.worstMonth?.amount || 0, currency)}</Text>
+            <Text style={styles.monthName}>{fmtMonth(reportData.worstMonth?.month)}</Text>
+            <Text style={styles.monthAmount}>{fmt(reportData.worstMonth?.amount || 0, currency)}</Text>
           </View>
         </View>
 
         {/* Spending Personality */}
-        {report.spendingPersonality && (
+        {reportData.spendingPersonality && (
           <View style={[styles.card, styles.personalityCard]}>
             <SectionHeader icon="person-circle" label="Your Spending Personality" color="#C4A832" />
-            <Text style={styles.personalityTitle}>{report.spendingPersonality.title}</Text>
-            <Text style={styles.cardBody}>{report.spendingPersonality.description}</Text>
+            <Text style={styles.personalityTitle}>{reportData.spendingPersonality.title}</Text>
+            <Text style={styles.cardBody}>{reportData.spendingPersonality.description}</Text>
           </View>
         )}
 
         {/* Top categories */}
         <View style={styles.card}>
           <SectionHeader icon="bar-chart" label="Top 5 Categories" />
-          {report.top5Categories.map((cat, i) => {
-            const pct = Math.round((cat.amount / report.totalSpend) * 100);
+          {reportData.top5Categories.map((cat, i) => {
+            const pct = Math.round((cat.amount / reportData.totalSpend) * 100);
             const barWidth = Math.round((cat.amount / maxCatAmt) * 100);
             return (
               <View key={cat.category} style={styles.catRow}>
@@ -271,36 +348,36 @@ export default function AnnualScreen() {
         {/* The Roast */}
         <View style={[styles.card, styles.roastCard]}>
           <SectionHeader icon="flame" label="The Annual Roast" />
-          <Text style={styles.roastText}>"{report.roast}"</Text>
+          <Text style={styles.roastText}>"{reportData.roast}"</Text>
         </View>
 
         {/* Fun Fact */}
-        {report.funFact && (
+        {reportData.funFact && (
           <View style={[styles.card, styles.funFactCard]}>
             <Ionicons name="sparkles" size={16} color="#C4A832" style={{ marginBottom: spacing.xs }} />
-            <Text style={styles.cardBody}>{report.funFact}</Text>
+            <Text style={styles.cardBody}>{reportData.funFact}</Text>
           </View>
         )}
 
         {/* Behavioral Analysis */}
         <View style={styles.card}>
           <SectionHeader icon="brain" label="Behavioral Analysis" color={colors.textMuted} />
-          <Text style={styles.cardBody}>{report.behavioralAnalysis}</Text>
+          <Text style={styles.cardBody}>{reportData.behavioralAnalysis}</Text>
         </View>
 
         {/* Monthly Trend */}
-        {report.monthlyTrend && (
+        {reportData.monthlyTrend && (
           <View style={[styles.card, styles.trendCard]}>
             <SectionHeader icon="trending-up" label="Spending Trend" color="#7B6FE8" />
-            <Text style={styles.cardBody}>{report.monthlyTrend}</Text>
+            <Text style={styles.cardBody}>{reportData.monthlyTrend}</Text>
           </View>
         )}
 
         {/* Merchant Insights */}
-        {report.merchantInsights?.length > 0 && (
+        {reportData.merchantInsights?.length > 0 && (
           <View style={styles.card}>
             <SectionHeader icon="storefront" label="Merchant Insights" color="#3BB8A0" />
-            {report.merchantInsights.map((m, i) => (
+            {reportData.merchantInsights.map((m, i) => (
               <View key={i} style={styles.merchantRow}>
                 <View style={styles.merchantBadge}>
                   <Text style={styles.merchantBadgeText}>{i + 1}</Text>
@@ -318,10 +395,10 @@ export default function AnnualScreen() {
         )}
 
         {/* Savings Opportunities */}
-        {report.savingsOpportunities?.length > 0 && (
+        {reportData.savingsOpportunities?.length > 0 && (
           <View style={[styles.card, styles.savingsCard]}>
             <SectionHeader icon="bulb" label="Savings Opportunities" color="#4ADE80" />
-            {report.savingsOpportunities.map((opp, i) => (
+            {reportData.savingsOpportunities.map((opp, i) => (
               <View key={i} style={styles.savingsItem}>
                 <View style={styles.savingsTopRow}>
                   <View style={{ flex: 1 }}>
@@ -344,16 +421,16 @@ export default function AnnualScreen() {
 
         {/* 5-Year Projection */}
         <View style={[styles.card, styles.projectionCard]}>
-          <SectionHeader icon="warning" label="5-Year Projection" color="#FF6B6B" />
+          <SectionHeader icon="warning" label={`5-Year Projection${reportData.allTimeYearsRange ? ` (${reportData.allTimeYearsRange} data)` : ''}`} color="#FF6B6B" />
           <Text style={styles.projectionSub}>If your habits remain completely unchanged:</Text>
-          <Text style={styles.projectionAmt}>{fmt(report.projection5yr, currency)}</Text>
+          <Text style={styles.projectionAmt}>{fmt(reportData.projection5yr, currency)}</Text>
           <Text style={styles.projectionNote}>spent over the next 5 years at your current rate.</Text>
         </View>
 
         {/* Improvements */}
         <View style={[styles.card, styles.improvementsCard]}>
           <SectionHeader icon="rocket" label="5 Ways to Save Your Financial Life" color="#7B6FE8" />
-          {report.improvements?.map((tip, i) => (
+          {reportData.improvements?.map((tip, i) => (
             <View key={i} style={styles.improvementRow}>
               <View style={styles.improvementNum}>
                 <Text style={styles.improvementNumText}>{i + 1}</Text>
@@ -363,11 +440,7 @@ export default function AnnualScreen() {
           ))}
         </View>
 
-        {/* Regenerate */}
-        <TouchableOpacity style={styles.regenBtn} onPress={generateReport} disabled={generating} activeOpacity={0.7}>
-          <Text style={styles.regenText}>{generating ? 'Regenerating…' : 'Regenerate Report'}</Text>
-        </TouchableOpacity>
-
+        <View style={{ height: 16 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -379,6 +452,19 @@ const styles = StyleSheet.create({
   centerContent: { alignItems: 'center', justifyContent: 'center', minHeight: 500 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   pageTitle: { ...typography.h2 },
+
+  regenBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  regenBannerTitle: { fontSize: 13, fontWeight: '600', color: colors.text },
+  regenBannerSub: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  regenBannerBtn: {
+    backgroundColor: colors.primary, borderRadius: radius.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
+  },
+  regenBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#0D0D0D' },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   statCard: {
@@ -413,7 +499,7 @@ const styles = StyleSheet.create({
   improvementsCard: { borderColor: 'rgba(123,111,232,0.25)' },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 },
-  sectionTitle: { fontSize: 15, fontWeight: '700' },
+  sectionTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
 
   personalityTitle: { fontSize: 22, fontWeight: '800', color: '#C4A832' },
   cardBody: { ...typography.body, lineHeight: 22, color: colors.textMuted },
@@ -457,8 +543,6 @@ const styles = StyleSheet.create({
   improvementNumText: { fontSize: 13, fontWeight: '800', color: '#7B6FE8' },
   improvementText: { ...typography.body, flex: 1, lineHeight: 22, paddingTop: 3 },
 
-  funFactCard2: {},
-
   promoCard: {
     backgroundColor: colors.surface, borderRadius: radius.lg,
     padding: spacing.lg, gap: spacing.lg,
@@ -480,12 +564,6 @@ const styles = StyleSheet.create({
 
   generateTitle: { ...typography.h2, textAlign: 'center', marginTop: spacing.lg },
   generateSub: { ...typography.bodyMuted, textAlign: 'center', lineHeight: 22, marginHorizontal: spacing.lg },
-  errorBox: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: 'rgba(255,107,107,0.1)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)',
-    borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm,
-  },
-  errorText: { color: '#FF6B6B', fontSize: 13, flex: 1 },
   generateBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
     backgroundColor: colors.primary, paddingVertical: spacing.md, paddingHorizontal: spacing.xl,
@@ -493,6 +571,16 @@ const styles = StyleSheet.create({
   },
   generateBtnText: { fontSize: 16, fontWeight: '700', color: '#0D0D0D' },
 
-  regenBtn: { alignItems: 'center', paddingVertical: spacing.md },
-  regenText: { ...typography.bodyMuted, fontSize: 13 },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
+    backgroundColor: 'rgba(255,107,107,0.1)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)',
+    borderRadius: radius.md, padding: spacing.md,
+  },
+  errorText: { color: '#FF6B6B', fontSize: 13, flex: 1, lineHeight: 20 },
+  amberBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
+    backgroundColor: 'rgba(245,158,11,0.1)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+    borderRadius: radius.md, padding: spacing.md,
+  },
+  amberText: { color: '#F59E0B', fontSize: 13, flex: 1, lineHeight: 20 },
 });
