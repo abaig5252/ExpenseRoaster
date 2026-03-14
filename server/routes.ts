@@ -222,7 +222,8 @@ async function generateStatementRoast(
   transactions: { description: string; amount: number; date: string; category?: string }[],
   _tone: string,
   currency = "USD",
-  month?: string
+  month?: string,
+  forceRefresh = false
 ): Promise<string> {
   const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
@@ -276,10 +277,11 @@ ENFORCEMENT:
       },
       {
         role: "user",
-        content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.\n\nTop merchants by spend:\n${merchantLines}`,
+        content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.${forceRefresh ? ` [Observation run #${Date.now()}]` : ""}\n\nTop merchants by spend:\n${merchantLines}`,
       },
     ],
     max_completion_tokens: 220,
+    temperature: forceRefresh ? 0.95 : 0.7,
   });
   const content = response.choices[0]?.message?.content;
   if (!content) {
@@ -1940,8 +1942,10 @@ Return ONLY valid JSON, no other text.`,
     }));
 
     try {
-      const roast = await generateStatementRoast(txsForRoast, "sergio", currency, month);
+      const roast = await generateStatementRoast(txsForRoast, "sergio", currency, month, true);
       await storage.saveStatementRoast(userId, month, roast, "sergio");
+      console.log(`[statement-roast/regenerate] saved new roast for ${userId}/${month}, length=${roast.length}`);
+      res.setHeader("Cache-Control", "no-store");
       return res.json({ roast, tone: "sergio" });
     } catch (err) {
       console.error("[statement-roast/regenerate] failed:", err);

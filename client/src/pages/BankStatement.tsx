@@ -215,15 +215,20 @@ export default function BankStatement() {
 
   const regenerateRoastMutation = useMutation({
     mutationFn: async (month: string) => {
-      const res = await apiRequest("POST", `/api/statement-roast/${month}/regenerate`);
-      return res.json();
+      const res = await fetch(`/api/statement-roast/${month}/regenerate`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.message ?? `Server error ${res.status}`);
+      return body as { roast: string; tone: string };
     },
     onSuccess: (data) => {
-      // Set the query data directly from the POST response body — avoids 304 cache collisions
       queryClient.setQueryData(["/api/statement-roast", activeMonth], data);
     },
-    onError: () => {
-      toast({ title: "Failed to regenerate", description: "Please try again.", variant: "destructive" });
+    onError: (err: Error) => {
+      console.error("[regenerate-statement-roast]", err);
+      toast({ title: "Failed to regenerate", description: err.message || "Please try again.", variant: "destructive" });
     },
   });
 
