@@ -1755,6 +1755,8 @@ Return ONLY valid JSON, no other text.`,
       const ytdLabel = `Jan 1, ${reportYear} – ${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
 
       const rawExpenses = await storage.getExpenses(userId);
+
+      // YTD: current year only — used for all analysis, roast, categories, merchants
       const allExpenses = rawExpenses.filter(e => {
         const d = new Date(e.date);
         return d >= yearStart && d <= now;
@@ -1763,6 +1765,25 @@ Return ONLY valid JSON, no other text.`,
       if (allExpenses.length < 3) {
         return res.status(400).json({ message: `Need at least 3 transactions from ${reportYear} to generate a year-to-date report. Upload some receipts or bank statements from this year first.` });
       }
+
+      // All-time: every uploaded transaction — used only for the 5-year projection
+      const allTimeMonthlyTotals: Record<string, number> = {};
+      for (const exp of rawExpenses) {
+        const month = new Date(exp.date).toISOString().slice(0, 7);
+        allTimeMonthlyTotals[month] = (allTimeMonthlyTotals[month] || 0) + exp.amount;
+      }
+      const allTimeMonths = Object.keys(allTimeMonthlyTotals).length;
+      const allTimeTotalSpend = rawExpenses.reduce((s, e) => s + e.amount, 0);
+      const avgMonthlyAllTime = allTimeTotalSpend / Math.max(allTimeMonths, 1);
+      const projection5yr = Math.round(avgMonthlyAllTime * 12 * 5);
+      const allTimeYearsRange = allTimeMonths > 0
+        ? (() => {
+            const months = Object.keys(allTimeMonthlyTotals).sort();
+            const start = months[0]?.slice(0, 4);
+            const end = months[months.length - 1]?.slice(0, 4);
+            return start === end ? start : `${start}–${end}`;
+          })()
+        : String(reportYear);
 
       const annualCleanMap = await cleanMerchantNames(allExpenses.map(e => e.description || "Unknown"));
 
@@ -1786,10 +1807,6 @@ Return ONLY valid JSON, no other text.`,
       const worstMonth = [...sortedMonths].sort((a, b) => b[1] - a[1])[0];
       const bestMonth = [...sortedMonths].sort((a, b) => a[1] - b[1])[0];
       const avgMonthly = totalSpend / Math.max(sortedMonths.length, 1);
-      // Full-year projection: remaining months at current monthly pace
-      const monthsElapsed = now.getMonth() + 1; // 1-12
-      const remainingMonths = 12 - monthsElapsed;
-      const projectionFullYear = totalSpend + avgMonthly * remainingMonths;
       const top10Merchants = Object.entries(merchantSpend)
         .sort((a, b) => b[1].total - a[1].total)
         .slice(0, 10);
@@ -1892,7 +1909,9 @@ All monetary values in JSON must be integers in cents.`;
         worstMonth: { month: worstMonth?.[0] || "", amount: worstMonth?.[1] || 0 },
         bestMonth: { month: bestMonth?.[0] || "", amount: bestMonth?.[1] || 0 },
         avgMonthlySpend: Math.round(avgMonthly),
-        projectionFullYear: Math.round(projectionFullYear),
+        projection5yr,
+        allTimeYearsRange,
+        allTimeTotalSpend,
         monthlyTotals: sortedMonths.map(([month, amount]) => ({ month, amount })),
         roast: aiData.roast || "Your spending is a masterpiece of questionable decisions.",
         spendingPersonality: aiData.spendingPersonality || { title: "The Mystery Spender", description: "Your spending defies categorization." },

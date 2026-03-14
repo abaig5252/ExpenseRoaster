@@ -103,7 +103,7 @@ export default function AnnualReport() {
 <div class="stats">
   <div class="stat"><div class="stat-val">${f(reportData.totalSpend)}</div><div class="stat-lbl">Total Spent</div></div>
   <div class="stat"><div class="stat-val">${f(reportData.avgMonthlySpend)}</div><div class="stat-lbl">Monthly Avg</div></div>
-  <div class="stat"><div class="stat-val">${f(reportData.projectionFullYear)}</div><div class="stat-lbl">Full Year Projection</div></div>
+  <div class="stat"><div class="stat-val">${f(reportData.projection5yr)}</div><div class="stat-lbl">5-Year Projection</div></div>
   <div class="stat"><div class="stat-val">${reportData.transactionCount?.toLocaleString()}</div><div class="stat-lbl">Transactions</div></div>
 </div>
 
@@ -172,6 +172,13 @@ ${reportData.savingsOpportunities?.length ? `
     </div>`).join("")}
 </div>` : ""}
 
+<div class="card" style="background:#fef2f2;border-color:#fecaca">
+  <div class="tag" style="background:#fee2e2;color:#dc2626">5-Year Projection</div>
+  <div style="font-size:11px;color:#888;margin-bottom:8px">Based on all uploaded data${reportData.allTimeYearsRange ? ` (${reportData.allTimeYearsRange})` : ""} — if spending habits stay unchanged</div>
+  <div style="font-size:32px;font-weight:800;color:#dc2626">${f(reportData.projection5yr)}</div>
+  <div style="font-size:12px;color:#555;margin-top:4px">estimated spend over the next 5 years at your historical monthly rate</div>
+</div>
+
 ${reportData.improvements?.length ? `
 <div class="card">
   <h2>Top Improvements</h2>
@@ -220,7 +227,7 @@ ${reportData.improvements?.length ? `
                   "Per-merchant insights & tips",
                   "5 savings opportunities with real alternatives",
                   "Monthly spending trend",
-                  "Full year projection at your current pace",
+                  "5-year projection based on all historical data",
                   "Fun facts from your transaction history",
                   "Downloadable PDF",
                 ].map(f => (
@@ -309,7 +316,7 @@ ${reportData.improvements?.length ? `
               {[
                 { label: "Total Spent", value: fmt(reportData.totalSpend), icon: TrendingUp, color: "primary" },
                 { label: "Monthly Avg", value: fmt(reportData.avgMonthlySpend), icon: Calendar, color: "secondary" },
-                { label: "Full Year Projection", value: fmt(reportData.projectionFullYear), icon: Target, color: "destructive" },
+                { label: "5-Year Projection", value: fmt(reportData.projection5yr), icon: Target, color: "destructive" },
                 { label: "Transactions", value: reportData.transactionCount?.toLocaleString() ?? "—", icon: BarChart2, color: "accent" },
               ].map((stat, i) => (
                 <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
@@ -486,13 +493,17 @@ ${reportData.improvements?.length ? `
               </motion.div>
             )}
 
-            {/* Full Year Projection Warning */}
+            {/* 5-Year Projection Warning */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}
               className="glass-panel rounded-3xl p-8 border border-destructive/30 bg-destructive/5">
-              <h2 className="text-xl font-bold text-white mb-2">Full {reportData.reportYear} Projection</h2>
-              <p className="text-muted-foreground mb-4 text-sm">If your spending pace stays the same for the rest of the year:</p>
-              <div className="text-5xl font-amount-card text-destructive">{fmt(reportData.projectionFullYear)}</div>
-              <p className="text-muted-foreground mt-2 text-sm">estimated total for all of {reportData.reportYear} at your current monthly rate.</p>
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-1">5-Year Projection</h2>
+                  <p className="text-muted-foreground text-sm">Based on your average monthly spend across all uploaded data{reportData.allTimeYearsRange ? ` (${reportData.allTimeYearsRange})` : ""}. If nothing changes:</p>
+                </div>
+              </div>
+              <div className="text-5xl font-amount-card text-destructive">{fmt(reportData.projection5yr)}</div>
+              <p className="text-muted-foreground mt-2 text-sm">spent over the next 5 years at your historical monthly rate.</p>
             </motion.div>
 
             {/* Improvements */}
