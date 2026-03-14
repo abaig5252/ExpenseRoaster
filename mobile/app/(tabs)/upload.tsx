@@ -326,18 +326,18 @@ export default function UploadScreen() {
     enabled: !!selectedMonth && filteredReceipts.length > 0,
     staleTime: 10 * 60 * 1000,
   });
-  const regenCount = monthlyRoastData?.regenCount ?? 0;
-  const regenRemaining = 2 - regenCount;
+  const hasVerdict = !!monthlyRoastData?.roast;
+  const manualRegenUsed = monthlyRoastData?.manualRegenUsed ?? false;
   const [regenLoading, setRegenLoading] = useState(false);
   const handleRegenerateVerdict = useCallback(async () => {
-    if (!selectedMonth || regenRemaining <= 0 || regenLoading) return;
+    if (!selectedMonth || manualRegenUsed || regenLoading) return;
     setRegenLoading(true);
     try {
       await apiPost('/api/expenses/monthly-roast/regenerate', { month: selectedMonth, source: 'receipt' });
       queryClient.invalidateQueries({ queryKey: ['/api/expenses/monthly-roast', selectedMonth] });
     } catch (_e) {}
     setRegenLoading(false);
-  }, [selectedMonth, regenRemaining, regenLoading, queryClient]);
+  }, [selectedMonth, manualRegenUsed, regenLoading, queryClient]);
 
   // ── Select Mode Callbacks ─────────────────────────────────────────
   const enterSelectMode = useCallback(() => {
@@ -992,7 +992,8 @@ export default function UploadScreen() {
                         )}
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        {monthlyRoastData?.roast && isPremium && regenRemaining > 0 && (
+                        {/* Premium: Regenerate button (1 per month) */}
+                        {hasVerdict && isPremium && !manualRegenUsed && (
                           <TouchableOpacity
                             onPress={handleRegenerateVerdict}
                             disabled={regenLoading}
@@ -1005,15 +1006,19 @@ export default function UploadScreen() {
                             ) : (
                               <Ionicons name="refresh" size={13} color="rgba(0,230,118,0.7)" />
                             )}
-                            <Text style={{ fontSize: 11, color: 'rgba(0,230,118,0.7)' }}>{regenRemaining} left</Text>
+                            <Text style={{ fontSize: 11, color: 'rgba(0,230,118,0.7)' }}>Regenerate</Text>
                           </TouchableOpacity>
                         )}
-                        {monthlyRoastData?.roast && isPremium && regenRemaining === 0 && (
-                          <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>No regens left</Text>
+                        {/* Premium: grayed out after using manual regen */}
+                        {hasVerdict && isPremium && manualRegenUsed && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                            <Ionicons name="refresh" size={13} color="rgba(255,255,255,0.2)" />
+                            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>Regenerate</Text>
+                          </View>
                         )}
-                        {monthlyRoastData?.roast && (
+                        {hasVerdict && (
                           <TouchableOpacity
-                            onPress={() => Share.share({ message: `🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData.roast}"\n\n— Expense Roaster` })}
+                            onPress={() => Share.share({ message: `🔥 ${fmtMonth(selectedMonth)} Verdict:\n\n"${monthlyRoastData!.roast}"\n\n— Expense Roaster` })}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             activeOpacity={0.7}
                           >
@@ -1024,8 +1029,17 @@ export default function UploadScreen() {
                     </View>
                     {roastLoading ? (
                       <Text style={s.verdictLoading}>Generating your monthly verdict…</Text>
-                    ) : monthlyRoastData?.roast ? (
-                      <VerdictText roast={monthlyRoastData.roast} />
+                    ) : hasVerdict ? (
+                      <View>
+                        <VerdictText roast={monthlyRoastData!.roast!} />
+                        {/* Free users: upgrade prompt below locked verdict */}
+                        {!isPremium && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                            <Ionicons name="lock-closed" size={11} color="rgba(0,230,118,0.5)" />
+                            <Text style={{ fontSize: 11, color: 'rgba(0,230,118,0.6)' }}>Upgrade to Premium to regenerate your verdict.</Text>
+                          </View>
+                        )}
+                      </View>
                     ) : !isPremium ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
                         <Ionicons name="lock-closed" size={11} color="rgba(0,230,118,0.5)" />
@@ -1034,7 +1048,7 @@ export default function UploadScreen() {
                     ) : (
                       <View style={{ gap: 8, marginTop: 2 }}>
                         <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 17 }}>
-                          Your monthly verdict is ready — but you only get <Text style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '700' }}>3 per month</Text>, so make them count.
+                          Uncle Sergio has been watching your spending. Your verdict awaits.
                         </Text>
                         <TouchableOpacity
                           onPress={handleRegenerateVerdict}

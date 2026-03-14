@@ -48,7 +48,7 @@ export function useExpenseSummary() {
 }
 
 export function useMonthlyRoast(month: string | null, source?: string) {
-  return useQuery<{ roast: string | null; total: number; count: number; regenCount: number; locked: boolean }>({
+  return useQuery<{ roast: string | null; total: number; count: number; regenCount: number; locked: boolean; manualRegenUsed: boolean }>({
     queryKey: ['/api/expenses/monthly-roast', month, source],
     queryFn: async () => {
       const params = new URLSearchParams({ month: month! });

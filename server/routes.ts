@@ -835,6 +835,44 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ─── Expenses: Monthly summary roast ────────────────────────────
+
+  // Internal helper: auto-updates an existing verdict when new data arrives.
+  // Does NOT increment regenCount — this is a data-driven update, not a manual regen.
+  async function triggerAutoVerdictUpdate(userId: string, month: string, source: string): Promise<void> {
+    try {
+      const existing = await storage.getMonthlyVerdict(userId, month, source);
+      if (!existing) return;
+      const user = await storage.getUser(userId);
+      if (!user) return;
+      let all = await storage.getExpenses(userId);
+      let filtered = all.filter(e => {
+        const d = e.date instanceof Date ? e.date : new Date(String(e.date));
+        return d.toISOString().slice(0, 7) === month;
+      });
+      if (source !== "all") filtered = filtered.filter(e => e.source === source);
+      if (filtered.length === 0) return;
+      const total = filtered.reduce((sum, e) => sum + e.amount, 0);
+      const currencyCounts: Record<string, number> = {};
+      for (const e of filtered) {
+        const c = (e.currency as string | null | undefined) ?? user.currency ?? "USD";
+        currencyCounts[c] = (currencyCounts[c] || 0) + 1;
+      }
+      const currency = Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? user.currency ?? "USD";
+      const [yr, mo] = month.split("-");
+      const monthLabel = new Date(Number(yr), Number(mo) - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+      const expensesForRoast: ExpenseForRoast[] = filtered.map(e => ({
+        description: e.description,
+        amountCents: e.amount,
+        category: e.category,
+        date: e.date instanceof Date ? e.date : new Date(String(e.date)),
+      }));
+      const roast = await generateMonthlyRoast(monthLabel, total, expensesForRoast, currency);
+      await storage.updateVerdictRoast(existing.id, roast);
+    } catch (err) {
+      console.error("Auto verdict update failed:", err);
+    }
+  }
+
   app.get("/api/expenses/monthly-roast", isAuthenticated, async (req: any, res) => {
     const userId = getUserId(req);
     const user = await storage.getUser(userId);
@@ -857,30 +895,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (source) filtered = filtered.filter(e => e.source === source);
     const total = filtered.reduce((sum, e) => sum + e.amount, 0);
     if (existing) {
-      return res.json({ roast: existing.roast, total, count: filtered.length, regenCount: existing.regenCount, locked: true });
+      // manualRegenUsed: premium users have used their one manual regen if regenCount >= 1
+      const manualRegenUsed = existing.regenCount >= 1;
+      return res.json({ roast: existing.roast, total, count: filtered.length, regenCount: existing.regenCount, locked: true, manualRegenUsed });
     }
-    // No verdict yet — return null so client shows "Get Your Verdict" prompt
-    res.json({ roast: null, total, count: filtered.length, regenCount: 0, locked: false });
+    res.json({ roast: null, total, count: filtered.length, regenCount: 0, locked: false, manualRegenUsed: false });
   });
 
-  // ─── Monthly verdict: generate or regenerate (3 total per month) ──
+  // ─── Monthly verdict: generate or regenerate ──────────────────────
+  // Free users: one-time generation only (locked after that, no manual regen)
+  // Premium users: first-time generation + 1 manual regeneration per month
   app.post("/api/expenses/monthly-roast/regenerate", isAuthenticated, async (req: any, res) => {
     const userId = getUserId(req);
     const user = await storage.getUser(userId);
-    if (!user || user.tier === "free") {
-      return res.status(403).json({ message: "Regeneration requires Premium" });
-    }
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
     const { month, source } = req.body as { month?: string; source?: string };
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       return res.status(400).json({ message: "month must be YYYY-MM" });
     }
     const srcKey = source || "all";
     const existing = await storage.getMonthlyVerdict(userId, month, srcKey);
-    // Allow first-time generation (no existing verdict yet — counts as first of 3)
-    // Only block if already used all 3 verdicts (regenCount >= 2 means 3 total used)
-    if (existing && existing.regenCount >= 2) {
-      return res.status(429).json({ message: "Verdict limit reached (3 per month)" });
+
+    if (user.tier === "free") {
+      // Free users: allow first-time generation only
+      if (existing) {
+        return res.status(403).json({ message: "Your verdict is locked. Upgrade to Premium to regenerate." });
+      }
+    } else {
+      // Premium: allow first-time generation + 1 manual regen (regenCount < 1 means regen available)
+      if (existing && existing.regenCount >= 1) {
+        return res.status(429).json({ message: "Manual regeneration limit reached (1 per month)" });
+      }
     }
+
     let all = await storage.getExpenses(userId);
     let filtered = all.filter(e => {
       const d = e.date instanceof Date ? e.date : new Date(String(e.date));
@@ -907,16 +954,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     let resultRoast: string;
     let resultRegenCount: number;
     if (!existing) {
-      // First-time generation
       await storage.saveMonthlyVerdict(userId, month, srcKey, roast);
       resultRoast = roast;
       resultRegenCount = 0;
     } else {
+      // Premium manual regen — increments regenCount
       const updated = await storage.regenerateMonthlyVerdict(existing.id, roast);
       resultRoast = updated.roast;
       resultRegenCount = updated.regenCount;
     }
-    res.json({ roast: resultRoast, regenCount: resultRegenCount, locked: true });
+    const manualRegenUsed = resultRegenCount >= 1;
+    res.json({ roast: resultRoast, regenCount: resultRegenCount, locked: true, manualRegenUsed });
   });
 
   // ─── Expenses: Financial advice (premium) ───────────────────────
@@ -1352,6 +1400,9 @@ Respond ONLY with this JSON (no markdown, no extra keys):
         date: new Date(date), category, roast: roast || "I'm speechless.", imageUrl: null, source: "receipt",
         currency: confirmCurrency,
       });
+      // Fire-and-forget: auto-update the verdict for this month if one exists
+      const expenseMonth = new Date(date).toISOString().slice(0, 7);
+      triggerAutoVerdictUpdate(userId, expenseMonth, "receipt");
       res.status(201).json(expense);
     } catch (err) {
       console.error("Confirm receipt error:", err);
@@ -1614,6 +1665,9 @@ Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
         const created = await processTransactions(userId, txs, toneVal, undefined, userCurrency);
         const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, statementMonth);
         await storage.saveStatementRoast(userId, statementMonth, statementRoast, toneVal);
+        // Fire-and-forget: auto-update monthly verdict if one exists for this month
+        triggerAutoVerdictUpdate(userId, statementMonth, "bank_statement");
+        triggerAutoVerdictUpdate(userId, statementMonth, "all");
         return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: statementMonth });
       } catch (err) {
         console.error("Statement import error (pre-parsed):", err);

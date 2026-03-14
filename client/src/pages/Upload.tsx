@@ -168,11 +168,8 @@ export default function Upload() {
     "receipt"
   );
   const regenerateMutation = useRegenerateVerdict();
-  const regenCount = monthlyRoastData?.regenCount ?? 0;
-  // 3 total verdicts per month: 1 first + 2 refreshes. regenRemaining = how many refreshes left after first.
-  const regenRemaining = 2 - regenCount;
   const hasVerdict = !!monthlyRoastData?.roast;
-  const verdictsLeft = hasVerdict ? regenRemaining : 3;
+  const manualRegenUsed = monthlyRoastData?.manualRegenUsed ?? false;
 
   // Average receipt amount across ALL receipts (not just filtered month)
   // Used to compute relative flame severity on each card
@@ -480,20 +477,13 @@ export default function Upload() {
                         )}
                       </div>
                       <div className="flex items-center gap-1">
-                        {/* Before first verdict: show static "3 left" count */}
-                        {!hasVerdict && !isFree && (
-                          <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[hsl(var(--primary))]/60">
-                            <RefreshCw className="w-3 h-3" />
-                            <span>3 left this month</span>
-                          </span>
-                        )}
-                        {/* After first verdict: show refresh button with remaining count */}
-                        {hasVerdict && !isFree && regenRemaining > 0 && (
+                        {/* Premium: Regenerate button (1 per month) */}
+                        {hasVerdict && !isFree && !manualRegenUsed && (
                           <button
                             data-testid="button-regenerate-verdict"
                             onClick={() => regenerateMutation.mutate({ month: selectedMonth!, source: "receipt" })}
                             disabled={regenerateMutation.isPending}
-                            title={`Get a fresh verdict (${regenRemaining} left)`}
+                            title="Regenerate verdict (1 per month)"
                             className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[hsl(var(--primary))]/70 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200 disabled:opacity-50"
                           >
                             {regenerateMutation.isPending ? (
@@ -501,11 +491,15 @@ export default function Upload() {
                             ) : (
                               <RefreshCw className="w-3 h-3" />
                             )}
-                            <span>{regenRemaining} left</span>
+                            <span>Regenerate</span>
                           </button>
                         )}
-                        {hasVerdict && !isFree && regenRemaining === 0 && (
-                          <span className="text-xs text-muted-foreground/50 px-2">No verdicts left</span>
+                        {/* Premium: grayed out after using the one manual regen */}
+                        {hasVerdict && !isFree && manualRegenUsed && (
+                          <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-muted-foreground/40 cursor-not-allowed" title="Regeneration used for this month">
+                            <RefreshCw className="w-3 h-3" />
+                            <span>Regenerate</span>
+                          </span>
                         )}
                         {hasVerdict && (
                           <ShareButton
@@ -524,16 +518,25 @@ export default function Upload() {
                         <span>Generating your {fmtMonth(selectedMonth)} verdict…</span>
                       </div>
                     ) : hasVerdict ? (
-                      <VerdictText roast={monthlyRoastData!.roast!} />
+                      <div className="flex flex-col gap-2">
+                        <VerdictText roast={monthlyRoastData!.roast!} />
+                        {/* Free users: show upgrade prompt below the locked verdict */}
+                        {isFree && (
+                          <p className="text-xs text-[hsl(var(--primary))]/60 flex items-center gap-1 mt-1">
+                            <Lock className="w-3 h-3" />
+                            Upgrade to Premium to regenerate your verdict.
+                          </p>
+                        )}
+                      </div>
                     ) : (
-                      /* Placeholder — no verdict generated yet */
+                      /* No verdict yet */
                       <div className="flex flex-col gap-3">
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Your monthly verdict is ready to load — but you only get <span className="text-white/80 font-semibold">3 per month</span>, so make them count. Uncle Sergio has been watching your spending.
+                          Uncle Sergio has been watching your spending. Your monthly verdict awaits.
                         </p>
                         {isFree ? (
-                          <p className="text-xs text-[hsl(var(--primary))]/70">
-                            <Lock className="w-3 h-3 inline mr-1" />
+                          <p className="text-xs text-[hsl(var(--primary))]/70 flex items-center gap-1">
+                            <Lock className="w-3 h-3" />
                             Monthly verdicts require Premium.
                           </p>
                         ) : (

@@ -31,6 +31,7 @@ export interface IStorage {
   getMonthlyVerdict(userId: string, month: string, source: string): Promise<MonthlyVerdict | null>;
   saveMonthlyVerdict(userId: string, month: string, source: string, roast: string): Promise<MonthlyVerdict>;
   regenerateMonthlyVerdict(id: number, roast: string): Promise<MonthlyVerdict>;
+  updateVerdictRoast(id: number, roast: string): Promise<MonthlyVerdict>;
   getStatementRoast(userId: string, month: string): Promise<StatementRoast | null>;
   saveStatementRoast(userId: string, month: string, roast: string, tone: string): Promise<StatementRoast>;
   getStatementMonths(userId: string): Promise<string[]>;
@@ -266,6 +267,14 @@ export class DatabaseStorage implements IStorage {
   async regenerateMonthlyVerdict(id: number, roast: string): Promise<MonthlyVerdict> {
     const [row] = await db.update(monthlyVerdicts)
       .set({ roast, regenCount: sql`${monthlyVerdicts.regenCount} + 1` })
+      .where(eq(monthlyVerdicts.id, id))
+      .returning();
+    return row;
+  }
+
+  async updateVerdictRoast(id: number, roast: string): Promise<MonthlyVerdict> {
+    const [row] = await db.update(monthlyVerdicts)
+      .set({ roast })
       .where(eq(monthlyVerdicts.id, id))
       .returning();
     return row;
