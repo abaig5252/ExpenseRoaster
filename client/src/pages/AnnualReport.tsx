@@ -24,7 +24,13 @@ function fmtDate(dt: string | Date) {
 function cleanErrorMessage(err: unknown): string {
   const raw = (err as Error)?.message || "Something went wrong";
   // Strip leading HTTP status code like "400: " or "500: "
-  return raw.replace(/^\d{3}:\s*/, "");
+  const stripped = raw.replace(/^\d{3}:\s*/, "");
+  // If the remainder is a JSON object, extract the message field
+  try {
+    const parsed = JSON.parse(stripped);
+    if (parsed?.message) return parsed.message;
+  } catch {}
+  return stripped;
 }
 
 function isDataError(err: unknown): boolean {

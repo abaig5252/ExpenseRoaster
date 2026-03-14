@@ -1776,6 +1776,7 @@ Return ONLY valid JSON, no other text.`,
       const allTimeTotalSpend = rawExpenses.reduce((s, e) => s + e.amount, 0);
       const avgMonthlyAllTime = allTimeTotalSpend / Math.max(allTimeMonths, 1);
       const projection5yr = Math.round(avgMonthlyAllTime * 12 * 5);
+      const projectionFullYear = Math.round(avgMonthly * 12);
       const allTimeYearsRange = allTimeMonths > 0
         ? (() => {
             const months = Object.keys(allTimeMonthlyTotals).sort();
