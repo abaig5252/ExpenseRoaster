@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { parseReceiptDate } from "@/lib/dates";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare, X } from "lucide-react";
 import { ShareButton } from "@/components/ShareButton";
-import { useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
+import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
 import { CURRENCIES } from "@/hooks/use-currency";
 import { AppNav } from "@/components/AppNav";
@@ -166,6 +166,9 @@ export default function BankStatement() {
   const [editMonth, setEditMonth] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [reRoastingSet, setReRoastingSet] = useState<Set<number>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const leftColRef = useRef<HTMLDivElement>(null);
   const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
 
@@ -192,6 +195,7 @@ export default function BankStatement() {
   const { data: me } = useMe();
   const importMutation = useImportCSV();
   const deleteMutation = useDeleteExpense();
+  const bulkDeleteMutation = useBulkDeleteExpenses();
   const { data: expenses } = useExpenses();
   const { toast } = useToast();
 
@@ -222,6 +226,47 @@ export default function BankStatement() {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` === activeMonth;
       })
     : allBankExpenses;
+
+  const allSelected = manualExpenses.length > 0 && manualExpenses.every(e => selectedIds.has(e.id));
+
+  const enterSelectMode = useCallback(() => {
+    setSelectMode(true);
+    setSelectedIds(new Set());
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setShowBulkConfirm(false);
+  }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(manualExpenses.map(e => e.id)));
+    }
+  }, [allSelected, manualExpenses]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      await bulkDeleteMutation.mutateAsync(ids);
+      exitSelectMode();
+      toast({ title: `${ids.length} transaction${ids.length !== 1 ? "s" : ""} deleted` });
+    } catch {
+      toast({ title: "Failed to delete", variant: "destructive" });
+    }
+  }, [selectedIds, bulkDeleteMutation, exitSelectMode, toast]);
 
   const scanStatement = async () => {
     if (!importData) return;
@@ -316,6 +361,7 @@ export default function BankStatement() {
     : "";
 
   return (
+    <>
     <div className="min-h-screen pb-24">
       <div className="bg-noise" />
       <AppNav />
@@ -516,17 +562,51 @@ export default function BankStatement() {
             <h2 className="text-xl font-bold text-white">
               Imported Transactions {manualExpenses.length > 0 && <span className="text-base font-normal text-muted-foreground ml-1">({manualExpenses.length})</span>}
             </h2>
-            {availableMonths.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
-                {availableMonths.map(m => (
-                  <button key={m} onClick={() => setSelectedMonth(m)}
-                    data-testid={`button-month-${m}`}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeMonth === m ? "bg-[hsl(var(--secondary))]/20 text-[hsl(var(--secondary))] border border-[hsl(var(--secondary))]/40" : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"}`}>
-                    {formatMonthLabel(m)}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-3 flex-wrap">
+              {availableMonths.length > 0 && !selectMode && (
+                <div className="flex gap-2 flex-wrap">
+                  {availableMonths.map(m => (
+                    <button key={m} onClick={() => setSelectedMonth(m)}
+                      data-testid={`button-month-${m}`}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeMonth === m ? "bg-[hsl(var(--secondary))]/20 text-[hsl(var(--secondary))] border border-[hsl(var(--secondary))]/40" : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"}`}>
+                      {formatMonthLabel(m)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Select mode controls */}
+              {manualExpenses.length > 0 && (
+                <div className="flex items-center gap-3">
+                  {selectMode ? (
+                    <>
+                      <button
+                        data-testid="button-select-all-bank"
+                        onClick={toggleSelectAll}
+                        className="text-sm font-semibold text-[hsl(var(--primary))] hover:opacity-80 transition-opacity"
+                      >
+                        {allSelected ? "Deselect All" : "Select All"}
+                      </button>
+                      <button
+                        data-testid="button-cancel-select-bank"
+                        onClick={exitSelectMode}
+                        className="flex items-center gap-1.5 text-sm font-semibold text-white/60 hover:text-white transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      data-testid="button-enter-select-mode-bank"
+                      onClick={enterSelectMode}
+                      className="text-sm font-semibold text-white/50 hover:text-white/90 transition-colors"
+                    >
+                      Select
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           {manualExpenses.length === 0 ? (
             <div className="py-12 text-center">
@@ -537,57 +617,152 @@ export default function BankStatement() {
             </div>
           ) : (
             <div className="flex flex-col gap-3 overflow-y-auto pr-1" style={{ maxHeight: 540 }}>
-              {manualExpenses.map((exp, i) => (
-                <motion.div key={exp.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                  data-testid={`card-manual-${exp.id}`}
-                  className="glass-panel rounded-2xl group relative"
-                  style={{ padding: "10px 14px 12px 14px" }}
-                >
-                  <div style={{ marginBottom: 8 }}>
-                    <EditableCategoryPill expenseId={exp.id} category={exp.category} onCategoryChanged={handleCategoryChanged} />
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0 mt-0.5">
-                      <Wallet className="w-4 h-4 text-[hsl(var(--secondary))]" />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-6">
-                      <div className="flex justify-between items-start gap-2">
-                        <p className="font-bold text-white text-sm truncate">{exp.description}</p>
-                        <span className="text-base font-amount-card text-white shrink-0">
-                          {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
-                        </span>
+              {manualExpenses.map((exp, i) => {
+                const isSelected = selectedIds.has(exp.id);
+                return (
+                  <motion.div key={exp.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                    data-testid={`card-manual-${exp.id}`}
+                    onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
+                    className={`glass-panel rounded-2xl group relative transition-all duration-150 ${selectMode ? "cursor-pointer" : ""} ${isSelected ? "border border-[hsl(var(--primary))]/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]" : ""}`}
+                    style={{ padding: "10px 14px 12px 14px" }}
+                  >
+                    {/* Checkbox overlay in select mode */}
+                    {selectMode && (
+                      <div
+                        className={`absolute top-3 left-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-150 ${isSelected ? "bg-[hsl(var(--primary))] border-[hsl(var(--primary))]" : "border-white/30 bg-white/5"}`}
+                      >
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-black" />}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                    )}
+                    {!selectMode && (
+                      <div style={{ marginBottom: 8 }}>
+                        <EditableCategoryPill expenseId={exp.id} category={exp.category} onCategoryChanged={handleCategoryChanged} />
                       </div>
-                      {reRoastingSet.has(exp.id) ? (
-                        <div className="flex items-center gap-2 mt-2">
-                          <Loader2 className="w-3.5 h-3.5 text-[hsl(var(--primary))] animate-spin shrink-0" />
-                          <p className="text-xs text-muted-foreground italic">Regenerating roast...</p>
+                    )}
+                    <div className={`flex items-start gap-3 ${selectMode ? "pl-8" : ""}`}>
+                      <div className="bg-[hsl(var(--secondary))]/10 border border-[hsl(var(--secondary))]/20 rounded-xl p-2.5 shrink-0 mt-0.5">
+                        <Wallet className="w-4 h-4 text-[hsl(var(--secondary))]" />
+                      </div>
+                      <div className="flex-1 min-w-0 pr-6">
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="font-bold text-white text-sm truncate">{exp.description}</p>
+                          <span className="text-base font-amount-card text-white shrink-0">
+                            {(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })}
+                          </span>
                         </div>
-                      ) : exp.roast ? (
-                        <div className="flex items-start gap-2 mt-2">
-                          <p className="text-sm italic text-white/70 leading-relaxed flex-1">"{exp.roast}"</p>
-                          <ShareButton
-                            text={`🔥 "${exp.roast}"\n\n— ${(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })} at ${exp.description} · Expense Roaster`}
-                            variant="icon"
-                            className="flex items-center justify-center w-6 h-6 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200 shrink-0 mt-0.5"
-                          />
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">{parseReceiptDate(exp.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                         </div>
-                      ) : null}
+                        {!selectMode && (reRoastingSet.has(exp.id) ? (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Loader2 className="w-3.5 h-3.5 text-[hsl(var(--primary))] animate-spin shrink-0" />
+                            <p className="text-xs text-muted-foreground italic">Regenerating roast...</p>
+                          </div>
+                        ) : exp.roast ? (
+                          <div className="flex items-start gap-2 mt-2">
+                            <p className="text-sm italic text-white/70 leading-relaxed flex-1">"{exp.roast}"</p>
+                            <ShareButton
+                              text={`🔥 "${exp.roast}"\n\n— ${(exp.amount / 100).toLocaleString(undefined, { style: "currency", currency: (exp as any).currency || "USD" })} at ${exp.description} · Expense Roaster`}
+                              variant="icon"
+                              className="flex items-center justify-center w-6 h-6 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-all duration-200 shrink-0 mt-0.5"
+                            />
+                          </div>
+                        ) : null)}
+                      </div>
                     </div>
-                  </div>
-                  <button onClick={() => deleteMutation.mutate(exp.id)} disabled={deleteMutation.isPending}
-                    data-testid={`button-delete-manual-${exp.id}`}
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </motion.div>
-              ))}
+                    {!selectMode && (
+                      <button onClick={() => deleteMutation.mutate(exp.id)} disabled={deleteMutation.isPending}
+                        data-testid={`button-delete-manual-${exp.id}`}
+                        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </motion.div>
       </main>
     </div>
+
+    {/* Sticky delete bar */}
+    <AnimatePresence>
+      {selectMode && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 35 }}
+          className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-3"
+          style={{ background: "linear-gradient(to top, rgba(10,10,10,0.98) 60%, transparent)" }}
+        >
+          <div className="max-w-lg mx-auto">
+            <button
+              data-testid="button-bulk-delete-bank"
+              onClick={() => selectedIds.size > 0 && setShowBulkConfirm(true)}
+              disabled={selectedIds.size === 0 || bulkDeleteMutation.isPending}
+              className="w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all duration-200"
+              style={{
+                background: selectedIds.size === 0 ? "rgba(255,82,82,0.12)" : "#FF5252",
+                color: selectedIds.size === 0 ? "rgba(255,82,82,0.4)" : "#FFFFFF",
+                cursor: selectedIds.size === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              <Trash2 className="w-5 h-5" />
+              {selectedIds.size === 0
+                ? "Select transactions to delete"
+                : `Delete (${selectedIds.size} selected)`}
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* Bulk delete confirmation */}
+    <AnimatePresence>
+      {showBulkConfirm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+          onClick={() => setShowBulkConfirm(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="glass-panel rounded-3xl p-7 max-w-sm w-full border border-white/10"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-destructive/20 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-destructive" />
+            </div>
+            <h3 className="text-xl font-bold text-white text-center mb-2">
+              Delete {selectedIds.size} transaction{selectedIds.size !== 1 ? "s" : ""}?
+            </h3>
+            <p className="text-sm text-muted-foreground text-center mb-6">This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowBulkConfirm(false)}
+                className="flex-1 py-3 rounded-2xl font-bold text-sm bg-white/5 hover:bg-white/10 text-muted-foreground border border-white/10 transition-all">
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteMutation.isPending}
+                className="flex-1 py-3 rounded-2xl font-bold text-sm bg-destructive hover:bg-destructive/90 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {bulkDeleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Delete
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
