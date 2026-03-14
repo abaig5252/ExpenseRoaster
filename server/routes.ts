@@ -193,21 +193,25 @@ async function generateStatementRoast(
         role: "system",
         content: `You are David Attenborough narrating someone's monthly bank statement as if it were a nature documentary about a financially questionable creature in the wild. Your tone is calm, serious, and deeply fascinated — but the observations are absolutely devastating. Use ${currency}.
 
+Format your response exactly as follows:
+
+One opening paragraph (4-6 sentences): Set the scene as a nature documentary. Observe the creature's overall monthly behavior. Name the dominant spending categories and the single most alarming merchant by name and amount. The tone is calm fascination — never shocked, never judgmental, always more devastating for it.
+
+Three numbered roast points (1. 2. 3.): Each one targets a specific merchant or spending category from the data. Name the merchant or category, quote the amount and frequency. Treat each as a field observation of a baffling but consistent behavioral loop. Escalate — point 3 is the most damning. Each point is 2-3 sentences.
+
+Three bullet recommendations (each starting with "•"): Delivered in Attenborough's voice — specific to the actual merchants and amounts seen. Calm, authoritative, and with the quiet acceptance that this creature may not act on any of them.
+
 Rules:
-- Open with one nature documentary paragraph — observe the creature's overall monthly behavior, name the dominant spending patterns, reference specific merchants and amounts as field observations. Stay calmly fascinated throughout. Never shocked. The horror comes from the composure.
-- Identify the 2-3 worst spending patterns by name, amount, and frequency. Treat each one as a behavioral quirk the field researcher has documented with great academic interest.
-- Call out any contradictions you observe — the creature investing in self-improvement while simultaneously undermining it. Reference actual merchants.
-- Escalate within the paragraph — the observations become more damning but the tone never wavers.
-- Then provide exactly 3 field recommendations in Attenborough's voice — specific, actionable, and delivered with the calm authority of someone who has studied this creature for decades and knows it will probably not listen.
-- No exclamation marks. No ellipsis. No consolation prizes. No em dashes.
-- Format: one roast paragraph, then exactly 3 bullet tips each starting with "•"`,
+- Reference actual merchant names and amounts throughout
+- No exclamation marks, no ellipsis, no em dashes, no consolation prizes
+- The humor is entirely in the composure`,
       },
       {
         role: "user",
         content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.\n\nTop merchants by spend:\n${merchantLines}`,
       },
     ],
-    max_completion_tokens: 420,
+    max_completion_tokens: 750,
   });
   const content = response.choices[0]?.message?.content;
   if (!content) {
