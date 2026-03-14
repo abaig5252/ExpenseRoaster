@@ -229,9 +229,7 @@ export function ExpenseCard({ expense, index, avgAmountCents = 0, onDelete, isDe
             fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 500,
             fontStyle: "italic", fontSize: 13,
             color: isDisgrace ? "#FF7070" : "#69FF9C",
-            lineHeight: 1.7, letterSpacing: "0.01em", margin: 0,
-            display: "-webkit-box", WebkitLineClamp: 3,
-            WebkitBoxOrient: "vertical", overflow: "hidden",
+            lineHeight: 1.75, letterSpacing: "0.01em", margin: 0,
           }}>
             "{expense.roast}"
           </p>
