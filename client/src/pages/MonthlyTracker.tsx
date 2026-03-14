@@ -9,7 +9,6 @@ import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, t
 import { AppNav } from "@/components/AppNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parseReceiptDate } from "@/lib/dates";
-import { ShareButton } from "@/components/ShareButton";
 import { useMe } from "@/hooks/use-subscription";
 import { Link } from "wouter";
 
@@ -787,14 +786,6 @@ export default function MonthlyTracker() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-bold text-white">{makeFmt((exp as any).currency || bankCurrency)(exp.amount)}</span>
-                    {exp.roast && (
-                      <ShareButton
-                        text={`🔥 "${exp.roast}"\n\n— ${makeFmt((exp as any).currency || bankCurrency)(exp.amount)} at ${exp.description} · Expense Roaster`}
-                        label="Share 🔥"
-                        variant="full"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-[hsl(var(--primary))]/35 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all duration-200 shrink-0"
-                      />
-                    )}
                   </div>
                 </div>
               ))}
