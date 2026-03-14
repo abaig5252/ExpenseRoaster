@@ -288,10 +288,10 @@ export default function BankStatement() {
         )}
 
         {/* ── Top row: import + roast side by side ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 items-start">
 
           {/* Left: Tone selector + Import card */}
-          <div className="flex flex-col">
+          <div>
             {isPremium && (
               <div className="mb-5">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Roast Tone</label>
@@ -307,7 +307,7 @@ export default function BankStatement() {
               </div>
             )}
 
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5 flex-1">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel rounded-3xl p-6 flex flex-col gap-5">
               <div>
                 <h2 className="text-xl font-bold text-white mb-1">Import Statement</h2>
                 <p className="text-xs text-muted-foreground">Upload a PDF or photo of your bank or credit card statement. Up to 100 transactions per import.</p>
@@ -404,18 +404,16 @@ export default function BankStatement() {
             </motion.div>
           </div>
 
-          {/* Right: Statement roast — aligned with import card, scrollable */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-            className="flex flex-col">
-            {/* spacer to align with tone selector when premium */}
+          {/* Right: Statement roast — fixed height, scrollable content */}
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
             {isPremium && <div className="mb-5 h-[52px]" />}
             <div
               data-testid="card-statement-roast"
-              className="glass-panel rounded-3xl flex flex-col flex-1 border border-[hsl(var(--primary))]/20 relative overflow-hidden"
-              style={{ minHeight: 260 }}
+              className="glass-panel rounded-3xl border border-[hsl(var(--primary))]/20 relative overflow-hidden flex flex-col"
+              style={{ height: 340 }}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/8 to-[hsl(var(--secondary))]/4 pointer-events-none" />
-              <div className="relative flex flex-col h-full p-6">
+              <div className="relative flex flex-col h-full p-6 min-h-0">
                 <div className="flex items-center justify-between mb-4 shrink-0">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center shrink-0">
@@ -432,7 +430,7 @@ export default function BankStatement() {
                 </div>
 
                 {statementRoast ? (
-                  <div className="overflow-y-auto flex-1 pr-1">
+                  <div className="overflow-y-auto flex-1 min-h-0 pr-1">
                     <p className="text-sm text-white/90 leading-relaxed whitespace-pre-line">{statementRoast}</p>
                   </div>
                 ) : (
