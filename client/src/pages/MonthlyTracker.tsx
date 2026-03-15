@@ -61,15 +61,6 @@ function CategoryAdviceCard({ item, currencyCode }: { item: AdviceBreakdown; cur
         <Lightbulb className="w-3.5 h-3.5 text-[hsl(var(--accent))] shrink-0 mt-0.5" />
         <p className="text-sm text-white/80 leading-relaxed">{item.insight}</p>
       </div>
-      {item.alternatives?.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-0.5">
-          {item.alternatives.map((alt, i) => (
-            <span key={i} className="text-xs text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1">
-              {alt}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -317,7 +308,7 @@ export default function MonthlyTracker() {
                 { icon: "🤖", text: "Automated financial advice tailored to your actual spending patterns" },
                 { icon: "📅", text: "Filter by month, year, or category to drill into the damage" },
                 { icon: "📉", text: "Compare your best and worst months side by side" },
-                { icon: "💡", text: "Savings opportunities with specific, actionable alternatives" },
+                { icon: "💡", text: "Specific savings directives tied to your actual merchants" },
               ].map(({ icon, text }) => (
                 <div key={text} className="flex items-start gap-3">
                   <span className="text-lg shrink-0 mt-0.5">{icon}</span>

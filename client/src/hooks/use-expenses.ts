@@ -96,7 +96,6 @@ export type AdviceBreakdown = {
   category: string;
   roast: string;
   insight: string;
-  alternatives: string[];
   potentialSaving: number;
 };
 
