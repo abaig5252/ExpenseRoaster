@@ -1224,14 +1224,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const descCleanMap = await cleanMerchantNames(allExpenses.map(e => e.description));
 
       const categoryTotals: Record<string, number> = {};
-      const categoryMerchants: Record<string, string[]> = {};
+      // Per-merchant spend within each category — amounts are exact, ranked, so AI cannot fabricate rankings
+      const categoryMerchantAmounts: Record<string, Record<string, number>> = {};
       for (const exp of allExpenses) {
         const cleanedDesc = descCleanMap.get(exp.description) || exp.description;
         categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
-        if (!categoryMerchants[exp.category]) categoryMerchants[exp.category] = [];
-        if (!categoryMerchants[exp.category].includes(cleanedDesc)) {
-          categoryMerchants[exp.category].push(cleanedDesc);
-        }
+        if (!categoryMerchantAmounts[exp.category]) categoryMerchantAmounts[exp.category] = {};
+        categoryMerchantAmounts[exp.category][cleanedDesc] =
+          (categoryMerchantAmounts[exp.category][cleanedDesc] || 0) + exp.amount;
       }
 
       const sortedCats = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
@@ -1248,8 +1248,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const categoryLines = sortedCats
         .map(([cat, amt]) => {
-          const merchants = categoryMerchants[cat]?.slice(0, 6).join(", ") || "various";
-          return `- ${cat}: ${(amt / 100).toFixed(2)} ${adviceCurrency} (merchants: ${merchants})`;
+          const merchantAmounts = categoryMerchantAmounts[cat] || {};
+          const ranked = Object.entries(merchantAmounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6)
+            .map(([name, spend]) => `${name} $${(spend / 100).toFixed(2)}`);
+          const merchantStr = ranked.join(", ") || "various";
+          return `- ${cat}: ${(amt / 100).toFixed(2)} ${adviceCurrency} (merchants ranked by spend: ${merchantStr})`;
         })
         .join("\n");
 
