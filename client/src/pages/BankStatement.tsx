@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { parseReceiptDate } from "@/lib/dates";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare, X, RefreshCw } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare, X, RefreshCw, Sparkles } from "lucide-react";
 import { ShareButton } from "@/components/ShareButton";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
@@ -168,6 +168,7 @@ export default function BankStatement() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
   const leftColRef = useRef<HTMLDivElement>(null);
   const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
 
@@ -610,6 +611,21 @@ export default function BankStatement() {
                   <div className="overflow-y-auto flex-1 min-h-0 pr-1">
                     <p className="text-sm text-white/90 leading-relaxed whitespace-pre-line">{statementRoast}</p>
                   </div>
+                ) : activeMonth && manualExpenses.length > 0 ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-center gap-4">
+                    <div className="opacity-40">
+                      <Flame className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground font-medium">No roast generated yet.</p>
+                    </div>
+                    <button
+                      data-testid="button-generate-statement-roast"
+                      onClick={() => setShowGenerateConfirm(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 hover:bg-[hsl(var(--primary))]/25 transition-all duration-200"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Generate Monthly Roast
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center flex-1 text-center opacity-35">
                     <Flame className="w-10 h-10 text-muted-foreground mb-3" />
@@ -824,6 +840,59 @@ export default function BankStatement() {
               >
                 {bulkDeleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Delete
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {showGenerateConfirm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+          onClick={() => setShowGenerateConfirm(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="glass-panel rounded-3xl p-7 max-w-sm w-full border border-white/10"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-[hsl(var(--primary))]/20 flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="w-6 h-6 text-[hsl(var(--primary))]" />
+            </div>
+            <h3 className="text-xl font-bold text-white text-center mb-2">
+              Ready to generate your roast?
+            </h3>
+            <p className="text-sm text-muted-foreground text-center mb-1">
+              Before generating, make sure:
+            </p>
+            <ul className="text-sm text-muted-foreground text-left mb-6 mt-2 space-y-1 px-2">
+              <li className="flex items-start gap-2"><span className="mt-0.5 text-[hsl(var(--primary))]">•</span>All bank statements for {activeMonth ? formatMonthLabel(activeMonth) : "this month"} have been uploaded</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5 text-[hsl(var(--primary))]">•</span>Transaction categories look correct</li>
+            </ul>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowGenerateConfirm(false)}
+                className="flex-1 py-3 rounded-2xl font-bold text-sm bg-white/5 hover:bg-white/10 text-muted-foreground border border-white/10 transition-all"
+              >
+                Not yet
+              </button>
+              <button
+                data-testid="button-confirm-generate-roast"
+                onClick={() => {
+                  setShowGenerateConfirm(false);
+                  if (activeMonth) regenerateRoastMutation.mutate(activeMonth);
+                }}
+                className="flex-1 py-3 rounded-2xl font-bold text-sm bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white transition-all flex items-center justify-center gap-2"
+              >
+                <Flame className="w-4 h-4" />
+                Roast me
               </button>
             </div>
           </motion.div>

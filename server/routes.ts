@@ -1845,13 +1845,11 @@ Respond ONLY with JSON: {"name": "<cleaned name>", "category": "<category>"}` },
         }
         const created = await processTransactions(userId, txs, toneVal, undefined, userCurrency);
         const existingRoast1 = await storage.getStatementRoast(userId, statementMonth);
-        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, statementMonth);
-        await storage.saveStatementRoast(userId, statementMonth, statementRoast, toneVal);
         if (existingRoast1) await storage.markStatementRoastDirty(userId, statementMonth);
         // Fire-and-forget: auto-update monthly verdict if one exists for this month
         triggerAutoVerdictUpdate(userId, statementMonth, "bank_statement");
         triggerAutoVerdictUpdate(userId, statementMonth, "all");
-        return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: statementMonth });
+        return res.status(201).json({ imported: created.length, expenses: created, month: statementMonth });
       } catch (err) {
         console.error("Statement import error (pre-parsed):", err);
         return res.status(500).json({ message: "Failed to import statement" });
@@ -1899,10 +1897,8 @@ Return ONLY valid JSON, no other text.`,
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
         const pdfMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
         const existingRoast2 = await storage.getStatementRoast(userId, pdfMonth);
-        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, pdfMonth);
-        await storage.saveStatementRoast(userId, pdfMonth, statementRoast, toneVal);
         if (existingRoast2) await storage.markStatementRoastDirty(userId, pdfMonth);
-        return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: pdfMonth });
+        return res.status(201).json({ imported: created.length, expenses: created, month: pdfMonth });
       }
 
       // ── Image (JPEG / PNG / WebP / HEIC converted) ───────────────
@@ -1942,10 +1938,8 @@ Return ONLY valid JSON, no other text.`,
         const created = await processTransactions(userId, txs, toneVal, statementLocation, userCurrency);
         const imgMonth = month || (txs[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7));
         const existingRoast3 = await storage.getStatementRoast(userId, imgMonth);
-        const statementRoast = await generateStatementRoast(txs, toneVal, userCurrency, imgMonth);
-        await storage.saveStatementRoast(userId, imgMonth, statementRoast, toneVal);
         if (existingRoast3) await storage.markStatementRoastDirty(userId, imgMonth);
-        return res.status(201).json({ imported: created.length, expenses: created, statementRoast, month: imgMonth });
+        return res.status(201).json({ imported: created.length, expenses: created, month: imgMonth });
       }
 
       return res.status(400).json({ message: "Unsupported format. Use pdf or image." });
@@ -1976,33 +1970,8 @@ Return ONLY valid JSON, no other text.`,
       return res.json({ roast: row.roast.replace(/\*+/g, ""), tone: row.tone, isDirty: row.isDirty ?? false });
     }
 
-    // Auto-generate from stored transactions for this month
-    const allExpenses = await storage.getExpenses(userId);
-    const monthTxs = allExpenses.filter(e => {
-      const d = e.date instanceof Date ? e.date : new Date(String(e.date));
-      return d.toISOString().slice(0, 7) === month && e.source !== "receipt";
-    });
-
-    if (monthTxs.length === 0) {
-      return res.json({ roast: null, tone: null });
-    }
-
-    const currency = user?.currency ?? "USD";
-    const txsForRoast = monthTxs.map(e => ({
-      description: e.description,
-      amount: e.amount / 100,
-      date: (e.date instanceof Date ? e.date : new Date(String(e.date))).toISOString(),
-      category: e.category,
-    }));
-
-    try {
-      const roast = await generateStatementRoast(txsForRoast, "sergio", currency, month);
-      await storage.saveStatementRoast(userId, month, roast, "sergio");
-      return res.json({ roast, tone: "sergio" });
-    } catch (err) {
-      console.error("[statement-roast] generation failed:", err);
-      return res.json({ roast: null, tone: null });
-    }
+    // No roast yet — return null so the client can show a Generate button
+    return res.json({ roast: null, tone: null, isDirty: false });
   });
 
   // ─── Statement roast: force-regenerate (clears cache, re-runs prompt) ─
