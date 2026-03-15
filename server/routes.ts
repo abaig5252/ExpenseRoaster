@@ -1960,7 +1960,6 @@ Return ONLY valid JSON, no other text.`,
   app.get("/api/statement-roast/:month", isAuthenticated, async (req: any, res: Response) => {
     const userId = getUserId(req);
     const { month } = req.params;
-    const user = await storage.getUser(userId);
     const row = await storage.getStatementRoast(userId, month);
 
     const FALLBACK = "The record has been updated.";
