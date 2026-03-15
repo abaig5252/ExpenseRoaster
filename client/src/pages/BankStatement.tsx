@@ -454,7 +454,7 @@ export default function BankStatement() {
           <div ref={leftColRef}>
             {isPremium && (
               <div className="mb-5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 block">Roast Tone — Uncle Sergio 🤌</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 block">Roast Tone</label>
                 <p className="text-xs text-muted-foreground/70 mb-2">Your fictional Italian uncle who can't believe what you're spending money on.</p>
                 <div className="flex gap-2">
                   {TONES.map(t => (
