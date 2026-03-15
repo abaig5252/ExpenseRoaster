@@ -114,7 +114,7 @@ ENFORCEMENT:
 - LINE 3 must be specific to the merchant type on the receipt, not generic financial advice.
 - No sentence may use "and" to chain two ideas — split it or cut one idea.
 - Count words per line before outputting. Rewrite any line over its limit.
-- No em dashes. No ellipsis.`,
+- No em dashes. Never use ellipsis (...) or trailing dots of any kind.`,
 
   // ── TIER 2: Destroyed 💀 ────────────────────────────────────────────────
   // Sergio is past helping. There is no tip. No redemption arc. No safety net.
@@ -148,7 +148,7 @@ ENFORCEMENT:
 - SENTENCE 2 must contain one of the five exact phrases above verbatim. Paraphrase = fail. Rewrite until it passes.
 - CLOSING LINE must reframe identity, not money. Must be specific to this purchase. Must match benchmark energy.
 - No sentence may use "and" to chain two ideas — split it or cut one idea.
-- No em dashes. No ellipsis. No soft landing. No redemption. No tip. No advice.`,
+- No em dashes. Never use ellipsis (...) or trailing dots of any kind. No soft landing. No redemption. No tip. No advice.`,
 
 };
 
@@ -176,7 +176,7 @@ ENFORCEMENT:
 - LINE 3 must be specific to the merchant type on the transaction, not generic financial advice.
 - No sentence may use "and" to chain two ideas — split it or cut one idea.
 - Count words per line before outputting. Rewrite any line over its limit.
-- Funny and frustrated — never mean. No em dashes. No ellipsis.`,
+- Funny and frustrated — never mean. No em dashes. Never use ellipsis (...) or trailing dots of any kind.`,
 
   // ── TIER 2: Destroyed 💀 ────────────────────────────────────────────────
   // Sergio is past helping. There is no tip. No redemption arc. No safety net.
@@ -210,7 +210,7 @@ ENFORCEMENT:
 - SENTENCE 2 must contain one of the five exact phrases above verbatim. Paraphrase = fail. Rewrite until it passes.
 - CLOSING LINE must reframe identity, not money. Must be specific to this purchase. Must match benchmark energy.
 - No sentence may use "and" to chain two ideas — split it or cut one idea.
-- No em dashes. No ellipsis. No soft landing. No redemption. No tip. No advice.`,
+- No em dashes. Never use ellipsis (...) or trailing dots of any kind. No soft landing. No redemption. No tip. No advice.`,
 };
 
 // ─── Bank Statement Prompts (whole-statement summary) ─────────────────────
