@@ -17,12 +17,19 @@ export const VERDICT_CATEGORY_COLORS: Record<string, string> = {
   'health':          '#5BA85E',
   'subscriptions':   '#7B6FE8',
   'coffee':          '#C4A832',
+  'donations':       '#5BA8A8',
+  'insurance':       '#5B8EC4',
+  'professional fees':'#A07850',
+  'membership dues': '#C49A3C',
+  'internet':        '#4A7BE8',
+  'phone':           '#9B5BE8',
   'other':           '#4A5060',
 };
 
 const CATEGORY_NAMES = [
   'Food & Drink', 'Groceries', 'Shopping', 'Transport', 'Travel',
-  'Entertainment', 'Health & Fitness', 'Health', 'Subscriptions', 'Coffee', 'Donations', 'Other',
+  'Entertainment', 'Health & Fitness', 'Health', 'Subscriptions', 'Coffee',
+  'Donations', 'Insurance', 'Professional Fees', 'Membership Dues', 'Internet', 'Phone', 'Other',
 ];
 
 const CURRENCY_RE = /^(?:S\$|CA\$|A\$|NZ\$|HK\$|MX\$|US\$|AU\$|C\$|[$£€¥₹])\s*[\d,]+(?:\.\d{1,2})?(?:\s*(?:SGD|USD|GBP|EUR|CAD|AUD|JPY|INR|CHF|MXN|HKD|NZD))?$/i;
