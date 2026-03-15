@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, TrendingUp, TrendingDown, Flame, Lightbulb,
-  DollarSign, AlertTriangle, Zap, Check, X, Lock,
+  DollarSign, AlertTriangle, Zap, Check, X, Lock, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { useMonthlySeries, useExpenseSummary, useExpenses, useFinancialAdvice, type AdviceBreakdown } from "@/hooks/use-expenses";
@@ -101,6 +101,7 @@ export default function MonthlyTracker() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [expandedRoasts, setExpandedRoasts] = useState<Set<number>>(new Set());
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   const { data: advice, isLoading: adviceLoading } = useFinancialAdvice({
@@ -775,27 +776,57 @@ export default function MonthlyTracker() {
               {isFiltered ? "Filtered Transactions" : "Recent Transactions"}
             </h2>
             <div className="flex flex-col divide-y divide-white/5">
-              {recentTransactions.map((exp, i) => (
-                <div key={exp.id} className="flex items-start gap-4 py-3 first:pt-0 last:pb-0">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-semibold text-white truncate">{exp.description}</span>
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full shrink-0"
-                        style={{ background: `${CATEGORY_COLORS[exp.category] ?? "#4A5060"}22`, color: CATEGORY_COLORS[exp.category] ?? "#4A5060" }}
-                      >
-                        {exp.category}
-                      </span>
+              {recentTransactions.map((exp) => {
+                const isExpanded = expandedRoasts.has(exp.id);
+                const hasRoast = !!exp.roast;
+                return (
+                  <div
+                    key={exp.id}
+                    className={`py-3 first:pt-0 last:pb-0 ${hasRoast ? "cursor-pointer select-none" : ""}`}
+                    onClick={() => {
+                      if (!hasRoast) return;
+                      setExpandedRoasts(prev => {
+                        const next = new Set(prev);
+                        if (next.has(exp.id)) next.delete(exp.id); else next.add(exp.id);
+                        return next;
+                      });
+                    }}
+                    data-testid={`transaction-row-${exp.id}`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-sm font-semibold text-white truncate">{exp.description}</span>
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full shrink-0"
+                            style={{ background: `${CATEGORY_COLORS[exp.category] ?? "#4A5060"}22`, color: CATEGORY_COLORS[exp.category] ?? "#4A5060" }}
+                          >
+                            {exp.category}
+                          </span>
+                        </div>
+                        {hasRoast && (
+                          <p className={`text-xs text-muted-foreground italic transition-all duration-200 ${isExpanded ? "" : "line-clamp-2"}`}>
+                            "{exp.roast}"
+                          </p>
+                        )}
+                        {hasRoast && !isExpanded && (
+                          <span className="text-xs text-[hsl(var(--primary))]/50 mt-0.5 inline-block">tap to expand</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className="text-sm font-bold text-white">{makeFmt((exp as any).currency || bankCurrency)(exp.amount)}</span>
+                        {hasRoast && (
+                          <span className="text-[hsl(var(--primary))]/40">
+                            {isExpanded
+                              ? <ChevronUp className="w-3.5 h-3.5" />
+                              : <ChevronDown className="w-3.5 h-3.5" />}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {exp.roast && (
-                      <p className="text-xs text-muted-foreground italic line-clamp-2">"{exp.roast}"</p>
-                    )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-bold text-white">{makeFmt((exp as any).currency || bankCurrency)(exp.amount)}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
         )}
