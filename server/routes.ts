@@ -256,11 +256,12 @@ async function generateStatementRoast(
     monthLabel = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
   }
 
-  // Pre-build the top-4 observation anchors so the AI never has to pick or invent amounts
+  // Pre-build the top-4 observation anchors. Use whole-dollar amounts (no decimal)
+  // to prevent the model from outputting only the fractional/cents portion.
   const top4 = Object.entries(merchantMap)
     .sort((a, b) => b[1].total - a[1].total)
     .slice(0, 4)
-    .map(([name, { total: t }]) => `${name}: ${t.toFixed(2)} ${currency}`);
+    .map(([name, { total: t }]) => `${name} — ${Math.round(t)} ${currency}`);
 
   const seed = forceRefresh ? `\n\n[Field observation sequence: ${Date.now()}]` : "";
   const response = await openai.chat.completions.create({
@@ -273,11 +274,13 @@ async function generateStatementRoast(
 STRICT FORMAT — output nothing else, in this exact order:
 
 BLOCK 1 — OBSERVATION (exactly 4 sentences):
-Write one documentary observation sentence for each of the following 4 merchants. You MUST use the merchant name and amount EXACTLY as shown — do not alter, round, or abbreviate any name or number:
+Write four calm, naturalistic documentary sentences in the style of David Attenborough observing wildlife. The very first sentence MUST open with "In the [season] of [month year], we observe..." — then continue with a specific merchant observation.
 
-${top4.map((line, i) => `Sentence ${i + 1}: ${line}`).join("\n")}
+You must weave in all four of the following merchant-and-amount facts — one per sentence. Use each merchant name and dollar amount EXACTLY as written below. Do not change the numbers:
 
-Begin with a naturalistic Attenborough opening like "In the [season] of [month year], we observe..." The tone is calm, never shocked — always more devastating for its composure.
+${top4.map(line => `• ${line}`).join("\n")}
+
+The tone is calm, never shocked — always more devastating for its composure.
 
 BLANK LINE
 
