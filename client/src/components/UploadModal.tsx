@@ -25,7 +25,7 @@ const TONES = [
 const CATEGORIES = [
   "Food & Drink", "Groceries", "Shopping", "Transport", "Donations",
   "Travel", "Entertainment", "Health & Fitness", "Subscriptions",
-  "Insurance", "Professional Fees", "Internet", "Phone", "Other",
+  "Insurance", "Professional Fees", "Membership Dues", "Internet", "Phone", "Other",
 ];
 
 const analysingMessages = [

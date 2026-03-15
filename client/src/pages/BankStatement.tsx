@@ -33,7 +33,7 @@ const TONES = [
 const ALL_CATEGORIES = [
   "Food & Drink", "Groceries", "Shopping", "Transport", "Travel",
   "Entertainment", "Health & Fitness", "Subscriptions", "Donations",
-  "Insurance", "Professional Fees", "Internet", "Phone", "Other",
+  "Insurance", "Professional Fees", "Membership Dues", "Internet", "Phone", "Other",
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -49,6 +49,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Donations":       "#5BA8A8",
   "Insurance":       "#5B8EC4",
   "Professional Fees":"#A07850",
+  "Membership Dues": "#C49A3C",
   "Internet":        "#4A7BE8",
   "Phone":           "#9B5BE8",
   "Other":           "#4A5060",
