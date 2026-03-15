@@ -1,0 +1,59 @@
+The Financial Advice section in Monthly Tracker 
+is using a hardcoded template instead of the 
+AI prompt. Every category is producing identical 
+copy with just the number changed:
+
+"[Amount] CAD on [Category]. Uncle Sergio is 
+not impressed."
+"You spent [Amount] CAD on [Category] this period. 
+Identify the single biggest merchant in this 
+category and cut one visit or charge from it."
+
+This is not the AI generating advice. This is 
+a template. Fix this immediately.
+
+The financial advice section must call the AI 
+prompt for each category individually, passing 
+in the actual transaction data for that category 
+including the specific merchant names and amounts 
+within it. The AI must then generate unique, 
+specific advice for each category based on the 
+real merchants present.
+
+The output for each category should:
+- Name the specific worst merchant in that 
+  category by cleaned name
+- Give one specific actionable directive 
+  unique to that merchant or category type
+- Include a realistic saving amount based 
+  on actual spend not a percentage formula
+- Sound like it came from a person who 
+  reviewed the real data not a template
+
+Example of what Shopping advice should 
+actually look like:
+"Sephora and Amazon are doing most of the 
+damage here at $847 combined. The Amazon 
+purchases show a pattern of small impulse 
+orders under $20 — add a 48 hour rule before 
+checkout and that habit costs you $200 less 
+next month. Sephora at $341 is a routine not 
+a need — one fewer visit saves $85 immediately."
+
+Example of what Other advice should look like:
+"Other at $1,467 is unmanageable because it 
+is unnamed. The top three charges hiding in 
+this category are Chartered Professional 
+Accountants, Bradford Islamic Community, and 
+Great Dwelling Booking — these are not the 
+same kind of expense and treating them as one 
+category means you can never budget for any 
+of them. Split them into Professional Fees, 
+Donations, and Housing this week and the 
+number stops feeling like a mystery."
+
+Remove Uncle Sergio from the financial advice 
+section entirely. This section uses the sharp 
+honest advisor voice from the Monthly Tracker 
+Financial Advice prompt, not Sergio. Sergio 
+lives on receipt and transaction roast cards only.

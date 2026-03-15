@@ -1265,79 +1265,77 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         messages: [
           {
             role: "system",
-            content: `You are Uncle Sergio — a sharp, no-nonsense financial mentor with zero patience for wasteful spending. You roast bad habits with precision and follow every roast with hard-hitting, specific advice that actually changes behaviour. You know local prices, merchants, and realistic alternatives for every major region.
+            content: `You are a sharp, direct financial analyst who has reviewed the actual transaction data below. You give brutally specific, honest analysis — naming real merchants, real amounts, real patterns. You never produce generic advice. Every sentence is grounded in the actual numbers provided.
 
 ${adviceCountryCtx}
 Currency: ${adviceCurrency}. Time period: ${timeContext}.
 
-Return ONLY valid JSON — no markdown, no code fences, no commentary. The JSON MUST contain a "breakdown" array with one entry per input category. NEVER return an empty breakdown.
+You MUST return ONLY a valid JSON object. No markdown, no code fences, no explanation. The JSON must include a "breakdown" array with exactly one object per category in the input — never zero, never fewer than the input count.
 
-Required JSON shape:
+JSON format:
 {
-  "advice": "One punchy sentence (max 20 words) that names a specific merchant or exact dollar amount — state the single worst habit and one concrete directive to fix it.",
-  "topCategory": "name of the highest-spend category",
-  "savingsPotential": <realistic cents saved per month — max 30% of total spend>,
+  "advice": "<One sentence, max 20 words, naming a specific merchant and exact amount — state the single worst habit and one concrete action>",
+  "topCategory": "<highest-spend category name>",
+  "savingsPotential": <integer cents, realistic total monthly savings across all categories, max 30% of total spend>,
   "breakdown": [
     {
-      "category": "exact category name from input",
-      "roast": "One sharp sentence roasting this spending — must name actual merchants or amounts from the data. Make it sting.",
-      "insight": "2-3 sentences. Sentence 1: name the merchant and the exact amount (e.g. 'You dropped $89 at Starbucks across 14 visits'). Sentence 2: give ONE concrete directive with a specific dollar target or visit cap — never a percentage. Sentence 3 (optional): name a real local alternative only when you are certain it exists in the user's country.",
-      "potentialSaving": <realistic cents saved per month>
+      "category": "<exact category name from input — copy it verbatim>",
+      "roast": "<One sharp sentence naming the specific merchant(s) and amount(s) from the data>",
+      "insight": "<2-4 sentences. First: name the merchant and exact amount ('Sephora and Amazon account for $847 of this'). Second: identify the specific pattern driving the spend. Third: give ONE concrete directive with a specific dollar cap or visit frequency — no percentages. Fourth (optional): name a real local alternative only if you are certain it exists in this country.>",
+      "potentialSaving": <integer cents, realistic monthly saving if they follow the directive>
     }
   ]
 }
 
-VOICE RULES — non-negotiable:
-- Every roast and insight MUST name at least one specific merchant or exact dollar amount from the actual data.
-- NO percentage calculations anywhere. Say "cut to 3 visits a week and keep it under $30" — not "reduce by 20%".
-- NO vague phrases: no "shop around", no "set a budget cap", no "find alternatives", no "consider switching", no "look for deals".
-- The advice field must name a merchant or amount — never be abstract.
-- NEVER repeat the same phrase, metaphor, or sentence structure more than once across the entire output. Every roast and every insight must be distinct — no recycled lines, no copy-pasted templates.
+ABSOLUTE RULES:
+- The breakdown array MUST have ${sortedCats.length} entries — one per category. Do not omit any category.
+- Every roast and insight MUST name at least one specific merchant from the actual data provided.
+- NO percentages. Say "$45 less" or "3 visits a week" — not "reduce by 20%".
+- NO vague phrases: no "shop around", no "set a budget", no "find alternatives", no "consider switching".
+- NEVER repeat a phrase, metaphor, or sentence structure across multiple categories.
 
-MERCHANT RESEARCH RULES — apply before writing every insight:
-- Telecom providers (Rogers, Bell, Telus, AT&T, Verizon, Shaw, Videotron, Freedom, Fido, Koodo, etc.) bundle phone, internet, TV, and home security. You CANNOT determine the specific service from the merchant name alone. Do NOT advise switching, cancelling, or consolidating unless 100% certain. If uncertain: state it plainly (e.g. "Rogers could be phone, internet, or a bundle — hard to advise a move without knowing which") and give no directive.
-- Professional membership fees and licensing dues (CPA, CFA, CMA, bar, medical, real estate, engineering) are mandatory professional obligations — never discretionary. Do NOT advise reducing or eliminating them. Note they are non-negotiable professional costs.
-- Insurance charges vary widely in product type. Do NOT advise switching or reducing without knowing the exact product. State the ambiguity and skip the directive.
-- Business or employer-reimbursed expenses: note the ambiguity, do not flag as wasteful.
-- SKIP RULE: Give specific directives ONLY for clearly discretionary consumer spending where you are certain (restaurants, coffee, streaming, gyms, retail, delivery, subscriptions you can name).
-- LOCATION RULE: Never mention city names, street addresses, or neighbourhoods unless they appear verbatim in the merchant name.
-
-STRICT BREAKDOWN RULES:
-- Every input category MUST appear in breakdown — ${sortedCats.length} entries exactly.
-- potentialSaving: be realistic. For $400 dining, a credible saving is $80–$150, not $380.`,
+MERCHANT RULES:
+- Telecom (Rogers, Bell, Telus, AT&T, Verizon, Shaw, Fido, Koodo, etc.) bundles multiple services. Do NOT advise switching or cancelling without certainty. If service type is unclear, say so plainly and skip the directive.
+- Professional licensing dues (CPA, CFA, bar, medical, engineering, real estate boards) are mandatory — never advise reducing them.
+- Insurance: do not advise switching without knowing the exact product type. State ambiguity and skip directive.
+- Business/reimbursable expenses: note ambiguity, do not flag as wasteful.
+- Give specific directives ONLY for clearly discretionary spending (restaurants, coffee, streaming, gyms, retail, delivery, subscriptions you can identify by name).
+- Never mention city names or street addresses.`,
           },
           {
             role: "user",
-            content: `Analyze this ${timeContext} spending for a ${adviceCurrency} user. Return the JSON with a COMPLETE breakdown — one entry for every category below:
+            content: `Here is the ${timeContext} spending data for a ${adviceCurrency} user. Analyze it and return JSON with a breakdown entry for every category listed:
 
-Total: ${(totalSpend / 100).toFixed(2)} ${adviceCurrency}
-Categories:
+Total spend: ${(totalSpend / 100).toFixed(2)} ${adviceCurrency}
+
+Categories (${sortedCats.length} total — your breakdown array must have exactly ${sortedCats.length} entries):
 ${categoryLines}
 
-Breakdown must have exactly ${sortedCats.length} entries, one per category above.`,
+Return the complete JSON now.`,
           },
         ],
-        max_completion_tokens: 1600,
+        max_completion_tokens: 3000,
       });
 
       let parsed: any;
       try {
         const raw = response.choices[0]?.message?.content || "{}";
+        console.log("[financial-advice] raw AI response (first 500):", raw.slice(0, 500));
         const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         parsed = JSON.parse(cleaned);
+        console.log("[financial-advice] breakdown length:", parsed.breakdown?.length ?? "missing");
       } catch (parseErr) {
         console.error("Financial advice JSON parse error:", parseErr);
-        // Build a fallback breakdown from category data so the card is never blank
         const fallbackBreakdown = sortedCats.map(([cat, amt]) => ({
           category: cat,
-          roast: `${(amt / 100).toFixed(0)} ${adviceCurrency} on ${cat}. Uncle Sergio is watching.`,
-          insight: `You put ${(amt / 100).toFixed(0)} ${adviceCurrency} into ${cat} this period. Pick the top merchant in this category and cut one recurring visit or charge.`,
+          roast: `${(amt / 100).toFixed(0)} ${adviceCurrency} on ${cat} — that number deserves a closer look.`,
+          insight: `${cat} totalled ${(amt / 100).toFixed(0)} ${adviceCurrency} this period. Review the individual merchants in this category and identify which single charge is doing the most damage.`,
           potentialSaving: Math.round(amt * 0.12),
         }));
         parsed = {
-          advice: `Your biggest drain is ${topCategory} — target it first.`,
+          advice: `${topCategory} is your heaviest category — that's where to cut first.`,
           topCategory,
-          savingsPotential: Math.round(totalSpend * 0.15),
+          savingsPotential: Math.round(totalSpend * 0.12),
           breakdown: fallbackBreakdown,
         };
       }
@@ -1345,10 +1343,11 @@ Breakdown must have exactly ${sortedCats.length} entries, one per category above
       // Ensure breakdown is always an array and has content
       let breakdown = Array.isArray(parsed.breakdown) ? parsed.breakdown : [];
       if (breakdown.length === 0) {
+        console.warn("[financial-advice] AI returned empty breakdown — using data-driven fallback");
         breakdown = sortedCats.map(([cat, amt]) => ({
           category: cat,
-          roast: `${(amt / 100).toFixed(0)} ${adviceCurrency} on ${cat}. Uncle Sergio is not impressed.`,
-          insight: `You spent ${(amt / 100).toFixed(0)} ${adviceCurrency} on ${cat} this period. Identify the single biggest merchant in this category and cut one visit or charge from it.`,
+          roast: `${(amt / 100).toFixed(0)} ${adviceCurrency} in ${cat} — and the detail is missing.`,
+          insight: `${cat} shows ${(amt / 100).toFixed(0)} ${adviceCurrency} this period. Pull the individual transactions in this category to find the single largest charge, then decide whether it repeats unnecessarily.`,
           potentialSaving: Math.round(amt * 0.12),
         }));
       }
