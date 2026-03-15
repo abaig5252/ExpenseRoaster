@@ -650,7 +650,7 @@ export default function BankStatement() {
           className="glass-panel rounded-3xl p-6">
           <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
             <h2 className="text-xl font-bold text-white">
-              Imported Transactions {manualExpenses.length > 0 && <span className="text-base font-normal text-muted-foreground ml-1">({manualExpenses.length})</span>}
+              Roasted Transactions {manualExpenses.length > 0 && <span className="text-base font-normal text-muted-foreground ml-1">({manualExpenses.length})</span>}
             </h2>
             <div className="flex items-center gap-3 flex-wrap">
               {availableMonths.length > 0 && !selectMode && (
