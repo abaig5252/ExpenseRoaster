@@ -282,10 +282,12 @@ Field Notes:
 THE ROAST PARAGRAPH — EXACTLY 4 SENTENCES, NO EXCEPTIONS:
 You must write all four sentences. Do not stop at two. Do not stop at three. All four are required.
 
-Sentence 1 — Establish the setting. Name the month and the creature's single largest expenditure by merchant name and amount. Calm and observational.
-Sentence 2 — Introduce the second most significant spending pattern by merchant name and amount. Slightly more pointed than sentence 1.
-Sentence 3 — Draw a broader behavioral conclusion from sentences 1 and 2. What does this pattern of spending reveal about the creature? More damning.
-Sentence 4 — The most devastating sentence. A calm, final observation about what this month's choices say about the creature's nature or future.
+Every sentence must name a specific merchant from the statement data and reference its amount. Abstract psychology, philosophical observations, and general behavioral conclusions are forbidden. Specificity is mandatory — if it does not name a real merchant and real amount, it does not belong in this paragraph.
+
+Sentence 1 — Name the month. Reference the largest merchant by name and whole-dollar amount. Calm and observational, as if logging a field specimen for the first time.
+Sentence 2 — Reference the second most significant merchant by name and amount. Slightly more pointed than sentence 1. The narrator is beginning to see a pattern.
+Sentence 3 — Reference a third merchant by name and amount. The observation reveals something specific about this creature's habits or priorities. More damning than sentence 2.
+Sentence 4 — Reference a fourth merchant by name and amount, or return to the largest spend with a final damning framing. The most devastating sentence — calm, specific, final. No abstract moralizing. Ground it in the actual data.
 
 The four sentences form one continuous paragraph with no line breaks between them.
 
