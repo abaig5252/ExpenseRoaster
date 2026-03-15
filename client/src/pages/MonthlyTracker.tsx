@@ -486,7 +486,8 @@ export default function MonthlyTracker() {
             {
               label: selectedMonth
                 ? `Biggest — ${new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "short" })}`
-                : "Biggest This Month (tap a bar to pick month)",
+                : "Biggest This Month",
+              hint: !selectedMonth ? "tap a bar to pick month" : undefined,
               value: biggestExpense ? fmtCurrency(biggestExpense.amount) : "—",
               sub: biggestExpense ? biggestExpense.description : undefined,
               icon: AlertTriangle,
@@ -514,6 +515,7 @@ export default function MonthlyTracker() {
               </div>
               {stat.sub && <div className="text-xs text-muted-foreground">{stat.sub}</div>}
               <div className="text-xs text-muted-foreground mt-1 font-semibold uppercase tracking-wider">{stat.label}</div>
+              {stat.hint && <div className="text-[10px] text-muted-foreground/50 mt-0.5 leading-tight">{stat.hint}</div>}
             </motion.div>
           ))}
         </div>
