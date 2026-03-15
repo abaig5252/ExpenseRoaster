@@ -256,11 +256,11 @@ async function generateStatementRoast(
     monthLabel = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
   }
 
-  // Pre-build the top-4 observation anchors. Use whole-dollar amounts (no decimal)
+  // Pre-build the top-2 observation anchors. Use whole-dollar amounts (no decimal)
   // to prevent the model from outputting only the fractional/cents portion.
   const top4 = Object.entries(merchantMap)
     .sort((a, b) => b[1].total - a[1].total)
-    .slice(0, 4)
+    .slice(0, 2)
     .map(([name, { total: t }]) => `${name} — ${Math.round(t)} ${currency}`);
 
   const seed = forceRefresh ? `\n\n[Field observation sequence: ${Date.now()}]` : "";
@@ -273,10 +273,10 @@ async function generateStatementRoast(
 
 STRICT FORMAT — output nothing else, in this exact order:
 
-BLOCK 1 — OBSERVATION (exactly 4 sentences):
-Write four calm, naturalistic documentary sentences in the style of David Attenborough observing wildlife. The very first sentence MUST open with "In the [season] of [month year], we observe..." — then continue with a specific merchant observation.
+BLOCK 1 — OBSERVATION (exactly 2 sentences):
+Write two calm, naturalistic documentary sentences in the style of David Attenborough observing wildlife. The very first sentence MUST open with "In the [season] of [month year], we observe..." — then continue with a specific merchant observation.
 
-You must weave in all four of the following merchant-and-amount facts — one per sentence. Use each merchant name and dollar amount EXACTLY as written below. Do not change the numbers:
+You must weave in both of the following merchant-and-amount facts — one per sentence. Use each merchant name and dollar amount EXACTLY as written below. Do not change the numbers:
 
 ${top4.map(line => `• ${line}`).join("\n")}
 
@@ -301,7 +301,7 @@ MERCHANT RESEARCH RULES — apply before writing any tip:
 - Only write tips for clearly discretionary consumer spending where you are certain about the product: restaurants, coffee shops, subscription streaming services, gyms, retail shopping, food delivery, etc.
 
 ENFORCEMENT:
-- Exactly 4 observation sentences, exactly 1 closing line, exactly 3 tip sentences.
+- Exactly 2 observation sentences, exactly 1 closing line, exactly 3 tip sentences.
 - No numbered points. No bullet points. No dashes before tips. No headers. No sections. No markdown.
 - No exclamation marks. No ellipsis. No em dashes. Plain text only.
 - Blank line between Block 1 and Block 2. Blank line between Block 2 and Block 3.${seed}`,
