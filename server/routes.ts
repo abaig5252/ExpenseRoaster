@@ -464,7 +464,10 @@ function buildMathAnchors(amountCents: number, currency: string, category?: stri
     const save25   = (amt * 0.25).toFixed(2);
 
     const isSubscription = category === "Subscriptions" || category === "Internet" || category === "Phone";
-    const periodNote = isSubscription
+    const isMembershipDues = category === "Membership Dues";
+    const periodNote = isMembershipDues
+      ? `PERIOD NOTE: Membership dues billing frequency is unknown — it could be monthly, quarterly, or annual. LINE 3 MUST NOT mention any specific time period, billing frequency, weekly cap, monthly savings, or amortized rate. Do NOT say "per week", "per month", "per year", or suggest any recurring timeline. Give advice about whether this membership is actively used, finding a cheaper alternative provider, sharing with a partner or family, or negotiating a lower tier. No timeline math of any kind.`
+      : isSubscription
       ? `PERIOD NOTE: This is a fixed subscription or recurring bill — NOT a discretionary weekly purchase. LINE 3 MUST NOT say "per week" or suggest weekly spending caps. The tip must focus on: whether it is used/needed, a cheaper alternative, or switching billing frequency. Use one of the figures above.`
       : `PERIOD NOTE: This appears to be a one-time, annual, or irregular charge — NOT a weekly purchase. LINE 3 MUST NOT say "per week" or "per month savings". Give renewal/negotiation/comparison advice using the figures above.`;
 
