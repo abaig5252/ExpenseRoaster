@@ -543,7 +543,7 @@ export default function MonthlyTracker() {
                         : "bg-white/[0.06] text-muted-foreground hover:text-white hover:bg-white/[0.1] border border-white/[0.08]"
                     }`}
                   >
-                    12 mo
+                    Last 12mo
                   </button>
                   {availableYears.map(y => (
                     <button
