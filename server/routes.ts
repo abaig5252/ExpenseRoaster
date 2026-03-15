@@ -410,29 +410,36 @@ function enforceStatementLength(text: string): string {
 
 // Pre-computes exact savings figures so the model never has to invent them.
 // Assumes the purchase recurs weekly (52/12 = 4.333 weeks/month).
-// Categories where the billing period is unknown or annual — weekly/monthly math is meaningless
+// Categories where billing period is unknown, annual, or fixed — weekly math is always wrong
 const LUMP_SUM_CATEGORIES = new Set([
-  "Insurance", "Professional Fees",
+  "Insurance", "Professional Fees", "Subscriptions",
+  "Internet", "Phone",
 ]);
 
 function buildMathAnchors(amountCents: number, currency: string, category?: string): string {
   const sym = currency === "USD" ? "$" : currency + " ";
   const amt = amountCents / 100;
 
-  // For lump-sum / annual categories, skip weekly math entirely and give amortized figures instead
+  // For fixed/lump-sum/subscription categories, skip weekly math entirely
   if (category && LUMP_SUM_CATEGORIES.has(category)) {
     const perMonth = (amt / 12).toFixed(2);
-    const perDay  = (amt / 365).toFixed(2);
-    const save15pct = (amt * 0.15).toFixed(2);
-    const save25pct = (amt * 0.25).toFixed(2);
+    const perDay   = (amt / 365).toFixed(2);
+    const save15   = (amt * 0.15).toFixed(2);
+    const save25   = (amt * 0.25).toFixed(2);
+
+    const isSubscription = category === "Subscriptions" || category === "Internet" || category === "Phone";
+    const periodNote = isSubscription
+      ? `PERIOD NOTE: This is a fixed subscription or recurring bill — NOT a discretionary weekly purchase. LINE 3 MUST NOT say "per week" or suggest weekly spending caps. The tip must focus on: whether it is used/needed, a cheaper alternative, or switching billing frequency. Use one of the figures above.`
+      : `PERIOD NOTE: This appears to be a one-time, annual, or irregular charge — NOT a weekly purchase. LINE 3 MUST NOT say "per week" or "per month savings". Give renewal/negotiation/comparison advice using the figures above.`;
+
     return [
       `MATH ANCHORS — use ONE of these exact figures in LINE 3. Do not invent, round, or estimate any financial number:`,
       `  - This charge: ${sym}${amt.toFixed(2)} ${currency}`,
-      `  - Amortized per month: ${sym}${perMonth} ${currency}/month`,
-      `  - Amortized per day: ${sym}${perDay} ${currency}/day`,
-      `  - 15% saving at renewal: ${sym}${save15pct} ${currency}`,
-      `  - 25% saving at renewal: ${sym}${save25pct} ${currency}`,
-      `PERIOD NOTE: This appears to be a one-time, annual, or irregular charge — NOT a weekly purchase. LINE 3 MUST NOT say "per week" or "per month savings". Give renewal/negotiation/comparison advice using the amortized or saving figures above.`,
+      `  - If annual, amortized per month: ${sym}${perMonth} ${currency}/month`,
+      `  - If annual, amortized per day: ${sym}${perDay} ${currency}/day`,
+      `  - 15% saving: ${sym}${save15} ${currency}`,
+      `  - 25% saving: ${sym}${save25} ${currency}`,
+      periodNote,
       `MATH RULE: LINE 3 must contain one number from the MATH ANCHORS above. Any figure not listed is wrong.`,
     ].join("\n");
   }
