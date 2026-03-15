@@ -609,7 +609,15 @@ export default function BankStatement() {
                   </div>
                 ) : statementRoast ? (
                   <div className="overflow-y-auto flex-1 min-h-0 pr-1">
-                    <p className="text-sm text-white/90 leading-relaxed whitespace-pre-line">{statementRoast}</p>
+                    {statementRoast.split(/\n/).map((line, i) =>
+                      line.trim() === "Field Notes:" ? (
+                        <p key={i} className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--primary))]/70 mt-4 mb-1">{line}</p>
+                      ) : line.trim() === "" ? (
+                        <div key={i} className="h-3" />
+                      ) : (
+                        <p key={i} className="text-sm text-white/90 leading-relaxed">{line}</p>
+                      )
+                    )}
                   </div>
                 ) : activeMonth && manualExpenses.length > 0 ? (
                   <div className="flex flex-col items-center justify-center flex-1 text-center gap-4">

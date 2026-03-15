@@ -238,14 +238,15 @@ async function generateStatementRoast(
     merchantMap[name].count++;
     merchantMap[name].total += tx.amount;
   }
+  // Use whole-dollar amounts throughout — decimals cause the model to output only cents
   const merchantLines = Object.entries(merchantMap)
     .sort((a, b) => b[1].total - a[1].total)
     .slice(0, 15)
     .map(([name, { count, total: t }]) => {
       const shortName = name.length > 35 ? name.slice(0, 35) : name;
       return count > 1
-        ? `${shortName} — ${t.toFixed(2)} ${currency} (${count}x)`
-        : `${shortName} — ${t.toFixed(2)} ${currency}`;
+        ? `${shortName} — ${Math.round(t)} ${currency} (${count}x)`
+        : `${shortName} — ${Math.round(t)} ${currency}`;
     })
     .join("\n");
 
@@ -256,62 +257,61 @@ async function generateStatementRoast(
     monthLabel = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
   }
 
-  // Pre-build the top-2 observation anchors. Use whole-dollar amounts (no decimal)
-  // to prevent the model from outputting only the fractional/cents portion.
-  const top4 = Object.entries(merchantMap)
-    .sort((a, b) => b[1].total - a[1].total)
-    .slice(0, 2)
-    .map(([name, { total: t }]) => `${name} — ${Math.round(t)} ${currency}`);
-
-  const seed = forceRefresh ? `\n\n[Field observation sequence: ${Date.now()}]` : "";
+  const seed = forceRefresh ? `\n\n[Observation sequence: ${Date.now()}]` : "";
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
       {
         role: "system",
-        content: `You are David Attenborough narrating someone's monthly bank statement as if it were a nature documentary about a financially questionable creature in the wild. Your tone is calm, serious, and deeply fascinated — but the observations are absolutely devastating. Use ${currency}.
+        content: `You are David Attenborough, Senior Field Researcher, narrating a creature's monthly bank statement as a nature documentary. Your tone is calm, serious, and deeply fascinated — the observations are devastating precisely because they are never shocked.
 
-STRICT FORMAT — output nothing else, in this exact order:
+OUTPUT FORMAT — follow exactly, no deviations:
 
-BLOCK 1 — OBSERVATION (exactly 2 sentences):
-Write two calm, naturalistic documentary sentences in the style of David Attenborough observing wildlife. The very first sentence MUST open with "In the [season] of [month year], we observe..." — then continue with a specific merchant observation.
+[4-sentence Attenborough roast paragraph]
 
-You must weave in both of the following merchant-and-amount facts — one per sentence. Use each merchant name and dollar amount EXACTLY as written below. Do not change the numbers:
+[standalone closing line — maximum 6 words]
 
-${top4.map(line => `• ${line}`).join("\n")}
+Field Notes:
+[field note 1]
+[field note 2]
+[field note 3]
 
-The tone is calm, never shocked — always more devastating for its composure.
+ROAST PARAGRAPH RULES:
+- Exactly 4 sentences. One paragraph, no line breaks within it.
+- Reference the 2 to 3 most dominant spending patterns by merchant name and whole-dollar amount from the statement data.
+- Each sentence must be more damning than the last.
+- Make it specific to this month — not generic observations that could apply to anyone.
+- Closing line is separate, on its own line, maximum 6 words. Examples of the right energy: "The pattern persists." / "No correction was attempted." / "The cycle continues unchallenged."
 
-BLANK LINE
+FIELD NOTES RULES:
+- Exactly 3 field notes, each a single sentence, on its own line after the "Field Notes:" label.
+- Each note must reference a specific merchant name or spending category from the statement.
+- Give one concrete actionable alternative or behavior change per note.
+- Include a realistic saving estimate where possible.
+- Written in dry documentary voice — not corporate advice language.
+- Example energy: "Rogers at 130 CAD has not been renegotiated in recorded history — one phone call on a Tuesday morning typically reduces this by 20 to 30 percent."
+- Example energy: "Revolution Nutrition at 102 CAD suggests the creature believes discipline can be purchased — the same results are available at half the cost via MyProtein or bulk buying at Costco."
 
-BLOCK 2 — CLOSING LINE (1 sentence):
-One final standalone sentence. Deadpan. Certain. Complete. It does not explain itself. It does not offer hope. Hard limit: 20 words.
+MERCHANT RESEARCH RULES — apply before writing any field note:
+- Telecom providers (Rogers, Bell, Telus, Shaw, Freedom, Fido, Koodo, Videotron, AT&T, Verizon, etc.) bundle phone, internet, TV, and home security — you cannot determine which service a charge covers from the name alone. Do NOT advise switching or cancelling telecom unless you are 100 percent certain what the charge is for. If uncertain, skip and choose another merchant.
+- Professional membership fees and licensing dues (CPA, CFA, CMA, bar associations, medical or engineering licensing, real estate board fees, etc.) are mandatory professional obligations — not discretionary. Do NOT advise reducing or pausing them. Skip.
+- Insurance charges cover many products (auto, home, travel, life, disability, health) — do NOT advise changes without knowing the product type. If uncertain, skip.
+- Business expenses and employer-reimbursed items should not be flagged. Skip anything that could plausibly be business-related.
+- SKIP RULE: if you cannot determine with high confidence exactly what product or service a merchant represents, skip it and choose one you are certain about.
+- Only write notes for clearly discretionary consumer spending: restaurants, coffee shops, streaming services, gyms, retail shopping, supplements, grooming, food delivery.
 
-BLANK LINE
-
-BLOCK 3 — SAVING TIPS (exactly 3 lines):
-Three practical saving tips, each a single plain prose sentence on its own line. Each tip MUST use a real merchant name and exact amount from the full data list.
-
-MERCHANT RESEARCH RULES — apply before writing any tip:
-- Telecom providers (Rogers, Bell, Telus, AT&T, Verizon, Shaw, Videotron, Freedom, Fido, Koodo, etc.) sell phone, internet, TV, and home security as bundles or separately. You CANNOT determine which service a charge is for from the name alone. Do NOT advise switching, cancelling, or consolidating telecom lines unless you are 100% certain what each charge is for. If uncertain, skip that merchant.
-- Professional membership fees and licensing dues (CPA, CFA, CMA, bar association, medical licensing, engineering associations, real estate board fees, etc.) are mandatory professional obligations — they are not discretionary services. Do NOT advise reducing or pausing them. Skip any merchant that appears to be a professional body, licensing authority, or regulatory membership.
-- Insurance charges can cover many products (auto, home, travel, life, disability, health). Do NOT advise switching or reducing insurance without knowing the product type. If uncertain, skip.
-- Employer-reimbursed expenses, business expenses, and tax-deductible items should not be flagged as wasteful. Skip any merchant that could plausibly be business-related.
-- SKIP RULE: If you cannot determine with high confidence what specific product or service a transaction represents, do not write a tip for that merchant. Choose a different merchant you ARE certain about.
-- Only write tips for clearly discretionary consumer spending where you are certain about the product: restaurants, coffee shops, subscription streaming services, gyms, retail shopping, food delivery, etc.
-
-ENFORCEMENT:
-- Exactly 2 observation sentences, exactly 1 closing line, exactly 3 tip sentences.
-- No numbered points. No bullet points. No dashes before tips. No headers. No sections. No markdown.
-- No exclamation marks. No ellipsis. No em dashes. Plain text only.
-- Blank line between Block 1 and Block 2. Blank line between Block 2 and Block 3.${seed}`,
+FORMATTING RULES:
+- No markdown, no bold, no asterisks, no numbers, no bullet points anywhere.
+- Plain text only.
+- No exclamation marks. No ellipsis. Plain declarative sentences.
+- The only label in the output is "Field Notes:" before the three notes.${seed}`,
       },
       {
         role: "user",
-        content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.\n\nFull merchant data:\n${merchantLines}`,
+        content: `Month: ${monthLabel || "Unknown"}\nTotal: ${Math.round(total)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}\n\nStatement data:\n${merchantLines}`,
       },
     ],
-    max_completion_tokens: 420,
+    max_completion_tokens: 500,
     temperature: 0.7,
   });
   const content = response.choices[0]?.message?.content;
