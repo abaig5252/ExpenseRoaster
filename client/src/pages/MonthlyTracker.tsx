@@ -65,7 +65,23 @@ function CategoryAdviceCard({ item, currencyCode }: { item: AdviceBreakdown; cur
   );
 }
 
-const CATEGORY_COLORS = ["#E85D26", "#C4A832", "#7B6FE8", "#3BB8A0", "#E8526A", "#5BA85E", "#8A9099"];
+const CATEGORY_COLORS: Record<string, string> = {
+  "Food & Drink":    "#E85D26",
+  "Groceries":       "#C4A832",
+  "Shopping":        "#C4A832",
+  "Transport":       "#3BB8A0",
+  "Travel":          "#4A9FE8",
+  "Entertainment":   "#E8526A",
+  "Health & Fitness":"#5BA85E",
+  "Subscriptions":   "#7B6FE8",
+  "Donations":       "#5BA8A8",
+  "Insurance":       "#5B8EC4",
+  "Professional Fees":"#A07850",
+  "Membership Dues": "#C49A3C",
+  "Internet":        "#4A7BE8",
+  "Phone":           "#9B5BE8",
+  "Other":           "#4A5060",
+};
 
 type SourceFilter = "all" | "receipt" | "bank_statement";
 
@@ -632,7 +648,7 @@ export default function MonthlyTracker() {
               <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 -mr-2 pr-2">
                 {sortedCategories.map(([cat, total], i) => {
                   const pct = grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
-                  const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+                  const color = CATEGORY_COLORS[cat] ?? "#4A5060";
                   const isSelected = selectedCats.has(cat);
                   const isDimmed = isFiltered && !isSelected;
 
@@ -766,7 +782,7 @@ export default function MonthlyTracker() {
                       <span className="text-sm font-semibold text-white truncate">{exp.description}</span>
                       <span
                         className="text-xs px-2 py-0.5 rounded-full shrink-0"
-                        style={{ background: `${CATEGORY_COLORS[sortedCategories.findIndex(([c]) => c === exp.category) % CATEGORY_COLORS.length]}22`, color: CATEGORY_COLORS[sortedCategories.findIndex(([c]) => c === exp.category) % CATEGORY_COLORS.length] }}
+                        style={{ background: `${CATEGORY_COLORS[exp.category] ?? "#4A5060"}22`, color: CATEGORY_COLORS[exp.category] ?? "#4A5060" }}
                       >
                         {exp.category}
                       </span>
