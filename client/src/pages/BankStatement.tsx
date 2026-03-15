@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { parseReceiptDate } from "@/lib/dates";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
-import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare, X, RefreshCw, Sparkles } from "lucide-react";
+import { Wallet, UploadCloud, Flame, Trash2, AlertCircle, Loader2, FileText, Lock, Image, Calendar, CheckCircle2, ChevronDown, MessageSquare, X, Sparkles } from "lucide-react";
 import { ShareButton } from "@/components/ShareButton";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
 import { useMe, useImportCSV } from "@/hooks/use-subscription";
@@ -212,7 +212,6 @@ export default function BankStatement() {
     enabled: !!activeMonth,
   });
   const statementRoast = roastData?.roast ?? null;
-  const roastIsDirty = roastData?.isDirty ?? false;
 
   const regenerateRoastMutation = useMutation({
     mutationFn: async (month: string) => {
@@ -585,27 +584,13 @@ export default function BankStatement() {
                     <span className="text-sm font-bold text-white block">Monthly Statement Roast</span>
                     {activeMonth && <span className="text-xs text-muted-foreground">{formatMonthLabel(activeMonth)}</span>}
                   </div>
-                  {roastIsDirty && activeMonth && (
-                    <button
-                      data-testid="button-regenerate-statement-roast"
-                      onClick={() => regenerateRoastMutation.mutate(activeMonth)}
-                      disabled={regenerateRoastMutation.isPending}
-                      title="Data changed — click to regenerate roast"
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[hsl(var(--primary))]/70 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 transition-all duration-200 disabled:opacity-50 shrink-0"
-                    >
-                      {regenerateRoastMutation.isPending
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <RefreshCw className="w-3 h-3" />}
-                      <span>Refresh</span>
-                    </button>
-                  )}
                 </div>
 
                 {roastLoading || regenerateRoastMutation.isPending ? (
                   <div className="flex flex-col items-center justify-center flex-1 text-center">
                     <Loader2 className="w-7 h-7 text-[hsl(var(--primary))] mb-3 animate-spin" />
                     <p className="text-xs text-muted-foreground">
-                      {regenerateRoastMutation.isPending ? "Regenerating roast..." : "Loading roast..."}
+                      {regenerateRoastMutation.isPending ? "Generating roast..." : "Loading roast..."}
                     </p>
                   </div>
                 ) : statementRoast ? (
