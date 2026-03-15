@@ -445,8 +445,26 @@ export default function MonthlyTracker() {
           </motion.div>
         )}
 
+        {/* Empty-month Attenborough banner */}
+        {displayMonthTotal === 0 && !selectedMonth && !summaryLoading && (
+          <div
+            className="flex items-center gap-3 mb-6"
+            style={{
+              background: "rgba(74,115,155,0.08)",
+              border: "1px solid rgba(74,115,155,0.18)",
+              borderRadius: 14,
+              padding: "12px 16px",
+            }}
+          >
+            <span style={{ fontSize: 20, flexShrink: 0 }}>🔭</span>
+            <p style={{ margin: 0, fontSize: 14, color: "#8AAFC7", lineHeight: 1.5, fontStyle: "italic" }}>
+              "The creature has not been observed spending this month. Researchers are cautiously optimistic."
+            </p>
+          </div>
+        )}
+
         {/* Trend banner */}
-        {monthDiffPct !== null && (
+        {monthDiffPct !== null && displayMonthTotal > 0 && (
           <div
             className="flex items-center gap-3 mb-6"
             style={{
