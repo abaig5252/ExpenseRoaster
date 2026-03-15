@@ -262,6 +262,16 @@ export default function MonthlyTracker() {
       .slice(0, 10);
   }, [filteredExpenses]);
 
+  // Biggest single expense in the current month (or selected month)
+  const biggestExpense = useMemo(() => {
+    const targetMonth = selectedMonth ?? currentYM;
+    const candidates = allExpenses.filter(e =>
+      parseReceiptDate(e.date).toISOString().slice(0, 7) === targetMonth
+    );
+    if (candidates.length === 0) return null;
+    return candidates.reduce((max, e) => e.amount > max.amount ? e : max, candidates[0]);
+  }, [allExpenses, selectedMonth, currentYM]);
+
   const maxBar = Math.max(...(chartData.map(d => d.total) || [1]), 1);
 
   // Month over month comparison — use bank_statement chartData (all months, no year filter)
@@ -475,14 +485,11 @@ export default function MonthlyTracker() {
             },
             {
               label: selectedMonth
-                ? `${new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "short", year: "2-digit" })} Transactions`
-                : selectedYear
-                ? `${selectedYear} Transactions`
-                : selectedCats.size > 0
-                ? "Filtered Transactions"
-                : "Last 12 Months",
-              value: filteredExpenses.length || "—",
-              icon: BarChart3,
+                ? `Biggest — ${new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "short" })}`
+                : "Biggest This Month",
+              value: biggestExpense ? fmtCurrency(biggestExpense.amount) : "—",
+              sub: biggestExpense ? biggestExpense.description : undefined,
+              icon: AlertTriangle,
               color: "accent",
             },
             {
