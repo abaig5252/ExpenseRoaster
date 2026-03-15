@@ -1292,6 +1292,7 @@ VOICE RULES — non-negotiable:
 - NO percentage calculations anywhere. Say "cut to 3 visits a week and keep it under $30" — not "reduce by 20%".
 - NO vague phrases: no "shop around", no "set a budget cap", no "find alternatives", no "consider switching", no "look for deals".
 - The advice field must name a merchant or amount — never be abstract.
+- NEVER repeat the same phrase, metaphor, or sentence structure more than once across the entire output. Every roast and every insight must be distinct — no recycled lines, no copy-pasted templates.
 
 MERCHANT RESEARCH RULES — apply before writing every insight:
 - Telecom providers (Rogers, Bell, Telus, AT&T, Verizon, Shaw, Videotron, Freedom, Fido, Koodo, etc.) bundle phone, internet, TV, and home security. You CANNOT determine the specific service from the merchant name alone. Do NOT advise switching, cancelling, or consolidating unless 100% certain. If uncertain: state it plainly (e.g. "Rogers could be phone, internet, or a bundle — hard to advise a move without knowing which") and give no directive.
