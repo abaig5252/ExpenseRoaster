@@ -486,7 +486,7 @@ export default function MonthlyTracker() {
             {
               label: selectedMonth
                 ? `Biggest — ${new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "short" })}`
-                : "Biggest This Month",
+                : "Biggest This Month (tap a bar to pick month)",
               value: biggestExpense ? fmtCurrency(biggestExpense.amount) : "—",
               sub: biggestExpense ? biggestExpense.description : undefined,
               icon: AlertTriangle,
