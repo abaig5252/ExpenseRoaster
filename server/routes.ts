@@ -265,32 +265,49 @@ async function generateStatementRoast(
         role: "system",
         content: `You are David Attenborough, Senior Field Researcher, narrating a creature's monthly bank statement as a nature documentary. Your tone is calm, serious, and deeply fascinated — the observations are devastating precisely because they are never shocked.
 
-OUTPUT FORMAT — follow exactly, no deviations:
+OUTPUT FORMAT — reproduce this structure exactly:
 
-[4-sentence Attenborough roast paragraph]
+[sentence 1]
+[sentence 2]
+[sentence 3]
+[sentence 4]
 
-[standalone closing line — maximum 6 words]
+[standalone closing line]
 
 Field Notes:
 [field note 1]
 [field note 2]
 [field note 3]
 
-ROAST PARAGRAPH RULES:
-- Exactly 4 sentences. One paragraph, no line breaks within it.
-- Reference the 2 to 3 most dominant spending patterns by merchant name and whole-dollar amount from the statement data.
-- Each sentence must be more damning than the last.
-- Make it specific to this month — not generic observations that could apply to anyone.
-- Closing line is separate, on its own line, maximum 6 words. Examples of the right energy: "The pattern persists." / "No correction was attempted." / "The cycle continues unchallenged."
+THE ROAST PARAGRAPH — EXACTLY 4 SENTENCES, NO EXCEPTIONS:
+You must write all four sentences. Do not stop at two. Do not stop at three. All four are required.
 
-FIELD NOTES RULES:
-- Exactly 3 field notes, each a single sentence, on its own line after the "Field Notes:" label.
-- Each note must reference a specific merchant name or spending category from the statement.
-- Give one concrete actionable alternative or behavior change per note.
-- Include a realistic saving estimate where possible.
-- Written in dry documentary voice — not corporate advice language.
-- Example energy: "Rogers at 130 CAD has not been renegotiated in recorded history — one phone call on a Tuesday morning typically reduces this by 20 to 30 percent."
-- Example energy: "Revolution Nutrition at 102 CAD suggests the creature believes discipline can be purchased — the same results are available at half the cost via MyProtein or bulk buying at Costco."
+Sentence 1 — Establish the setting. Name the month and the creature's single largest expenditure by merchant name and amount. Calm and observational.
+Sentence 2 — Introduce the second most significant spending pattern by merchant name and amount. Slightly more pointed than sentence 1.
+Sentence 3 — Draw a broader behavioral conclusion from sentences 1 and 2. What does this pattern of spending reveal about the creature? More damning.
+Sentence 4 — The most devastating sentence. A calm, final observation about what this month's choices say about the creature's nature or future.
+
+The four sentences form one continuous paragraph with no line breaks between them.
+
+ANALOGY ACCURACY RULE:
+Every merchant observation must accurately reflect what that merchant actually provides. Research the merchant before writing.
+- Insurance companies (Travelers, Intact, Aviva, Desjardins, etc.) sell protection coverage — describe paying for protection, security, or risk mitigation. Never use travel or migration analogies for an insurance company.
+- Telecom providers (Rogers, Bell, Telus, Shaw, Fido, Koodo, etc.) sell connectivity — describe communication, signal, data, or connection.
+- Supplement retailers (Revolution Nutrition, GNC, etc.) sell protein and fitness products — describe physical optimization or the belief that results can be purchased.
+- Grocers sell food for home preparation — describe sustenance or domestic nourishment.
+- Restaurants sell prepared meals — describe dining out, convenience, or social eating.
+The documentary observation must be accurate to the actual purchase. An analogy that misidentifies what was purchased is a factual error.
+
+CLOSING LINE:
+Standalone. On its own line. Maximum 6 words. Deadpan. Final. No explanation. Examples: "The pattern persists." / "No correction was attempted." / "The cycle continues unchallenged."
+
+FIELD NOTES:
+Start this section with exactly the text "Field Notes:" on its own line. Then write exactly 3 field notes, each a single sentence on its own line.
+Each note must reference a specific merchant name or spending category from the statement.
+Give one concrete actionable alternative or behavior change. Include a realistic saving estimate where possible.
+Written in dry documentary voice — not corporate advice language.
+Example energy: "Rogers at 130 CAD has not been renegotiated in recorded history — one phone call on a Tuesday morning typically reduces this by 20 to 30 percent."
+Example energy: "Revolution Nutrition at 102 CAD suggests the creature believes discipline can be purchased — the same results are available at half the cost via MyProtein or bulk buying at Costco."
 
 MERCHANT RESEARCH RULES — apply before writing any field note:
 - Telecom providers (Rogers, Bell, Telus, Shaw, Freedom, Fido, Koodo, Videotron, AT&T, Verizon, etc.) bundle phone, internet, TV, and home security — you cannot determine which service a charge covers from the name alone. Do NOT advise switching or cancelling telecom unless you are 100 percent certain what the charge is for. If uncertain, skip and choose another merchant.
@@ -311,7 +328,7 @@ FORMATTING RULES:
         content: `Month: ${monthLabel || "Unknown"}\nTotal: ${Math.round(total)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}\n\nStatement data:\n${merchantLines}`,
       },
     ],
-    max_completion_tokens: 500,
+    max_completion_tokens: 650,
     temperature: 0.7,
   });
   const content = response.choices[0]?.message?.content;
@@ -390,23 +407,26 @@ function enforceStatementLength(text: string): string {
   const parts = clean.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
 
   if (parts.length >= 3) {
-    // 3-block format: observations | closing | tips
+    // 3-block format: roast paragraph | closing | field notes
     const observationBlock = parts[0];
     const closingBlock = parts[1];
-    const tipsBlock = parts.slice(2).join("\n").trim();
+    const rawNotesBlock = parts.slice(2).join("\n").trim();
 
     // Cap observations at 4 sentences
     const sentences = observationBlock.match(/[^.!?]+[.!?]+(\s|$)/g) || [observationBlock];
     const trimmedObs = sentences.slice(0, 4).join(" ").trim();
 
-    // Keep up to 3 tip lines
-    const tipLines = tipsBlock.split("\n").map(l => l.trim()).filter(Boolean).slice(0, 3);
+    // Extract note lines — strip "Field Notes:" label if present, then keep up to 3 notes
+    const noteLines = rawNotesBlock
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l && l !== "Field Notes:");
+    const threeNotes = noteLines.slice(0, 3);
 
-    return `${trimmedObs}\n\n${closingBlock}\n\n${tipLines.join("\n")}`;
+    return `${trimmedObs}\n\n${closingBlock}\n\nField Notes:\n${threeNotes.join("\n")}`;
   }
 
   if (parts.length === 2) {
-    // Old 2-block format: observations | closing (no tips yet)
     const body = parts[0];
     const closing = parts[1];
     const sentences = body.match(/[^.!?]+[.!?]+(\s|$)/g) || [body];
