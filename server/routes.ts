@@ -256,6 +256,12 @@ async function generateStatementRoast(
     monthLabel = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
   }
 
+  // Pre-build the top-4 observation anchors so the AI never has to pick or invent amounts
+  const top4 = Object.entries(merchantMap)
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 4)
+    .map(([name, { total: t }]) => `${name}: ${t.toFixed(2)} ${currency}`);
+
   const seed = forceRefresh ? `\n\n[Field observation sequence: ${Date.now()}]` : "";
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
@@ -264,12 +270,14 @@ async function generateStatementRoast(
         role: "system",
         content: `You are David Attenborough narrating someone's monthly bank statement as if it were a nature documentary about a financially questionable creature in the wild. Your tone is calm, serious, and deeply fascinated — but the observations are absolutely devastating. Use ${currency}.
 
-AMOUNTS ARE SACRED. Every number you write in BLOCK 1 or BLOCK 3 must be copied character-for-character from the merchant data below. Do not calculate, round, abbreviate, or invent any figure. If the data says 819.25, write 819.25. If it says 560.00, write 560.00. Read the full number including all digits before the decimal point.
-
 STRICT FORMAT — output nothing else, in this exact order:
 
-BLOCK 1 — OBSERVATION (4 sentences):
-Four sentences of calm documentary observation in the style of a nature narrator. Open with "In the [season/time] of [month year], we observe..." or a similar naturalistic framing. Name specific merchants and their exact amounts from the data. The tone is never shocked — always more devastating for its composure. Hard limit: 4 sentences.
+BLOCK 1 — OBSERVATION (exactly 4 sentences):
+Write one documentary observation sentence for each of the following 4 merchants. You MUST use the merchant name and amount EXACTLY as shown — do not alter, round, or abbreviate any name or number:
+
+${top4.map((line, i) => `Sentence ${i + 1}: ${line}`).join("\n")}
+
+Begin with a naturalistic Attenborough opening like "In the [season] of [month year], we observe..." The tone is calm, never shocked — always more devastating for its composure.
 
 BLANK LINE
 
@@ -279,7 +287,7 @@ One final standalone sentence. Deadpan. Certain. Complete. It does not explain i
 BLANK LINE
 
 BLOCK 3 — SAVING TIPS (exactly 3 lines):
-Three practical saving tips, each a single plain prose sentence on its own line. Each tip MUST reference a real merchant name and the real exact amount from the data.
+Three practical saving tips, each a single plain prose sentence on its own line. Each tip MUST use a real merchant name and exact amount from the full data list.
 
 MERCHANT RESEARCH RULES — apply before writing any tip:
 - Telecom providers (Rogers, Bell, Telus, AT&T, Verizon, Shaw, Videotron, Freedom, Fido, Koodo, etc.) sell phone, internet, TV, and home security as bundles or separately. You CANNOT determine which service a charge is for from the name alone. Do NOT advise switching, cancelling, or consolidating telecom lines unless you are 100% certain what each charge is for. If uncertain, skip that merchant.
@@ -297,7 +305,7 @@ ENFORCEMENT:
       },
       {
         role: "user",
-        content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.\n\nTop merchants by spend:\n${merchantLines}`,
+        content: `${monthLabel ? `${monthLabel}: ` : ""}${total.toFixed(2)} ${currency} across ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}.\n\nFull merchant data:\n${merchantLines}`,
       },
     ],
     max_completion_tokens: 420,
